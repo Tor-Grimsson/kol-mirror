@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typography - Full Test</title>
+  <link rel="stylesheet" href="kol-typography-full.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #fafafa;
+      color: #121215;
+      font-family: 'Inter Tight', system-ui, sans-serif;
+      padding: 2rem;
+    }
+    section { margin-bottom: 2rem; }
+    h2 { margin-bottom: 1rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+    .demo { margin-bottom: 0.5rem; }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline; }
+    .card { background: #fff; border: 1px solid #ddd; padding: 1.5rem; border-radius: 8px; }
+    .bg-dark { background: #121215; color: #fafafa; padding: 1rem; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Kolkrabbi Typography - Full</h1>
+  <p>All 80+ typography classes</p>
+
+  <!-- Display -->
+  <section>
+    <h2>Display</h2>
+    <div class="demo kol-display-lg">Display Large</div>
+    <div class="demo kol-display-section">Display Section</div>
+    <div class="demo kol-display-section-sm">Display Section SM</div>
+    <div class="demo kol-display-subsection">Display Subsection</div>
+  </section>
+
+  <!-- Heading -->
+  <section>
+    <h2>Heading</h2>
+    <div class="demo kol-heading-xl">Heading XL</div>
+    <div class="demo kol-heading-lg">Heading LG</div>
+    <div class="demo kol-heading-md">Heading MD</div>
+    <div class="demo kol-heading-sm">Heading SM</div>
+    <div class="demo kol-heading-xs">Heading XS</div>
+  </section>
+
+  <!-- Heading Narrow -->
+  <section>
+    <h2>Heading Narrow</h2>
+    <div class="demo kol-heading-narrow-xl">Heading Narrow XL</div>
+    <div class="demo kol-heading-narrow-lg">Heading Narrow LG</div>
+    <div class="demo kol-heading-narrow-md">Heading Narrow MD</div>
+    <div class="demo kol-heading-narrow-sm">Heading Narrow SM</div>
+    <div class="demo kol-heading-narrow-xs">Heading Narrow XS</div>
+  </section>
+
+  <!-- Heading Tight -->
+  <section>
+    <h2>Heading Tight</h2>
+    <div class="demo kol-heading-tight-xl">Heading Tight XL</div>
+    <div class="demo kol-heading-tight-lg">Heading Tight LG</div>
+    <div class="demo kol-heading-tight-md">Heading Tight MD</div>
+    <div class="demo kol-heading-tight-sm">Heading Tight SM</div>
+    <div class="demo kol-heading-tight-xs">Heading Tight XS</div>
+  </section>
+
+  <!-- Text -->
+  <section>
+    <h2>Text</h2>
+    <div class="demo kol-text-lg">Text Large - Feature paragraphs</div>
+    <div class="demo kol-text-md">Text Medium - Standard body</div>
+    <div class="demo kol-text-sm">Text Small - Captions</div>
+    <div class="demo kol-text">Text Default</div>
+    <div class="demo kol-text-compact-lg">Text Compact LG</div>
+    <div class="demo kol-text-compact-md">Text Compact MD</div>
+    <div class="demo kol-text-compact-sm">Text Compact SM</div>
+  </section>
+
+  <!-- Mono -->
+  <section>
+    <h2>Mono</h2>
+    <div class="row">
+      <span class="kol-mono-sm">Mono SM</span>
+      <span class="kol-mono-xs">Mono XS</span>
+      <span class="kol-mono-xxs">Mono XXS</span>
+    </div>
+    <div class="demo kol-mono-text">Mono Text - Code</div>
+    <div class="demo kol-mono-text-lg">Mono Text LG</div>
+    <div class="demo kol-mono-sm-fine">Mono SM Fine (300)</div>
+    <div class="demo kol-mono-text-fine">Mono Text Fine (300)</div>
+  </section>
+
+  <!-- Labels -->
+  <section>
+    <h2>Labels</h2>
+    <div class="row">
+      <span class="kol-label-mono-sm">Label Mono SM</span>
+      <span class="kol-label-mono-md">Label Mono MD</span>
+      <span class="kol-label-mono-xs">Label Mono XS</span>
+    </div>
+    <div class="row">
+      <span class="kol-label-compact-lg">Label Compact LG</span>
+      <span class="kol-label-compact-md">Label Compact MD</span>
+      <span class="kol-label">Label</span>
+    </div>
+  </section>
+
+  <!-- Helpers Uppercase -->
+  <section>
+    <h2>Helpers (Uppercase)</h2>
+    <div class="row">
+      <span class="kol-helper-uc-xl">UC XL</span>
+      <span class="kol-helper-uc-lg">UC LG</span>
+      <span class="kol-helper-uc-md">UC MD</span>
+      <span class="kol-helper-uc-s">UC S</span>
+      <span class="kol-helper-uc-xs">UC XS</span>
+      <span class="kol-helper-uc-xxs">UC XXS</span>
+    </div>
+  </section>
+
+  <!-- Helpers Normal -->
+  <section>
+    <h2>Helpers (Normal)</h2>
+    <div class="row">
+      <span class="kol-helper-xl">Helper XL</span>
+      <span class="kol-helper-lg">Helper LG</span>
+      <span class="kol-helper-md">Helper MD</span>
+      <span class="kol-helper-s">Helper S</span>
+      <span class="kol-helper-xs">Helper XS</span>
+    </div>
+  </section>
+
+  <!-- Helpers Fine -->
+  <section>
+    <h2>Helpers (Fine / Light)</h2>
+    <div class="row">
+      <span class="kol-helper-fine-xl">Fine XL</span>
+      <span class="kol-helper-fine-lg">Fine LG</span>
+      <span class="kol-helper-fine-md">Fine MD</span>
+      <span class="kol-helper-fine-s">Fine S</span>
+    </div>
+  </section>
+
+  <!-- Body -->
+  <section>
+    <h2>Body</h2>
+    <div class="demo kol-body-lg">Body Large</div>
+    <div class="demo kol-body">Body</div>
+    <div class="demo kol-body-sm">Body Small</div>
+    <div class="demo kol-mono-body">Mono Body</div>
+  </section>
+
+  <!-- In Context -->
+  <section>
+    <h2>In Context</h2>
+    <div class="card">
+      <div class="kol-heading-md" style="margin-bottom: 0.5rem;">Card Title</div>
+      <p class="kol-text-md" style="margin-bottom: 1rem;">This is body text using the full typography system.</p>
+      <span class="kol-mono-xs">Metadata</span>
+    </div>
+  </section>
+
+  <!-- On Dark -->
+  <section>
+    <h2>On Dark</h2>
+    <div class="bg-dark">
+      <div class="kol-heading-sm">Heading SM</div>
+      <div class="kol-text-md">Body text on dark</div>
+      <span class="kol-mono-xs">Mono XS</span>
+    </div>
+  </section>
+</body>
+</html>

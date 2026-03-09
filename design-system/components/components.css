@@ -1,0 +1,1131 @@
+/**
+ * Kolkrabbi Design System — Component Styles
+ *
+ * Usage:
+ *   Import via theme.css which includes this file
+ *
+ * All components use kol-* prefix for proper scoping
+ */
+
+
+/* ═══════════════════════════════════════════════════════════════
+   1-ACTIONS — Buttons, toggles, switches, checkboxes
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ---------------------------------------------------------------------------
+   1a. Buttons
+   --------------------------------------------------------------------------- */
+
+.kol-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--kol-radius-full);
+  text-transform: uppercase;
+  font-family: var(--kol-font-family-mono, monospace);
+  font-weight: 470;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.03em;
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+  cursor: pointer;
+}
+
+.kol-btn-primary {
+  background: var(--kol-surface-on-primary);
+  color: var(--kol-surface-primary);
+  border: 1px solid transparent;
+}
+
+.kol-btn-primary:not(.kol-btn-animate):hover {
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 20%, transparent);
+  color: var(--kol-surface-on-primary);
+  border-color: transparent;
+}
+
+.kol-btn-secondary {
+  background: color-mix(in srgb, var(--kol-surface-on-primary) 4%, transparent);
+  color: var(--kol-surface-on-primary);
+  border: none;
+}
+
+.kol-btn-secondary:not(.kol-btn-animate):hover {
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 20%, transparent);
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-btn-outline {
+  background: transparent;
+  color: var(--kol-surface-on-primary);
+  border: 1px solid var(--kol-border-default);
+}
+
+.kol-btn-outline:not(.kol-btn-animate):hover {
+  background-color: var(--kol-opacity-hex-08);
+  border-color: color-mix(in srgb, var(--kol-surface-on-primary) 25%, transparent);
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-btn-accent {
+  background: var(--kol-accent-primary);
+  color: var(--kol-accent-on-primary);
+  border: 1px solid transparent;
+}
+
+.kol-btn-accent:not(.kol-btn-animate):hover {
+  background-color: var(--kol-accent-primary);
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-btn-control {
+  background: transparent;
+  color: var(--kol-surface-on-primary);
+  border: 1px solid var(--kol-border-default);
+}
+
+.kol-btn-control:not(.kol-btn-animate):hover {
+  background-color: var(--kol-opacity-hex-08);
+  border-color: transparent;
+}
+
+.kol-btn-nav {
+  background: transparent;
+  color: var(--kol-surface-on-primary);
+  border: none;
+}
+
+.kol-btn-nav:not(.kol-btn-animate):hover {
+  background-color: var(--kol-opacity-hex-08);
+}
+
+.kol-btn-sm { padding: 6px 16px; }
+.kol-btn-md { padding: 8px 20px; }
+.kol-btn-lg { padding: 10px 24px; font-size: 18px; }
+
+@media (min-width: 768px) {
+  .kol-btn-sm { padding: 8px 20px; }
+  .kol-btn-md { padding: 12px 28px; }
+  .kol-btn-lg { padding: 14px 36px; }
+}
+
+@media (min-width: 1024px) {
+  .kol-btn-sm { padding: 10px 24px; }
+  .kol-btn-md { padding: 14px 32px; }
+  .kol-btn-lg { padding: 16px 40px; }
+}
+
+.kol-btn:disabled,
+.kol-btn[disabled] {
+  opacity: var(--kol-opacity-disabled);
+  cursor: not-allowed;
+}
+
+.kol-btn-normal-case {
+  text-transform: none;
+}
+
+.kol-btn-animate {
+  /* Disables default hover states when custom icon animations are applied */
+}
+
+/* ---------------------------------------------------------------------------
+   1b. Icon swap animation (for buttons)
+   --------------------------------------------------------------------------- */
+
+.kol-icon-swap-container {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.kol-icon-default {
+  position: absolute;
+  transition: opacity var(--kol-transition-base),
+              transform var(--kol-transition-base);
+}
+
+.kol-icon-hover {
+  position: absolute;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--kol-transition-base),
+              transform var(--kol-transition-base);
+}
+
+.kol-btn:hover .kol-icon-default {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.kol-btn:hover .kol-icon-hover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------------------------------------------------------------------------
+   1c. Toggle Bracket
+   --------------------------------------------------------------------------- */
+
+.kol-toggle-bracket {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--kol-border-default);
+  border-radius: 4px;
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
+  color: var(--kol-surface-on-primary);
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+  cursor: pointer;
+}
+
+.kol-toggle-bracket:hover,
+.kol-toggle-bracket:focus-visible {
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent);
+}
+
+.kol-toggle-bracket.kol-active {
+  background-color: var(--kol-accent-primary);
+  border-color: transparent;
+  color: var(--kol-accent-primary);
+}
+
+.kol-toggle-bracket span:last-child {
+  font-weight: 520;
+}
+
+.kol-toggle-bracket-plain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-toggle-bracket-plain:focus-visible {
+  outline: 2px solid var(--kol-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Plain versions for legacy compatibility */
+.toggle-bracket {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--kol-border-default);
+  border-radius: 4px;
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
+  color: var(--kol-surface-on-primary);
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+}
+
+.toggle-bracket:hover,
+.toggle-bracket:focus-visible {
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent);
+}
+
+.toggle-bracket.is-active {
+  background-color: var(--kol-accent-primary);
+  border-color: transparent;
+  color: var(--kol-surface-primary);
+}
+
+.toggle-bracket span:last-child {
+  font-weight: 520;
+}
+
+.toggle-bracket-plain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--kol-surface-on-primary);
+}
+
+.toggle-bracket-plain:focus-visible {
+  outline: 2px solid var(--kol-focus-ring);
+  outline-offset: 2px;
+}
+
+.toggle-bracket-plain span:last-child {
+  font-weight: 520;
+}
+
+/* ---------------------------------------------------------------------------
+   1d. Toggle Switch
+   --------------------------------------------------------------------------- */
+
+.kol-toggle-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent);
+  background-color: transparent;
+  color: var(--kol-surface-on-primary);
+  transition: background-color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+  cursor: pointer;
+}
+
+.kol-toggle-switch:hover,
+.kol-toggle-switch:focus-visible {
+  border-color: color-mix(in srgb, var(--kol-surface-on-primary) 18%, transparent);
+}
+
+.kol-toggle-switch-label {
+  font-family: var(--kol-font-family-mono, monospace);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.kol-toggle-switch-indicator {
+  width: 20px;
+  height: 12px;
+  border-radius: var(--kol-radius-full);
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+  position: relative;
+  transition: background-color var(--kol-transition-base);
+}
+
+.kol-toggle-switch-indicator::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--kol-radius-full);
+  background-color: var(--kol-surface-on-primary);
+  transition: transform var(--kol-transition-base),
+              background-color var(--kol-transition-base);
+}
+
+.kol-toggle-switch.kol-active .kol-toggle-switch-indicator {
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 32%, transparent);
+}
+
+.kol-toggle-switch.kol-active .kol-toggle-switch-indicator::after {
+  transform: translateX(8px);
+  background-color: var(--kol-surface-primary);
+}
+
+/* Plain versions for legacy compatibility */
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent);
+  background-color: transparent;
+  color: var(--kol-surface-on-primary);
+  transition: background-color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+}
+
+.toggle-switch:hover,
+.toggle-switch:focus-visible {
+  border-color: color-mix(in srgb, var(--kol-surface-on-primary) 18%, transparent);
+}
+
+.toggle-switch-label {
+  font-family: var(--kol-font-family-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.toggle-switch-indicator {
+  width: 20px;
+  height: 12px;
+  border-radius: var(--kol-radius-full);
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+  position: relative;
+  transition: background-color var(--kol-transition-base);
+}
+
+.toggle-switch-indicator::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--kol-radius-full);
+  background-color: var(--kol-surface-on-primary);
+  transition: transform var(--kol-transition-base),
+              background-color var(--kol-transition-base);
+}
+
+.toggle-switch[data-state='on'] .toggle-switch-indicator {
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 32%, transparent);
+}
+
+.toggle-switch[data-state='on'] .toggle-switch-indicator::after {
+  transform: translateX(8px);
+  background-color: var(--kol-surface-primary);
+}
+
+/* ---------------------------------------------------------------------------
+   1e. Checkbox
+   --------------------------------------------------------------------------- */
+
+.kol-checkbox {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.kol-checkbox input {
+  display: none;
+}
+
+.kol-checkbox-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--kol-surface-on-primary) 25%, transparent);
+  background-color: transparent;
+  transition: background-color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+}
+
+.kol-checkbox-indicator svg {
+  width: 10px;
+  height: 8px;
+  stroke: var(--kol-surface-primary);
+  opacity: 0;
+  transition: opacity var(--kol-transition-base);
+}
+
+.kol-checkbox.kol-active .kol-checkbox-indicator {
+  background-color: var(--kol-accent-primary);
+  border-color: var(--kol-accent-primary);
+}
+
+.kol-checkbox.kol-active .kol-checkbox-indicator svg {
+  opacity: 1;
+}
+
+.kol-toggle-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.kol-toggle-checkbox input {
+  display: none;
+}
+
+.kol-toggle-checkbox-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--kol-surface-on-primary) 25%, transparent);
+  background-color: transparent;
+  transition: background-color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+}
+
+.kol-toggle-checkbox-indicator svg {
+  width: 10px;
+  height: 8px;
+  stroke: var(--kol-surface-primary);
+  opacity: 0;
+  transition: opacity var(--kol-transition-base);
+}
+
+.kol-toggle-checkbox.kol-active .kol-toggle-checkbox-indicator {
+  background-color: var(--kol-accent-primary);
+  border-color: var(--kol-accent-primary);
+}
+
+.kol-toggle-checkbox.kol-active .kol-toggle-checkbox-indicator svg {
+  opacity: 1;
+}
+
+/* Plain versions for legacy compatibility */
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.checkbox input {
+  display: none;
+}
+
+.checkbox-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--kol-surface-on-primary) 25%, transparent);
+  background-color: transparent;
+  transition: background-color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+}
+
+.checkbox-indicator svg {
+  width: 10px;
+  height: 8px;
+  stroke: var(--kol-surface-primary);
+  opacity: 0;
+  transition: opacity var(--kol-transition-base);
+}
+
+.checkbox.is-active .checkbox-indicator {
+  background-color: var(--kol-accent-primary);
+  border-color: var(--kol-accent-primary);
+}
+
+.checkbox.is-active .checkbox-indicator svg {
+  opacity: 1;
+}
+
+.toggle-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.toggle-checkbox input {
+  display: none;
+}
+
+.toggle-checkbox-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--kol-surface-on-primary) 25%, transparent);
+  background-color: transparent;
+  transition: background-color var(--kol-transition-base),
+              border-color var(--kol-transition-base);
+}
+
+.toggle-checkbox-indicator svg {
+  width: 10px;
+  height: 8px;
+  stroke: var(--kol-surface-primary);
+  opacity: 0;
+  transition: opacity var(--kol-transition-base);
+}
+
+.toggle-checkbox.is-active .toggle-checkbox-indicator {
+  background-color: var(--kol-accent-primary);
+  border-color: var(--kol-accent-primary);
+}
+
+.toggle-checkbox.is-active .toggle-checkbox-indicator svg {
+  opacity: 1;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   2-LABELS — Pills, tags, badges, section labels
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ---------------------------------------------------------------------------
+   2a. Pills
+   --------------------------------------------------------------------------- */
+
+.pill-inverse {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 16px;
+  border-radius: var(--kol-radius-full);
+  background-color: var(--kol-surface-on-primary);
+  font-family: var(--kol-font-family-mono);
+  color: var(--kol-surface-primary);
+  border: none;
+}
+
+.pill-subtle {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 16px;
+  border-radius: var(--kol-radius-full);
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+  font-family: var(--kol-font-family-mono);
+  color: var(--kol-surface-on-primary);
+  border: none;
+}
+
+.pill-outline {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 16px;
+  border-radius: var(--kol-radius-full);
+  background-color: var(--kol-surface-primary);
+  font-family: var(--kol-font-family-mono);
+  color: var(--kol-surface-on-primary);
+  border: 1px solid var(--kol-border-default);
+}
+
+.pill-sm {
+  font-size: 10px;
+  font-weight: 470;
+  padding: 2px 10px;
+}
+
+.pill-md {
+  font-size: 12px;
+  font-weight: 470;
+  padding: 4px 16px;
+}
+
+.pill-lg {
+  font-size: 14px;
+  font-weight: 470;
+  padding: 6px 20px;
+}
+
+/* ---------------------------------------------------------------------------
+   2b. Tags
+   --------------------------------------------------------------------------- */
+
+.tag-control {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 16px;
+  border-radius: var(--kol-radius-full);
+  background-color: var(--kol-surface-primary);
+  font-size: 10px;
+  font-weight: 400;
+  font-family: var(--kol-font-family-mono);
+  color: var(--kol-surface-on-primary);
+  border: 1px solid var(--kol-border-default);
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base);
+}
+
+.tag-control:hover {
+  background-color: var(--kol-surface-on-primary);
+  color: var(--kol-surface-primary);
+  border-color: var(--kol-surface-on-primary);
+}
+
+.tag-control.is-active {
+  background-color: var(--kol-surface-on-primary);
+  color: var(--kol-surface-primary);
+  border-color: var(--kol-surface-on-primary);
+}
+
+.control-unified-inverse {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 0;
+  border-radius: var(--kol-radius-full);
+  background-color: var(--kol-surface-on-primary);
+  color: var(--kol-surface-primary);
+  border: 1px solid transparent;
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base);
+}
+
+.control-unified-inverse:hover {
+  background-color: var(--kol-surface-primary);
+  color: var(--kol-surface-on-primary);
+}
+
+/* ---------------------------------------------------------------------------
+   2c. Badges
+   --------------------------------------------------------------------------- */
+
+.kol-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-family: var(--kol-font-family-mono);
+  font-weight: 470;
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base);
+}
+
+.kol-badge-default {
+  background-color: var(--kol-surface-on-primary);
+  color: var(--kol-surface-primary);
+  border: 1px solid transparent;
+}
+
+.kol-badge-secondary {
+  background-color: color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent);
+  color: var(--kol-surface-on-primary);
+  border: 1px solid transparent;
+}
+
+.kol-badge-destructive {
+  background-color: color-mix(in srgb, #ef4444 20%, transparent);
+  color: #ef4444;
+  border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+}
+
+.kol-badge-outline {
+  background-color: transparent;
+  color: var(--kol-surface-on-primary);
+  border: 1px solid var(--kol-border-default);
+}
+
+.kol-badge-success {
+  background-color: color-mix(in srgb, #22c55e 20%, transparent);
+  color: #22c55e;
+  border: 1px solid color-mix(in srgb, #22c55e 30%, transparent);
+}
+
+.kol-badge-warning {
+  background-color: color-mix(in srgb, #eab308 20%, transparent);
+  color: #eab308;
+  border: 1px solid color-mix(in srgb, #eab308 30%, transparent);
+}
+
+.kol-badge-critical {
+  background-color: color-mix(in srgb, #ef4444 20%, transparent);
+  color: #ef4444;
+  border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+}
+
+.kol-badge-info {
+  background-color: color-mix(in srgb, #3b82f6 20%, transparent);
+  color: #3b82f6;
+  border: 1px solid color-mix(in srgb, #3b82f6 30%, transparent);
+}
+
+.kol-badge-sm {
+  height: 20px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+.kol-badge-md {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.kol-badge-lg {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------------------
+   2d. Section Labels (typography)
+   --------------------------------------------------------------------------- */
+
+.kol-label-mono-sm {
+  font-family: var(--kol-font-family-mono);
+  font-weight: 470;
+  font-size: clamp(14px, 1.5vw, 24px);
+  line-height: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-label-mono-md {
+  font-family: var(--kol-font-family-mono);
+  font-weight: 470;
+  font-size: clamp(12px, 1vw, 16px);
+  line-height: 125%;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-label-mono-xs {
+  font-family: var(--kol-font-family-mono);
+  font-weight: 470;
+  font-size: clamp(10px, 0.8vw, 14px);
+  line-height: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-label-compact-lg {
+  font-family: var(--kol-font-family-rgrot-narrow);
+  font-weight: 470;
+  font-stretch: condensed;
+  font-size: clamp(24px, 2vw, 28px);
+  line-height: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-label-compact-md {
+  font-family: var(--kol-font-family-rgrot-narrow);
+  font-weight: 470;
+  font-stretch: condensed;
+  font-size: clamp(12px, 1vw, 16px);
+  line-height: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-label {
+  font-family: var(--kol-font-family-mono);
+  font-weight: 470;
+  font-size: clamp(14px, 1.5vw, 24px);
+  line-height: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kol-surface-on-primary);
+}
+
+.kol-label-compact {
+  font-family: var(--kol-font-family-rgrot-narrow);
+  font-weight: 470;
+  font-stretch: condensed;
+  font-size: clamp(12px, 1vw, 16px);
+  line-height: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--kol-surface-on-primary);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   3-SELECTION — Dropdowns, unit selectors
+   ═══════════════════════════════════════════════════════════════ */
+
+.control-dropdown {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 20px;
+  background-color: transparent;
+  border: 1px solid var(--kol-border-default);
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base);
+}
+
+@media (min-width: 768px) {
+  .control-dropdown { border-radius: 22px; }
+}
+
+@media (min-width: 1024px) {
+  .control-dropdown { border-radius: 24px; }
+}
+
+.control-unified {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 0;
+  border-radius: var(--kol-radius-full);
+  background-color: var(--kol-surface-primary);
+  border: 1px solid var(--kol-border-default);
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base);
+}
+
+.control-unified[data-state='open'],
+.control-unified[data-state='open']:hover {
+  background-color: var(--kol-surface-primary);
+  color: var(--kol-surface-on-primary);
+  border-color: var(--kol-border-default);
+}
+
+.dropdown-sm {
+  padding: 6px 16px;
+  font-family: var(--kol-font-family-mono);
+  font-weight: 470;
+  font-size: 11px;
+  line-height: 100%;
+  letter-spacing: 0.03em;
+}
+
+.dropdown-md {
+  padding: 8px 20px;
+  font-family: var(--kol-font-family-mono);
+  font-weight: 470;
+  font-size: 12px;
+  line-height: 100%;
+  letter-spacing: 0.03em;
+}
+
+.dropdown-lg {
+  padding: 10px 24px;
+  font-family: var(--kol-font-family-mono);
+  font-weight: 470;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.03em;
+}
+
+@media (min-width: 768px) {
+  .dropdown-sm { padding: 8px 20px; }
+  .dropdown-md { padding: 12px 28px; }
+  .dropdown-lg { padding: 14px 36px; }
+}
+
+@media (min-width: 1024px) {
+  .dropdown-sm { padding: 10px 24px; }
+  .dropdown-md { padding: 14px 32px; }
+  .dropdown-lg { padding: 16px 40px; }
+}
+
+.dropdown-option-selected {
+  opacity: 1;
+}
+
+.dropdown-option-deselected {
+  opacity: 0.4;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   4-INPUT — Text inputs, quantity inputs, sliders
+   ═══════════════════════════════════════════════════════════════ */
+
+.input-outline {
+  border-radius: var(--kol-radius-full);
+  background: var(--kol-surface-primary);
+  color: var(--kol-surface-on-primary);
+  border: 1px solid var(--kol-border-default);
+  transition: border-color var(--kol-transition-base),
+              background-color var(--kol-transition-base);
+}
+
+.input-outline:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--kol-surface-on-primary) 18%, transparent);
+  background: var(--kol-surface-secondary);
+}
+
+.input-outline::placeholder {
+  color: var(--kol-surface-on-primary);
+  opacity: var(--kol-opacity-disabled);
+}
+
+.input-sm {
+  padding: 6px 16px;
+  width: 280px;
+}
+
+.input-md {
+  padding: 8px 20px;
+  width: 380px;
+}
+
+.input-lg {
+  padding: 10px 24px;
+  width: 480px;
+}
+
+@media (min-width: 768px) {
+  .input-sm { padding: 8px 20px; }
+  .input-md { padding: 12px 28px; }
+  .input-lg { padding: 14px 36px; }
+}
+
+@media (min-width: 1024px) {
+  .input-sm { padding: 10px 24px; }
+  .input-md { padding: 14px 32px; }
+  .input-lg { padding: 16px 40px; }
+}
+
+/* ---------------------------------------------------------------------------
+   4b. Slider
+   --------------------------------------------------------------------------- */
+
+.control-slider {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 24px;
+  border-radius: var(--kol-radius-full);
+  background-color: var(--kol-surface-primary);
+  border: 1px solid var(--kol-border-default);
+  transition: background-color var(--kol-transition-base),
+              color var(--kol-transition-base);
+}
+
+.control-slider-minimal {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0;
+  border-radius: 0;
+  background-color: transparent;
+  border: none;
+  height: 24px;
+  transition: color var(--kol-transition-base);
+}
+
+.slider-black {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 2px;
+}
+
+.slider-black::-webkit-slider-runnable-track {
+  background: var(--kol-surface-on-primary);
+  height: 2px;
+  border-radius: 0;
+}
+
+.slider-black::-moz-range-track {
+  background: var(--kol-surface-on-primary);
+  height: 2px;
+  border-radius: 0;
+}
+
+.slider-black::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--kol-surface-on-primary);
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  margin-top: -5px;
+  border: none;
+}
+
+.slider-black::-moz-range-thumb {
+  appearance: none;
+  background: var(--kol-surface-on-primary);
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  border: none;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   5-NAVIGATION — Nav buttons, nav links, view toggles
+   ═══════════════════════════════════════════════════════════════ */
+
+.btn-nav {
+  transition: box-shadow var(--kol-transition-base);
+}
+
+.btn-nav:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
+}
+
+.nav-link-underline {
+  position: relative;
+}
+
+.nav-link-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 2px;
+  background-color: currentColor;
+  transform-origin: bottom right;
+  transform: scaleX(0);
+  transition: transform var(--kol-transition-slow) cubic-bezier(0.65, 0.05, 0.36, 1);
+}
+
+.nav-link-underline:hover::after {
+  transform-origin: bottom left;
+  transform: scaleX(1);
+}
+
+.link-with-icon-animate {
+  gap: 0.5rem;
+  transition-property: gap;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: var(--kol-transition-fast);
+}
+
+.link-with-icon-animate:hover {
+  gap: 1rem;
+}
+
+.link-with-icon-animate .icon-slide {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: var(--kol-transition-fast);
+}
+
+.link-with-icon-animate:hover .icon-slide-right {
+  transform: translateX(4px);
+}
+
+.link-with-icon-animate:hover .icon-slide-left {
+  transform: translateX(-4px);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   6-OVERLAYS — Modals, dialogs, popovers, tooltips (future)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* No overlay components exist in the source codebase yet.
+   This section is reserved for future extraction. */
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED — Icon animations (used by buttons + section labels)
+   ═══════════════════════════════════════════════════════════════ */
+
+.icon-default {
+  transform: translate(0, 0) scale(1);
+  opacity: 1;
+  transition: transform var(--kol-transition-base) ease,
+              opacity var(--kol-transition-base) ease;
+}
+
+.icon-hover {
+  transform: translate(-100%, -100%) scale(0.8);
+  opacity: 0;
+  transition: transform var(--kol-transition-base) ease,
+              opacity var(--kol-transition-base) ease;
+}
+
+button:hover .icon-default,
+a:hover .icon-default,
+.section-label-wrapper:hover .icon-default {
+  transform: translate(100%, 100%) scale(0.8);
+  opacity: 0;
+}
+
+button:hover .icon-hover,
+a:hover .icon-hover,
+.section-label-wrapper:hover .icon-hover {
+  transform: translate(0, 0) scale(1);
+  opacity: 1;
+}

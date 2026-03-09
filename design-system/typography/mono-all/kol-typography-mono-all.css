@@ -1,0 +1,707 @@
+/**
+ * Kolkrabbi Typography - All Mono (JetBrains Mono)
+ * Version: 1.0
+ *
+ * Standalone typography system using JetBrains Mono for ALL styles.
+ * Replaces Right Grotesk with JetBrains Mono throughout.
+ *
+ * Font location: /fonts/jetbrains-mono/
+ * Base weight: Medium (500)
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="kol-typography-mono-all.css">
+ */
+
+/* =============================================================================
+ * FONT FACE DECLARATIONS
+ * ============================================================================= */
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrains-mono/JetBrainsMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrains-mono/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrains-mono/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrains-mono/JetBrainsMono-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrains-mono/JetBrainsMono-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrains-mono/JetBrainsMono-MediumItalic.woff2') format('woff2');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrains-mono/JetBrainsMono-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* =============================================================================
+ * ROOT VARIABLES
+ * ============================================================================= */
+
+:root {
+  --kol-font-family-rgrot-narrow: 'JetBrains Mono', monospace;
+  --kol-font-family-rgrot-tight: 'JetBrains Mono', monospace;
+  --kol-font-family-rgrot-compact: 'JetBrains Mono', monospace;
+  --kol-font-family-body: 'JetBrains Mono', monospace;
+  --kol-font-family-heading: 'JetBrains Mono', monospace;
+  --kol-font-family-base: 'JetBrains Mono', monospace;
+  --kol-font-family-mono: 'JetBrains Mono', monospace;
+}
+
+/* =============================================================================
+ * DISPLAY (Largest Headings)
+ * ============================================================================= */
+
+.kol-display-lg {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(48px, 6vw, 96px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+.kol-display-section {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+.kol-display-section-sm {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+.kol-display-subsection {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+/* =============================================================================
+ * HEADINGS
+ * ============================================================================= */
+
+.kol-heading-display {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(48px, 6vw, 64px);
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-heading-section {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(40px, 5vw, 48px);
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-heading-section-small {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(32px, 4vw, 40px);
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-heading-subsection {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(28px, 3.5vw, 32px);
+  line-height: 110%;
+  font-weight: 500;
+}
+
+.kol-heading-xl {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 110%;
+  font-weight: 500;
+}
+
+.kol-heading-lg {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 110%;
+  font-weight: 500;
+}
+
+.kol-heading-md {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(28px, 3.5vw, 40px);
+  line-height: 120%;
+  font-weight: 500;
+}
+
+.kol-heading-sm {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(20px, 2.5vw, 32px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-heading-xs {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(18px, 2vw, 28px);
+  line-height: 125%;
+  font-weight: 500;
+}
+
+/* Heading Narrow */
+.kol-heading-narrow-xl {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 110%;
+  font-weight: 500;
+}
+
+.kol-heading-narrow-lg {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 110%;
+  font-weight: 500;
+}
+
+.kol-heading-narrow-md {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(28px, 3.5vw, 40px);
+  line-height: 120%;
+  font-weight: 500;
+}
+
+.kol-heading-narrow-sm {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(20px, 2.5vw, 32px);
+  line-height: 125%;
+  font-weight: 500;
+}
+
+.kol-heading-narrow-xs {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(18px, 2vw, 28px);
+  line-height: 125%;
+  font-weight: 500;
+}
+
+/* Heading Tight */
+.kol-heading-tight-xl {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-heading-tight-lg {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-heading-tight-md {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(28px, 3.5vw, 40px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-heading-tight-sm {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(20px, 2.5vw, 32px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-heading-tight-xs {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(18px, 2vw, 28px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+/* =============================================================================
+ * TEXT (Body Copy)
+ * ============================================================================= */
+
+.kol-text-lg {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(18px, 2vw, 20px);
+  line-height: 160%;
+  font-weight: 400;
+}
+
+.kol-text-md {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 160%;
+  font-weight: 400;
+}
+
+.kol-text-md-rg {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 160%;
+  font-weight: 500;
+}
+
+.kol-text-sm {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 150%;
+  font-weight: 400;
+}
+
+.kol-text {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(16px, 1.8vw, 18px);
+  line-height: 160%;
+  font-weight: 400;
+}
+
+/* Text Compact */
+.kol-text-compact-xl {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(22px, 2.5vw, 28px);
+  line-height: 140%;
+  font-weight: 500;
+}
+
+.kol-text-compact-lg {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 140%;
+  font-weight: 500;
+}
+
+.kol-text-compact-md {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(16px, 1.5vw, 20px);
+  line-height: 145%;
+  font-weight: 500;
+}
+
+.kol-text-compact-sm {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(14px, 1.25vw, 18px);
+  line-height: 145%;
+  font-weight: 500;
+}
+
+/* =============================================================================
+ * MONO
+ * ============================================================================= */
+
+.kol-mono-text-lg {
+  font-family: var(--kol-font-family-mono);
+  font-size: 16px;
+  line-height: 125%;
+  font-weight: 500;
+}
+
+.kol-mono-text {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 125%;
+  font-weight: 500;
+}
+
+.kol-mono-text-fine {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 125%;
+  font-weight: 300;
+}
+
+.kol-mono-sm {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 125%;
+  font-weight: 500;
+}
+
+.kol-mono-sm-fine {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 125%;
+  font-weight: 300;
+}
+
+.kol-mono-xs {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(10px, 1vw, 14px);
+  line-height: 120%;
+  font-weight: 500;
+}
+
+.kol-mono-xxs {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(8px, 0.75vw, 12px);
+  line-height: 120%;
+  font-weight: 500;
+}
+
+.kol-mono {
+  font-family: var(--kol-font-family-mono);
+  font-size: 14px;
+  line-height: 125%;
+  font-weight: 500;
+}
+
+/* =============================================================================
+ * LABELS
+ * ============================================================================= */
+
+.kol-label-mono-sm {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(14px, 1.5vw, 24px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-label-mono-md {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 125%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-label-mono-xs {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(10px, 1vw, 14px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-label-compact-lg {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(24px, 2.5vw, 28px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-label-compact-md {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-label {
+  font-family: var(--kol-font-family-body);
+  font-size: 14px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kol-label-compact {
+  font-family: var(--kol-font-family-body);
+  font-size: 14px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+/* =============================================================================
+ * HELPERS
+ * ============================================================================= */
+
+/* Uppercase */
+.kol-helper-uc-xl {
+  font-family: var(--kol-font-family-mono);
+  font-size: 20px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-helper-uc-lg {
+  font-family: var(--kol-font-family-mono);
+  font-size: 18px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-helper-uc-md {
+  font-family: var(--kol-font-family-mono);
+  font-size: 16px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-helper-uc-s {
+  font-family: var(--kol-font-family-mono);
+  font-size: 14px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-helper-uc-xs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 12px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-helper-uc-xxs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 10px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-helper-uc-xxxs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 8px;
+  line-height: 125%;
+  font-weight: 500;
+}
+
+/* Normal Case */
+.kol-helper-xl {
+  font-family: var(--kol-font-family-mono);
+  font-size: 20px;
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-helper-lg {
+  font-family: var(--kol-font-family-mono);
+  font-size: 18px;
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-helper-md {
+  font-family: var(--kol-font-family-mono);
+  font-size: 16px;
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-helper-s {
+  font-family: var(--kol-font-family-mono);
+  font-size: 14px;
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-helper-xs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 12px;
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-helper-xxs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 10px;
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-helper-xxxs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 8px;
+  line-height: 125%;
+  font-weight: 500;
+}
+
+/* Fine */
+.kol-helper-fine-xl {
+  font-family: var(--kol-font-family-mono);
+  font-size: 20px;
+  line-height: 100%;
+  font-weight: 300;
+}
+
+.kol-helper-fine-lg {
+  font-family: var(--kol-font-family-mono);
+  font-size: 18px;
+  line-height: 100%;
+  font-weight: 300;
+}
+
+.kol-helper-fine-md {
+  font-family: var(--kol-font-family-mono);
+  font-size: 16px;
+  line-height: 100%;
+  font-weight: 300;
+}
+
+.kol-helper-fine-s {
+  font-family: var(--kol-font-family-mono);
+  font-size: 14px;
+  line-height: 100%;
+  font-weight: 300;
+}
+
+.kol-helper-fine-xs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 12px;
+  line-height: 100%;
+  font-weight: 300;
+}
+
+.kol-helper-fine-xxs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 10px;
+  line-height: 100%;
+  font-weight: 300;
+}
+
+.kol-helper-fine-xxxs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 8px;
+  line-height: 125%;
+  font-weight: 300;
+}
+
+/* =============================================================================
+ * LEGACY
+ * ============================================================================= */
+
+.kol-meta {
+  font-family: var(--kol-font-family-mono);
+  font-size: 12px;
+  line-height: 150%;
+  font-weight: 400;
+}
+
+.kol-h1 {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-h2 {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-h3 {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 110%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-h4 {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(20px, 2.5vw, 24px);
+  line-height: 120%;
+  font-weight: 500;
+}
+
+.kol-h5 {
+  font-family: var(--kol-font-family-heading);
+  font-size: clamp(16px, 1.5vw, 20px);
+  line-height: 130%;
+  font-weight: 500;
+}
+
+.kol-h6 {
+  font-family: var(--kol-font-family-body);
+  font-size: 14px;
+  line-height: 140%;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kol-body {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(16px, 1.8vw, 18px);
+  line-height: 160%;
+  font-weight: 400;
+}
+
+.kol-body-lg {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(18px, 2vw, 20px);
+  line-height: 160%;
+  font-weight: 400;
+}
+
+.kol-body-sm {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(14px, 1.5vw, 16px);
+  line-height: 150%;
+  font-weight: 400;
+}
+
+.kol-mono-body {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(14px, 1.5vw, 16px);
+  line-height: 150%;
+  font-weight: 400;
+}

@@ -1,0 +1,194 @@
+/**
+ * Kolkrabbi Typography - Lean / Most Used
+ * Version: 3.0
+ *
+ * Contains only the most frequently used typography classes.
+ * Total refs: 1230+
+ */
+
+/* =============================================================================
+ * FONT FACE DECLARATIONS (Core Fonts)
+ * ============================================================================= */
+
+@font-face {
+  font-family: 'RightGrotesk';
+  src: url('fonts/PPRightGrotesk-NarrowMedium.woff') format('woff');
+  font-stretch: condensed;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RightGrotesk';
+  src: url('fonts/PPRightGrotesk-TightMedium.woff') format('woff');
+  font-stretch: extra-condensed;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RightGroteskMono';
+  src: url('fonts/PPRightGroteskMono-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RightGroteskMono';
+  src: url('fonts/PPRightGroteskMono-Fine.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Tight';
+  src: url('fonts/InterTight-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --kol-font-family-rgrot-tight: 'RightGrotesk', 'Inter Tight', sans-serif;
+  --kol-font-family-rgrot-narrow: 'RightGrotesk', 'Inter Tight', sans-serif;
+  --kol-font-family-body: 'Inter Tight', system-ui, -apple-system, sans-serif;
+  --kol-font-family-mono: 'RightGroteskMono', 'SFMono-Regular', Consolas, monospace;
+}
+
+/* ---------------------------------------------------------------------------
+ * Headings (Most Used)
+ * --------------------------------------------------------------------------- */
+
+.kol-heading-lg {
+  font-family: var(--kol-font-family-rgrot-narrow);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 110%;
+  font-weight: 470;
+}
+
+.kol-heading-md {
+  font-family: var(--kol-font-family-rgrot-narrow);
+  font-size: clamp(28px, 3.5vw, 40px);
+  line-height: 120%;
+  font-weight: 470;
+}
+
+.kol-heading-sm {
+  font-family: var(--kol-font-family-rgrot-tight);
+  font-size: clamp(20px, 2.5vw, 32px);
+  line-height: 100%;
+  font-weight: 470;
+  text-transform: uppercase;
+}
+
+.kol-heading-xs {
+  font-family: var(--kol-font-family-rgrot-narrow);
+  font-size: clamp(18px, 2vw, 28px);
+  line-height: 125%;
+  font-weight: 470;
+}
+
+/* ---------------------------------------------------------------------------
+ * Text (Most Used)
+ * --------------------------------------------------------------------------- */
+
+.kol-text-md {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 160%;
+  font-weight: 400;
+}
+
+.kol-text-sm {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 150%;
+  font-weight: 400;
+}
+
+.kol-text-lg {
+  font-family: var(--kol-font-family-body);
+  font-size: clamp(18px, 2vw, 20px);
+  line-height: 160%;
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------------------
+ * Mono (MOST USED!)
+ * --------------------------------------------------------------------------- */
+
+.kol-mono-sm {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 125%;
+  font-weight: 500;
+}
+
+.kol-mono-xs {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(10px, 1vw, 14px);
+  line-height: 120%;
+  font-weight: 500;
+}
+
+.kol-mono-text {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 125%;
+  font-weight: 500;
+}
+
+.kol-mono-xxs {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(8px, 0.75vw, 12px);
+  line-height: 120%;
+  font-weight: 500;
+}
+
+.kol-mono-sm-fine {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 125%;
+  font-weight: 300;
+}
+
+/* ---------------------------------------------------------------------------
+ * Labels
+ * --------------------------------------------------------------------------- */
+
+.kol-label-mono-sm {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(14px, 1.5vw, 24px);
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-label-mono-md {
+  font-family: var(--kol-font-family-mono);
+  font-size: clamp(12px, 1.25vw, 16px);
+  line-height: 125%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------------------
+ * Helpers
+ * --------------------------------------------------------------------------- */
+
+.kol-helper-uc-md {
+  font-family: var(--kol-font-family-mono);
+  font-size: 16px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.kol-helper-uc-xs {
+  font-family: var(--kol-font-family-mono);
+  font-size: 12px;
+  line-height: 100%;
+  font-weight: 500;
+  text-transform: uppercase;
+}

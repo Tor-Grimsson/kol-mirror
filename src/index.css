@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@import "../design-system/theme.css";
+@import "../design-system/components/components.css";
+
+.accentYellow { color: var(--kol-accent-primary); }
+.accentYellowStrong { color: var(--kol-accent-primary-strong); }

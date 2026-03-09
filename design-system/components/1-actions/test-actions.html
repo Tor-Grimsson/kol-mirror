@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Actions Components Test</title>
+  <link rel="stylesheet" href="../../colors/full/kol-color.css">
+  <link rel="stylesheet" href="../../typography/full/kol-typography.css">
+  <link rel="stylesheet" href="kol-actions.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--kol-surface-primary);
+      color: var(--kol-surface-on-primary);
+      font-family: var(--kol-font-family-rgrot);
+      padding: 2rem;
+    }
+    h2 { margin-top: 2rem; margin-bottom: 1rem; }
+    .demo-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .demo-section {
+      margin-bottom: 3rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Actions Components</h1>
+
+  <!-- Buttons -->
+  <div class="demo-section">
+    <h2>Buttons</h2>
+
+    <h3>Primary</h3>
+    <div class="demo-row">
+      <button class="kol-btn kol-btn-primary kol-btn-sm">Small</button>
+      <button class="kol-btn kol-btn-primary kol-btn-md">Medium</button>
+      <button class="kol-btn kol-btn-primary kol-btn-lg">Large</button>
+    </div>
+
+    <h3>Secondary</h3>
+    <div class="demo-row">
+      <button class="kol-btn kol-btn-secondary kol-btn-sm">Small</button>
+      <button class="kol-btn kol-btn-secondary kol-btn-md">Medium</button>
+      <button class="kol-btn kol-btn-secondary kol-btn-lg">Large</button>
+    </div>
+
+    <h3>Outline</h3>
+    <div class="demo-row">
+      <button class="kol-btn kol-btn-outline kol-btn-sm">Small</button>
+      <button class="kol-btn kol-btn-outline kol-btn-md">Medium</button>
+      <button class="kol-btn kol-btn-outline kol-btn-lg">Large</button>
+    </div>
+
+    <h3>Accent</h3>
+    <div class="demo-row">
+      <button class="kol-btn kol-btn-accent kol-btn-sm">Small</button>
+      <button class="kol-btn kol-btn-accent kol-btn-md">Medium</button>
+      <button class="kol-btn kol-btn-accent kol-btn-lg">Large</button>
+    </div>
+
+    <h3>Control</h3>
+    <div class="demo-row">
+      <button class="kol-btn kol-btn-control kol-btn-sm">Small</button>
+      <button class="kol-btn kol-btn-control kol-btn-md">Medium</button>
+      <button class="kol-btn kol-btn-control kol-btn-lg">Large</button>
+    </div>
+
+    <h3>Nav</h3>
+    <div class="demo-row">
+      <button class="kol-btn kol-btn-nav kol-btn-sm">Small</button>
+      <button class="kol-btn kol-btn-nav kol-btn-md">Medium</button>
+      <button class="kol-btn kol-btn-nav kol-btn-lg">Large</button>
+    </div>
+
+    <h3>Disabled</h3>
+    <div class="demo-row">
+      <button class="kol-btn kol-btn-primary kol-btn-md" disabled>Disabled</button>
+    </div>
+  </div>
+
+  <!-- Toggle Bracket -->
+  <div class="demo-section">
+    <h2>Toggle Bracket</h2>
+    <div class="demo-row">
+      <button class="kol-toggle-bracket">
+        <span>Off</span>
+        <span>Off</span>
+      </button>
+      <button class="kol-toggle-bracket kol-active">
+        <span>On</span>
+        <span>On</span>
+      </button>
+      <button class="kol-toggle-bracket-plain">
+        <span>Plain Off</span>
+        <span>Off</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toggle Switch -->
+  <div class="demo-section">
+    <h2>Toggle Switch</h2>
+    <div class="demo-row">
+      <button class="kol-toggle-switch">
+        <span class="kol-toggle-switch-label">Off</span>
+        <span class="kol-toggle-switch-indicator"></span>
+      </button>
+      <button class="kol-toggle-switch kol-active">
+        <span class="kol-toggle-switch-label">On</span>
+        <span class="kol-toggle-switch-indicator"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Checkbox -->
+  <div class="demo-section">
+    <h2>Checkbox</h2>
+    <div class="demo-row">
+      <label class="kol-checkbox">
+        <input type="checkbox">
+        <span class="kol-checkbox-indicator">
+          <svg viewBox="0 0 10 8" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4l3 3 5-6"/>
+          </svg>
+        </span>
+        <span>Unchecked</span>
+      </label>
+      <label class="kol-checkbox kol-active">
+        <input type="checkbox" checked>
+        <span class="kol-checkbox-indicator">
+          <svg viewBox="0 0 10 8" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4l3 3 5-6"/>
+          </svg>
+        </span>
+        <span>Checked</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Toggle Checkbox -->
+  <div class="demo-section">
+    <h2>Toggle Checkbox</h2>
+    <div class="demo-row">
+      <label class="kol-toggle-checkbox">
+        <input type="checkbox">
+        <span class="kol-toggle-checkbox-indicator">
+          <svg viewBox="0 0 10 8" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4l3 3 5-6"/>
+          </svg>
+        </span>
+        <span>Off</span>
+      </label>
+      <label class="kol-toggle-checkbox kol-active">
+        <input type="checkbox" checked>
+        <span class="kol-toggle-checkbox-indicator">
+          <svg viewBox="0 0 10 8" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4l3 3 5-6"/>
+          </svg>
+        </span>
+        <span>On</span>
+      </label>
+    </div>
+  </div>
+
+  <script>
+    // Toggle interactivity
+    document.querySelectorAll('.kol-toggle-bracket, .kol-toggle-switch, .kol-checkbox, .kol-toggle-checkbox').forEach(el => {
+      el.addEventListener('click', function() {
+        this.classList.toggle('kol-active');
+        const input = this.querySelector('input[type="checkbox"]');
+        if (input) input.checked = this.classList.contains('kol-active');
+      });
+    });
+  </script>
+</body>
+</html>

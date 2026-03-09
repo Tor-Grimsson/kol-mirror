@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color System Test - Kolkrabbi Design System</title>
+  <link rel="stylesheet" href="kol-color.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--kol-surface-primary);
+      color: var(--kol-surface-on-primary);
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+    }
+
+    .card {
+      background: var(--kol-surface-secondary);
+      color: var(--kol-surface-on-secondary);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border: 1px solid var(--kol-border-default);
+    }
+
+    .card-elevated {
+      background: var(--kol-surface-tertiary);
+      color: var(--kol-surface-on-tertiary);
+    }
+
+    .card-inverse {
+      background: var(--kol-surface-inverse);
+      color: var(--kol-surface-on-inverse);
+    }
+
+    .container-box {
+      background: var(--kol-container-primary);
+      color: var(--kol-container-on-primary);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      border: 1px solid var(--kol-border-default);
+    }
+
+    .container-elevated {
+      background: var(--kol-container-elevated);
+      color: var(--kol-container-on-elevated);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      border: 1px solid var(--kol-border-default);
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--kol-accent-primary);
+      color: var(--kol-accent-on-primary);
+      border-color: var(--kol-accent-primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--kol-accent-primary-strong);
+    }
+
+    .btn-danger {
+      background: var(--kol-status-danger);
+      color: var(--kol-status-on-danger);
+      border-color: var(--kol-status-danger);
+    }
+
+    .opacity-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .opacity-box {
+      height: 40px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    .section-title {
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--kol-border-default);
+    }
+
+    .controls {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .controls button {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+
+    .theme-indicator {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      padding: 0.5rem 1rem;
+      background: var(--kol-container-elevated);
+      color: var(--kol-container-on-elevated);
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="theme-indicator" id="themeIndicator">Light Mode</div>
+
+  <div class="controls">
+    <button onclick="setTheme('light')">Light Mode</button>
+    <button onclick="setTheme('dark')">Dark Mode</button>
+    <button onclick="setTheme('auto')">Auto (System)</button>
+  </div>
+
+  <h1>Kolkrabbi Color System Test</h1>
+  <p>Testing extracted color tokens with dark mode toggle.</p>
+
+  <h2 class="section-title">Surface Tokens</h2>
+
+  <div class="card">
+    <h3>Primary Surface Card</h3>
+    <p>This uses --kol-surface-primary for background.</p>
+  </div>
+
+  <div class="card card-elevated">
+    <h3>Tertiary Surface Card</h3>
+    <p>This uses --kol-surface-tertiary for background.</p>
+  </div>
+
+  <div class="card card-inverse">
+    <h3>Inverse Surface Card</h3>
+    <p>This uses --kol-surface-inverse for background (nav/footer style).</p>
+  </div>
+
+  <h2 class="section-title">Container Tokens</h2>
+
+  <div class="container-box">
+    <h3>Primary Container</h3>
+    <p>Used for buttons, cards, form elements.</p>
+  </div>
+
+  <div class="container-box container-elevated">
+    <h3>Elevated Container</h3>
+    <p>Used for modals, dropdowns, tooltips.</p>
+  </div>
+
+  <h2 class="section-title">Buttons</h2>
+
+  <div class="button-row">
+    <button class="btn-primary">Primary Button</button>
+    <button class="btn-danger">Danger Button</button>
+  </div>
+
+  <h2 class="section-title">Opacity Hex Tokens</h2>
+
+  <div class="card">
+    <p>Standard opacity levels (light mode: dark on light, dark mode: light on dark)</p>
+    <div class="opacity-grid">
+      <div class="opacity-box" style="background: var(--kol-opacity-hex-01)">01</div>
+      <div class="opacity-box" style="background: var(--kol-opacity-hex-02)">02</div>
+      <div class="opacity-box" style="background: var(--kol-opacity-hex-04)">04</div>
+      <div class="opacity-box" style="background: var(--kol-opacity-hex-08)">08</div>
+      <div class="opacity-box" style="background: var(--kol-opacity-hex-16)">16</div>
+      <div class="opacity-box" style="background: var(--kol-opacity-hex-32)">32</div>
+      <div class="opacity-box" style="background: var(--kol-opacity-hex-64)">64</div>
+    </div>
+  </div>
+
+  <h2 class="section-title">Context-Aware Test</h2>
+
+  <div class="card card-inverse">
+    <h3>Inside Inverse Surface</h3>
+    <p>This card is inside a .bg-surface-inverse context.</p>
+    <div style="background: var(--kol-surface-primary); color: var(--kol-surface-on-primary); padding: 1rem; border-radius: 4px; margin-top: 0.5rem;">
+      This inner element uses --kol-surface-primary but appears dark because of context-aware remapping.
+    </div>
+    <div style="background: var(--kol-container-primary); color: var(--kol-container-on-primary); padding: 1rem; border-radius: 4px; margin-top: 0.5rem;">
+      This inner element uses --kol-container-primary.
+    </div>
+  </div>
+
+  <script>
+    function setTheme(theme) {
+      const indicator = document.getElementById('themeIndicator');
+
+      if (theme === 'auto') {
+        document.documentElement.removeAttribute('data-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        indicator.textContent = prefersDark ? 'Auto (Dark)' : 'Auto (Light)';
+      } else {
+        document.documentElement.setAttribute('data-theme', theme);
+        indicator.textContent = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
+      }
+    }
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!document.documentElement.hasAttribute('data-theme')) {
+        document.getElementById('themeIndicator').textContent = e.matches ? 'Auto (Dark)' : 'Auto (Light)';
+      }
+    });
+  </script>
+</body>
+</html>

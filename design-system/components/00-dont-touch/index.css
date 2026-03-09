@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Font Declarations - JetBrains Mono is primary font */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/Jetbrains-Mono/fonts/webfonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/Jetbrains-Mono/fonts/webfonts/JetBrainsMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/Jetbrains-Mono/fonts/webfonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/Jetbrains-Mono/fonts/webfonts/JetBrainsMono-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/Jetbrains-Mono/fonts/webfonts/JetBrainsMono-MediumItalic.woff2') format('woff2');
+  font-weight: 500;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/Jetbrains-Mono/fonts/webfonts/JetBrainsMono-BoldItalic.woff2') format('woff2');
+  font-weight: 700;
+  font-style: italic;
+}
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
+
+@layer base {
+  :root {
+    /* Primary Font - JetBrains Mono Medium */
+    --font-primary: 'JetBrains Mono', 'Meslo LGS NF', monospace;
+
+    /* App Background - Deep dark */
+    --background: 240 8% 7%;
+    --foreground: 240 5% 96%;
+
+    /* Card backgrounds - Slightly lighter than main bg */
+    --card: 240 6% 10%;
+    --card-foreground: 240 5% 96%;
+
+    /* Sidebar panel - Darkest */
+    --sidebar-bg: 240 10% 5%;
+    --sidebar-item: 240 5% 12%;
+    --sidebar-item-active: 240 8% 15%;
+
+    /* Editor panel - Medium dark */
+    --editor-bg: 240 7% 9%;
+    --editor-line: 240 4% 12%;
+
+    /* List panel - Between sidebar and editor */
+    --list-bg: 240 6% 8%;
+    --list-item: 240 5% 11%;
+    --list-item-hover: 240 5% 13%;
+    --list-item-active: 240 6% 14%;
+
+    /* Primary - White accent */
+    --primary: 0 0% 100%;
+    --primary-hover: 0 0% 90%;
+    --primary-foreground: 0 0% 0%;
+
+    /* Secondary - Muted purple */
+    --secondary: 240 5% 15%;
+    --secondary-foreground: 240 5% 96%;
+
+    /* Accent - Muted neutral for highlights */
+    --accent: 240 5% 18%;
+    --accent-foreground: 240 5% 96%;
+
+    /* Muted - For secondary text */
+    --muted: 240 5% 18%;
+    --muted-foreground: 240 5% 64%;
+
+    /* Success - For checkmarks, completed items */
+    --success: 142 76% 56%;
+    --success-foreground: 240 10% 5%;
+
+    /* Warning - For important items */
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 10% 5%;
+
+    /* Destructive - #ce4646 red */
+    --destructive: 0 59% 54%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Inverse (light) surface for flipped cards/details */
+    --surface-inverse: 0 0% 96%;
+    --surface-inverse-foreground: 240 10% 5%;
+
+    /* Borders - Subtle */
+    --border: 240 6% 16%;
+    --border-subtle: 240 6% 12%;
+
+    /* Input backgrounds */
+    --input: 240 6% 12%;
+    --input-border: 240 6% 20%;
+
+    /* Focus ring - White 15% */
+    --ring: 0 0% 100%;
+    --ring-opacity: 0.15;
+
+    /* Popover */
+    --popover: 240 6% 10%;
+    --popover-foreground: 240 5% 96%;
+
+    /* Code blocks */
+    --code-bg: 240 8% 8%;
+    --code-border: 240 6% 14%;
+
+    /* Radius - 4px only */
+    --radius: 0.25rem;
+
+    /* Sidebar tokens */
+    --sidebar-background: 240 10% 5%;
+    --sidebar-foreground: 240 5% 82%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 240 5% 12%;
+    --sidebar-accent-foreground: 240 5% 96%;
+    --sidebar-border: 240 6% 12%;
+    --sidebar-ring: 0 0% 100%;
+
+    /* Transitions */
+    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-hover)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(240 5% 22%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(240 8% 9%) 0%, hsl(240 8% 7%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(240 10% 3% / 0.2);
+    --shadow-md: 0 4px 6px -1px hsl(240 10% 3% / 0.3), 0 2px 4px -1px hsl(240 10% 3% / 0.2);
+    --shadow-lg: 0 10px 15px -3px hsl(240 10% 3% / 0.4), 0 4px 6px -2px hsl(240 10% 3% / 0.3);
+    --shadow-glow: 0 0 20px hsl(var(--primary) / 0.3);
+    --shadow-accent-glow: 0 0 20px hsl(var(--accent) / 0.25);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-primary), monospace;
+  }
+
+  /* Apply JetBrains Mono to all text elements */
+  h1, h2, h3, h4, h5, h6,
+  p, span, div, a, button, input, textarea, select,
+  .text-xs, .text-sm, .text-base, .text-lg, .text-xl, .text-2xl, .text-3xl {
+    font-family: var(--font-primary), monospace;
+  }
+
+  /* Bold, italic, underline variants for JetBrains Mono */
+  .font-bold {
+    font-weight: 700;
+  }
+
+  .font-medium {
+    font-weight: 500;
+  }
+
+  .font-normal {
+    font-weight: 400;
+  }
+
+  .italic {
+    font-style: italic;
+  }
+
+  /* Focus ring with white 15% */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring) / var(--ring-opacity, 0.15));
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* 3D Card Flip Utilities */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  /* Inverse surface helpers */
+  .bg-surface-inverse {
+    background-color: hsl(var(--surface-inverse));
+  }
+  .text-surface-inverse-foreground {
+    color: hsl(var(--surface-inverse-foreground));
+  }
+
+  /* Meta container for detail view sections */
+  .meta-container {
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid hsl(var(--input));
+    background-color: #121215;
+  }
+}
+

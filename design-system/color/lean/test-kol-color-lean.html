@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color System Test - Lean Version</title>
+  <link rel="stylesheet" href="kol-color-lean.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--kol-surface-primary);
+      color: var(--kol-surface-on-primary);
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    h1 { margin-bottom: 0.5rem; }
+    h2 { margin-top: 2rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--kol-border-default); }
+
+    .card {
+      background: var(--kol-surface-secondary);
+      color: var(--kol-surface-on-secondary);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border: 1px solid var(--kol-border-default);
+    }
+
+    .container-box {
+      background: var(--kol-container-primary);
+      color: var(--kol-container-on-primary);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      border: 1px solid var(--kol-border-default);
+    }
+
+    button {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      border: 1px solid var(--kol-border-default);
+      background: var(--kol-container-primary);
+      color: var(--kol-container-on-primary);
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: var(--kol-container-primary-hover);
+    }
+
+    .btn-primary {
+      background: var(--kol-accent-primary);
+      color: var(--kol-accent-on-primary);
+      border-color: var(--kol-accent-primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--kol-accent-primary-strong);
+    }
+
+    .opacity-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .opacity-box {
+      height: 50px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      border: 1px solid var(--kol-border-default);
+    }
+
+    .controls {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .controls button { padding: 0.5rem 1rem; font-size: 0.875rem; }
+
+    .theme-indicator {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      padding: 0.5rem 1rem;
+      background: var(--kol-container-elevated);
+      color: var(--kol-container-on-elevated);
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .section { margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <div class="theme-indicator" id="themeIndicator">Light Mode</div>
+
+  <div class="controls">
+    <button onclick="setTheme('light')">Light</button>
+    <button onclick="setTheme('dark')">Dark</button>
+  </div>
+
+  <h1>Kolkrabbi Color System - Lean</h1>
+  <p>Usage-optimized version (~460 lines vs 800+)</p>
+
+  <!-- Surface Tokens -->
+  <div class="section">
+    <h2>Surface Tokens</h2>
+    <div class="row">
+      <div class="card" style="flex:1">
+        <strong>Primary</strong><br>
+        .bg-surface-primary
+      </div>
+      <div class="card" style="background: var(--kol-surface-secondary); color: var(--kol-surface-on-secondary); flex:1">
+        <strong>Secondary</strong><br>
+        .bg-surface-secondary
+      </div>
+      <div class="card" style="background: var(--kol-surface-tertiary); color: var(--kol-surface-on-tertiary); flex:1">
+        <strong>Tertiary</strong><br>
+        .bg-surface-tertiary
+      </div>
+    </div>
+    <div class="card" style="background: var(--kol-surface-inverse); color: var(--kol-surface-on-inverse);">
+      <strong>Inverse</strong><br>
+      .bg-surface-inverse (nav/footer style)
+    </div>
+  </div>
+
+  <!-- Container Tokens -->
+  <div class="section">
+    <h2>Container Tokens</h2>
+    <div class="row">
+      <div class="container-box" style="flex:1">Primary</div>
+      <div class="container-box" style="background: var(--kol-container-secondary); color: var(--kol-container-on-secondary); flex:1">Secondary</div>
+      <div class="container-box" style="background: var(--kol-container-elevated); color: var(--kol-container-on-elevated); flex:1">Elevated</div>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="section">
+    <h2>Buttons</h2>
+    <div class="row">
+      <button class="btn-primary">Primary</button>
+      <button style="background: var(--kol-status-danger); color: var(--kol-status-on-danger);">Danger</button>
+    </div>
+  </div>
+
+  <!-- Opacity - Background -->
+  <div class="section">
+    <h2>Background Opacity (.bg-fg-*)</h2>
+    <p>Most used: 08, 16, 24, 64, 88</p>
+    <div class="opacity-grid">
+      <div class="opacity-box bg-fg-02">02</div>
+      <div class="opacity-box bg-fg-04">04</div>
+      <div class="opacity-box bg-fg-08">08</div>
+      <div class="opacity-box bg-fg-16">16</div>
+      <div class="opacity-box bg-fg-24">24</div>
+      <div class="opacity-box bg-fg-64">64</div>
+      <div class="opacity-box bg-fg-88">88</div>
+    </div>
+  </div>
+
+  <!-- Opacity - Border -->
+  <div class="section">
+    <h2>Border Opacity (.border-fg-*)</h2>
+    <div class="row">
+      <div style="padding:1rem; border:1px solid var(--kol-border-default)" class="card">Default border</div>
+      <div style="padding:1rem; border:1px solid; border-color:color-mix(in srgb,var(--kol-surface-on-primary)2%,transparent)" class="card">border-fg-02</div>
+      <div style="padding:1rem; border:1px solid; border-color:color-mix(in srgb,var(--kol-surface-on-primary)8%,transparent)" class="card">border-fg-08</div>
+      <div style="padding:1rem; border:1px solid; border-color:color-mix(in srgb,var(--kol-surface-on-primary)16%,transparent)" class="card">border-fg-16</div>
+    </div>
+  </div>
+
+  <!-- Opacity - Text -->
+  <div class="section">
+    <h2>Text Opacity (.text-fg-*) - MOST USED!</h2>
+    <p>594 references in codebase. These use --kol-surface-on-primary so should be on primary surface.</p>
+    <div class="card" style="background: var(--kol-surface-primary); color: var(--kol-surface-on-primary);">
+      <span class="text-fg-02">02</span>
+      <span class="text-fg-04">04</span>
+      <span class="text-fg-08">08</span>
+      <span class="text-fg-16">16</span>
+      <span class="text-fg-24">24</span>
+      <span class="text-fg-64">64</span>
+      <span class="text-fg-88">88</span>
+    </div>
+  </div>
+
+  <!-- Elevation -->
+  <div class="section">
+    <h2>Elevation</h2>
+    <div class="row">
+      <div class="elevation-base card" style="flex:1">Base</div>
+      <div class="elevation-raised card" style="flex:1">Raised</div>
+      <div class="elevation-elevated card" style="flex:1">Elevated</div>
+    </div>
+  </div>
+
+  <!-- Context Aware -->
+  <div class="section">
+    <h2>Context-Aware Inverse</h2>
+    <div class="card bg-surface-inverse">
+      <p>This card uses .bg-surface-inverse</p>
+      <div style="background: var(--kol-surface-primary); color: var(--kol-surface-on-primary); padding: 1rem; border-radius: 4px; margin-top: 0.5rem;">
+        Inner element uses --kol-surface-primary but appears dark (context-aware remapping)
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function setTheme(theme) {
+      const indicator = document.getElementById('themeIndicator');
+      if (theme === 'auto') {
+        document.documentElement.removeAttribute('data-theme');
+        indicator.textContent = 'Auto';
+      } else {
+        document.documentElement.setAttribute('data-theme', theme);
+        indicator.textContent = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
+      }
+    }
+  </script>
+</body>
+</html>

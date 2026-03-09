@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typography - All Mono Test</title>
+  <link rel="stylesheet" href="kol-typography-mono-all.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #fafafa;
+      color: #121215;
+      padding: 2rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    section { margin-bottom: 3rem; }
+    h2 { margin-bottom: 1rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+    .demo { margin-bottom: 0.5rem; }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline; }
+    .card { background: #fff; border: 1px solid #ddd; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Kolkrabbi Typography - All JetBrains Mono</h1>
+  <p>All typography styles using JetBrains Mono</p>
+
+  <!-- Display -->
+  <section>
+    <h2>Display</h2>
+    <div class="demo kol-display-lg">Display Large</div>
+    <div class="demo kol-display-section">Display Section</div>
+    <div class="demo kol-display-section-sm">Display Section SM</div>
+    <div class="demo kol-display-subsection">Display Subsection</div>
+  </section>
+
+  <!-- Headings -->
+  <section>
+    <h2>Headings</h2>
+    <div class="demo kol-heading-xl">Heading XL</div>
+    <div class="demo kol-heading-lg">Heading LG</div>
+    <div class="demo kol-heading-md">Heading MD</div>
+    <div class="demo kol-heading-sm">Heading SM</div>
+    <div class="demo kol-heading-xs">Heading XS</div>
+  </section>
+
+  <!-- Heading Tight -->
+  <section>
+    <h2>Heading Tight</h2>
+    <div class="demo kol-heading-tight-xl">Heading Tight XL</div>
+    <div class="demo kol-heading-tight-lg">Heading Tight LG</div>
+    <div class="demo kol-heading-tight-md">Heading Tight MD</div>
+    <div class="demo kol-heading-tight-sm">Heading Tight SM</div>
+    <div class="demo kol-heading-tight-xs">Heading Tight XS</div>
+  </section>
+
+  <!-- Text -->
+  <section>
+    <h2>Text</h2>
+    <div class="demo kol-text-lg">Text Large - Feature paragraphs</div>
+    <div class="demo kol-text-md">Text Medium - Standard body copy</div>
+    <div class="demo kol-text-sm">Text Small - Captions</div>
+    <div class="demo kol-text-compact-lg">Text Compact LG</div>
+    <div class="demo kol-text-compact-md">Text Compact MD</div>
+  </section>
+
+  <!-- Mono -->
+  <section>
+    <h2>Mono</h2>
+    <div class="demo kol-mono-text">Mono Text - Code</div>
+    <div class="demo kol-mono-sm">Mono Small</div>
+    <div class="demo kol-mono-xs">Mono XS</div>
+    <div class="demo kol-mono-sm-fine">Mono Small Fine (Light)</div>
+  </section>
+
+  <!-- Labels -->
+  <section>
+    <h2>Labels</h2>
+    <div class="row">
+      <span class="kol-label-mono-sm">Label Mono SM</span>
+      <span class="kol-label-compact-lg">Label Compact LG</span>
+      <span class="kol-label">Label</span>
+    </div>
+  </section>
+
+  <!-- Helpers -->
+  <section>
+    <h2>Helpers (Uppercase)</h2>
+    <div class="row">
+      <span class="kol-helper-uc-xl">UC XL</span>
+      <span class="kol-helper-uc-lg">UC LG</span>
+      <span class="kol-helper-uc-md">UC MD</span>
+      <span class="kol-helper-uc-xs">UC XS</span>
+    </div>
+  </section>
+
+  <!-- Fine Helpers -->
+  <section>
+    <h2>Helpers (Fine / Light)</h2>
+    <div class="row">
+      <span class="kol-helper-fine-xl">Fine XL</span>
+      <span class="kol-helper-fine-lg">Fine LG</span>
+      <span class="kol-helper-fine-md">Fine MD</span>
+    </div>
+  </section>
+
+  <!-- In Context -->
+  <section>
+    <h2>In Context</h2>
+    <div class="card">
+      <div class="kol-heading-md" style="margin-bottom: 0.5rem;">Article Title</div>
+      <p class="kol-text-md" style="margin-bottom: 1rem;">This is body text using JetBrains Mono throughout the entire typography system for a consistent monospace aesthetic.</p>
+      <code class="kol-mono-text">const greeting = "Hello World";</code>
+    </div>
+  </section>
+
+</body>
+</html>

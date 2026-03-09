@@ -1,0 +1,324 @@
+/**
+ * Kolkrabbi Color System - Simple / Minimal
+ * Streamlined version with essential tokens only
+ *
+ * Design Decisions:
+ * - Single "surface" role with elevation tiers (removed container distinction)
+ * - Grays via opacity utilities (color-mix based, heavily used)
+ * - Only essential tokens kept based on usage audit
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="kol-color-simple.css">
+ *
+ * Dark mode toggle:
+ *   document.documentElement.setAttribute('data-theme', 'dark')
+ */
+
+/* =============================================================================
+ * LIGHT MODE (Default)
+ * ============================================================================= */
+
+:root {
+  /* ---------------------------------------------------------------------------
+   * BRAND COLORS (6 + black/white)
+   * --------------------------------------------------------------------------- */
+
+  --kol-color-brand-sage: #D0D79D;
+  --kol-color-brand-yellow: #FFE32E;
+  --kol-color-brand-orange: #DB8000;
+  --kol-color-brand-red: #CE4646;
+  --kol-color-brand-green: #66A44C;
+  --kol-color-brand-teal: #49A0A2;
+  --kol-color-absolute-white: #FFFFFF;
+  --kol-color-absolute-black: #000000;
+
+  /* ---------------------------------------------------------------------------
+   * SURFACE (elevation tiers - single role, no container distinction)
+   * --------------------------------------------------------------------------- */
+
+  --kol-surface-primary: #FAFAFA;
+  --kol-surface-on-primary: #121215;
+
+  --kol-surface-secondary: #F2F2F2;
+  --kol-surface-on-secondary: #19191D;
+
+  --kol-surface-tertiary: #FFFFFF;
+  --kol-surface-on-tertiary: #0E0E11;
+
+  --kol-surface-inverse: #0E0E11;
+  --kol-surface-on-inverse: #FCFBF8;
+
+  /* ---------------------------------------------------------------------------
+   * ACCENT (brand colors for UI)
+   * --------------------------------------------------------------------------- */
+
+  --kol-accent-primary: #49A0A2;
+  --kol-accent-on-primary: #1E1E21;
+  --kol-accent-primary-strong: #DB8000;
+
+  /* ---------------------------------------------------------------------------
+   * STATUS (basic - danger, success, warning, info)
+   * --------------------------------------------------------------------------- */
+
+  --kol-status-danger: #CE4646;
+  --kol-status-on-danger: #FFFFFF;
+  --kol-status-success: #66A44C;
+  --kol-status-on-success: #FFFFFF;
+  --kol-status-warning: #DB8000;
+  --kol-status-on-warning: #FFFFFF;
+  --kol-status-info: #49A0A2;
+  --kol-status-on-info: #FFFFFF;
+
+  /* ---------------------------------------------------------------------------
+   * BORDER
+   * --------------------------------------------------------------------------- */
+
+  --kol-border-default: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
+  --kol-border-focus: color-mix(in srgb, var(--kol-accent-primary) 70%, var(--kol-surface-on-primary));
+  --kol-focus-ring: var(--kol-accent-primary);
+}
+
+/* =============================================================================
+ * DARK MODE
+ * ============================================================================= */
+
+[data-theme="dark"],
+.dark {
+  /* Surface Tokens - Dark Mode */
+  --kol-surface-primary: #121215;
+  --kol-surface-on-primary: #FAFAFA;
+
+  --kol-surface-secondary: #19191D;
+  --kol-surface-on-secondary: #F8F8F8;
+
+  --kol-surface-tertiary: #0E0E11;
+  --kol-surface-on-tertiary: #FFFFFF;
+
+  --kol-surface-inverse: #FCFBF8;
+  --kol-surface-on-inverse: #0E0E11;
+}
+
+/* =============================================================================
+ * SYSTEM PREFERENCE (Automatic Dark Mode)
+ * ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --kol-surface-primary: #121215;
+    --kol-surface-on-primary: #FAFAFA;
+
+    --kol-surface-secondary: #19191D;
+    --kol-surface-on-secondary: #F8F8F8;
+
+    --kol-surface-tertiary: #0E0E11;
+    --kol-surface-on-tertiary: #FFFFFF;
+
+    --kol-surface-inverse: #FCFBF8;
+    --kol-surface-on-inverse: #0E0E11;
+  }
+}
+
+/* =============================================================================
+ * CONTEXT-AWARE SURFACE INVERSE
+ * ============================================================================= */
+
+.bg-surface-inverse {
+  background-color: var(--kol-surface-inverse);
+  color: var(--kol-surface-on-inverse);
+
+  --kol-surface-primary: var(--kol-surface-inverse);
+  --kol-surface-on-primary: var(--kol-surface-on-inverse);
+  --kol-surface-secondary: var(--kol-surface-secondary);
+  --kol-surface-on-secondary: var(--kol-surface-on-inverse);
+  --kol-surface-tertiary: var(--kol-surface-tertiary);
+  --kol-surface-on-tertiary: var(--kol-surface-on-inverse);
+  --kol-border-default: color-mix(in srgb, var(--kol-surface-on-inverse) 8%, transparent);
+}
+
+/* =============================================================================
+ * UTILITY CLASSES (HEAVILY USED - Based on usage audit)
+ * =============================================================================
+ *
+ * These utility classes are heavily used in the codebase:
+ * - .text-fg-* (594 references)
+ * - .border-fg-* (188 references)
+ * - .bg-fg-* (184 references)
+ *
+ * Using color-mix based opacity allows them to adapt to theme automatically.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Surface Utilities
+ * --------------------------------------------------------------------------- */
+
+.bg-surface-primary {
+  background-color: var(--kol-surface-primary);
+  color: var(--kol-surface-on-primary);
+}
+
+.bg-surface-secondary {
+  background-color: var(--kol-surface-secondary);
+  color: var(--kol-surface-on-secondary);
+}
+
+.bg-surface-tertiary {
+  background-color: var(--kol-surface-tertiary);
+  color: var(--kol-surface-on-tertiary);
+}
+
+.bg-surface-inverse {
+  background-color: var(--kol-surface-inverse);
+  color: var(--kol-surface-on-inverse);
+}
+
+/* ---------------------------------------------------------------------------
+ * Elevation Utilities
+ * --------------------------------------------------------------------------- */
+
+.elevation-base {
+  background-color: var(--kol-surface-primary);
+  color: var(--kol-surface-on-primary);
+}
+
+.elevation-raised {
+  background-color: var(--kol-surface-secondary);
+  color: var(--kol-surface-on-secondary);
+}
+
+.elevation-elevated {
+  background-color: var(--kol-surface-tertiary);
+  color: var(--kol-surface-on-tertiary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Foreground-based Opacity - USED LEVELS ONLY
+ * --------------------------------------------------------------------------- */
+/*
+ * Most used levels: 02, 04, 08, 16, 24, 64, 88
+ * These are the heavily-used utility classes
+ */
+
+/* Background Opacity */
+.bg-fg-02 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 2%, transparent); }
+.bg-fg-04 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 4%, transparent); }
+.bg-fg-08 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 8%, transparent); }
+.bg-fg-16 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 16%, transparent); }
+.bg-fg-24 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 24%, transparent); }
+.bg-fg-64 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 64%, transparent); }
+.bg-fg-88 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 88%, transparent); }
+
+/* Border Opacity */
+.border-fg { border-color: var(--kol-surface-on-primary, currentColor); }
+.border-fg-02 { border-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 2%, transparent); }
+.border-fg-04 { border-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 4%, transparent); }
+.border-fg-08 { border-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 8%, transparent); }
+.border-fg-16 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent); }
+.border-fg-24 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 24%, transparent); }
+.border-fg-32 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 32%, transparent); }
+.border-fg-64 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 64%, transparent); }
+
+/* Text Opacity */
+.text-fg-02 { color: color-mix(in srgb, var(--kol-surface-on-primary) 2%, transparent); }
+.text-fg-04 { color: color-mix(in srgb, var(--kol-surface-on-primary) 4%, transparent); }
+.text-fg-08 { color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent); }
+.text-fg-16 { color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent); }
+.text-fg-24 { color: color-mix(in srgb, var(--kol-surface-on-primary) 24%, transparent); }
+.text-fg-32 { color: color-mix(in srgb, var(--kol-surface-on-primary) 32%, transparent); }
+.text-fg-48 { color: color-mix(in srgb, var(--kol-surface-on-primary) 48%, transparent); }
+.text-fg-64 { color: color-mix(in srgb, var(--kol-surface-on-primary) 64%, transparent); }
+.text-fg-80 { color: color-mix(in srgb, var(--kol-surface-on-primary) 80%, transparent); }
+.text-fg-88 { color: color-mix(in srgb, var(--kol-surface-on-primary) 88%, transparent); }
+
+/* ---------------------------------------------------------------------------
+ * Basic Utilities
+ * --------------------------------------------------------------------------- */
+
+.text-auto {
+  color: var(--kol-surface-on-primary);
+}
+
+.text-inverse {
+  color: var(--kol-surface-on-inverse);
+}
+
+.bg-auto {
+  background-color: var(--kol-surface-primary);
+}
+
+.bg-fg {
+  background-color: var(--kol-surface-on-primary);
+}
+
+.border-auto {
+  border-color: var(--kol-border-default);
+}
+
+.divider-auto {
+  border-color: var(--kol-border-default);
+  border-width: 1px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Surface-based Borders (for contrast on bg-fg fills)
+ * --------------------------------------------------------------------------- */
+
+.border-surface {
+  border-color: var(--kol-surface-primary);
+}
+
+.border-surface-08 {
+  border-color: color-mix(in srgb, var(--kol-surface-primary) 8%, transparent);
+}
+
+.border-surface-16 {
+  border-color: color-mix(in srgb, var(--kol-surface-primary) 16%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+ * State Utilities
+ * --------------------------------------------------------------------------- */
+
+.hover\:border-hover:hover {
+  border-color: var(--kol-border-default);
+}
+
+.hover\:border-fg-08:hover {
+  border-color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
+}
+
+.hover\:border-fg-16:hover {
+  border-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+}
+
+.focus\:border-focus:focus {
+  border-color: var(--kol-border-focus);
+}
+
+.focus-visible\:border-focus:focus-visible {
+  border-color: var(--kol-border-focus);
+}
+
+.focus-visible\:ring-focus:focus-visible {
+  outline: 2px solid var(--kol-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Absolute Colors
+ * --------------------------------------------------------------------------- */
+
+.bgAbsoluteWhite {
+  background-color: var(--kol-color-absolute-white);
+}
+
+.bgAbsoluteBlack {
+  background-color: var(--kol-color-absolute-black);
+}
+
+.textAbsoluteWhite {
+  color: var(--kol-color-absolute-white);
+}
+
+.textAbsoluteBlack {
+  color: var(--kol-color-absolute-black);
+}

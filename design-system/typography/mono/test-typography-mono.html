@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typography - Mono Test</title>
+  <link rel="stylesheet" href="kol-typography-mono.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #fafafa;
+      color: #121215;
+      padding: 2rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    section { margin-bottom: 2rem; }
+    h2 { margin-bottom: 1rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+    .demo { margin-bottom: 0.5rem; }
+    .row { display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap; }
+    .card {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 1.5rem;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Kolkrabbi Typography - Mono (JetBrains Mono)</h1>
+
+  <!-- Mono -->
+  <section>
+    <h2>Mono Classes</h2>
+    <div class="row">
+      <div class="demo kol-mono-sm">Mono Small (500)</div>
+      <div class="demo kol-mono-xs">Mono XS (500)</div>
+      <div class="demo kol-mono-xxs">Mono XXS (500)</div>
+    </div>
+    <div class="demo kol-mono-text">Mono Text - Code, data tables, technical</div>
+    <div class="demo kol-mono-text-lg">Mono Text Large</div>
+    <div class="demo kol-mono-sm-fine">Mono Small Fine (300)</div>
+    <div class="demo kol-mono-text-fine">Mono Text Fine (300)</div>
+  </section>
+
+  <!-- Labels -->
+  <section>
+    <h2>Labels</h2>
+    <div class="row">
+      <span class="kol-label-mono-sm">Label Mono SM</span>
+      <span class="kol-label-mono-md">Label Mono MD</span>
+      <span class="kol-label-mono-xs">Label Mono XS</span>
+    </div>
+  </section>
+
+  <!-- Helpers -->
+  <section>
+    <h2>Helpers (Uppercase)</h2>
+    <div class="row">
+      <span class="kol-helper-uc-xl">UC XL</span>
+      <span class="kol-helper-uc-lg">UC LG</span>
+      <span class="kol-helper-uc-md">UC MD</span>
+      <span class="kol-helper-uc-s">UC S</span>
+      <span class="kol-helper-uc-xs">UC XS</span>
+      <span class="kol-helper-uc-xxs">UC XXS</span>
+    </div>
+  </section>
+
+  <!-- Fine Helpers -->
+  <section>
+    <h2>Helpers (Fine / 300)</h2>
+    <div class="row">
+      <span class="kol-helper-fine-xl">Fine XL</span>
+      <span class="kol-helper-fine-lg">Fine LG</span>
+      <span class="kol-helper-fine-md">Fine MD</span>
+      <span class="kol-helper-fine-s">Fine S</span>
+      <span class="kol-helper-fine-xs">Fine XS</span>
+    </div>
+  </section>
+
+  <!-- In Context -->
+  <section>
+    <h2>In Context</h2>
+    <div class="card">
+      <div class="kol-mono-text" style="margin-bottom: 0.5rem;">function helloWorld() {</div>
+      <div class="kol-mono-sm" style="margin-left: 1rem; color: #666;">console.log('Hello, World!');</div>
+      <div class="kol-mono-text">}</div>
+    </div>
+  </section>
+
+  <!-- Meta -->
+  <section>
+    <h2>Meta</h2>
+    <div class="demo kol-meta">Meta - 12px, 400 weight</div>
+    <div class="demo kol-mono-body">Mono Body - clamp 14-16px</div>
+  </section>
+</body>
+</html>
