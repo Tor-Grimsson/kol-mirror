@@ -77,16 +77,17 @@ export default function PixiGlitchSliceVariant({
       }
       const sprite = new TilingSprite({
         texture,
-        width: isVertical ? width : width * 2,
-        height: isVertical ? height * 2 : height,
+        width: width + maxOffset * 2,
+        height: height + maxOffset * 2,
       })
       sprite.tileScale.set(scale)
-      sprite.anchor.set(isVertical ? 0 : 0.25, isVertical ? 0.25 : 0)
-      // Offset tile so the seam falls outside the visible area
+      sprite.x = -maxOffset
+      sprite.y = -maxOffset
+      // Center the image in the frame
       const tw = texture.width * scale
       const th = texture.height * scale
-      sprite.tilePosition.x = (width - tw) / 2 + (isVertical ? 0 : tw / 2)
-      sprite.tilePosition.y = (height - th) / 2 + (isVertical ? th / 2 : 0)
+      sprite.tilePosition.x = (width - tw) / 2 + maxOffset
+      sprite.tilePosition.y = (height - th) / 2 + maxOffset
 
       const mask = new Graphics()
       if (isVertical) {
@@ -101,9 +102,11 @@ export default function PixiGlitchSliceVariant({
       mainContainer.addChild(mask)
 
       const offset = (Math.random() - 0.5) * maxOffset * 2
-      slices.push({ sprite, mask, baseX: 0, baseY: 0, targetOffset: offset, currentOffset: offset })
-      if (isVertical) sprite.y = offset
-      else sprite.x = offset
+      const baseX = -maxOffset
+      const baseY = -maxOffset
+      slices.push({ sprite, mask, baseX, baseY, targetOffset: offset, currentOffset: offset })
+      if (isVertical) sprite.y = baseY + offset
+      else sprite.x = baseX + offset
     }
 
     slicesRef.current = slices

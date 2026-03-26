@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { Application, Assets, Container, Sprite, TilingSprite, Graphics, FillGradient, RenderTexture } from 'pixi.js'
+import { useEffect, useRef } from 'react'
+import { Container, Sprite, TilingSprite, Graphics } from 'pixi.js'
+import usePixiApp from '../../hooks/usePixiApp'
+import VariantFrame from './VariantFrame'
 
 // Build a tiled grid of sprites inside a container for edge repeat/mirror
 function buildTiledContent(texture, zoom, sourceOffsetX, sourceOffsetY, cutOffsetRad, wrapMode, radius) {
@@ -312,10 +314,11 @@ export default function PixiKaleidoscopeVariant({
   onParamChange,
 }) {
   const canvasRef = useRef(null)
-  const grabDragRef = useRef(null)
-  const outlineRef = useRef(null)
-  const appRef = useRef(null)
+  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc)
   const containerRef = useRef(null)
+  const outlineRef = useRef(null)
+  const grabDragRef = useRef(null)
+  const rotationRef = useRef(0)
   const speedRef = useRef(speed)
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
@@ -325,10 +328,6 @@ export default function PixiKaleidoscopeVariant({
   const bgSpeedRef = useRef(bgSpeed)
   const bgRotDirRef = useRef(bgRotationDirection)
   const bgSplitRotationRef = useRef(bgSplitRotation)
-  const bgRotationRef = useRef(0)
-  const rotationRef = useRef(0)
-  const wrapModeRef = useRef(wrapMode)
-  const [showInfo, setShowInfo] = useState(false)
 
   useEffect(() => { speedRef.current = speed }, [speed])
   useEffect(() => { animateRef.current = animate }, [animate])
@@ -343,261 +342,162 @@ export default function PixiKaleidoscopeVariant({
   useEffect(() => { bgRotDirRef.current = bgRotationDirection }, [bgRotationDirection])
   useEffect(() => { bgSplitRotationRef.current = bgSplitRotation }, [bgSplitRotation])
 
-  useEffect(() => { wrapModeRef.current = wrapMode }, [wrapMode])
-
-  // Init PixiJS
+  // Build segments + ticker
   useEffect(() => {
-    if (!canvasRef.current || appRef.current) return
+    if (!appRef.current || !textureRef.current) return
+    const { width, height } = size
+    if (width === 0 || height === 0) return
 
-    const initPixi = async () => {
-      try {
-        const canvasWrapper = canvasRef.current?.parentElement
-        const imageContainer = canvasWrapper?.parentElement
-        if (!imageContainer) return
+    const app = appRef.current
+    app.stage.removeChildren()
 
-        const width = imageContainer.clientWidth
-        const height = imageContainer.clientHeight
-        if (width === 0 || height === 0) return
+    const mainContainer = new Container()
+    mainContainer.x = width / 2
+    mainContainer.y = height / 2
+    app.stage.addChild(mainContainer)
+    containerRef.current = mainContainer
 
-        const app = new Application()
-        appRef.current = app
+    buildSegments(mainContainer, textureRef.current, width, height,
+      { segments, zoom, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, mirrorMode, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, grabOutlineVisible, mainEnabled, blendMode, showBackground, bgAnimate, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgSpeed, bgMirrorMode, bgRotationDirection, bgSplitRotation, bgBlendMode, bgWrapMode, bgFillMode, edgeZoomScale, bgEdgeZoomScale }, app, outlineRef)
 
-        await app.init({
-          canvas: canvasRef.current,
-          width, height,
-          backgroundColor: 0x1a1a1a,
-          resolution: window.devicePixelRatio || 1,
-          autoDensity: true
-        })
+    // Restore rotation state after rebuild
+    mainContainer.children.forEach((ring) => {
+      if (!ring._isBgRing && !splitRotation) {
+        ring.rotation = rotationRef.current
+      }
+    })
 
-        const mainContainer = new Container()
-        mainContainer.x = width / 2
-        mainContainer.y = height / 2
-        app.stage.addChild(mainContainer)
-        containerRef.current = mainContainer
+    // Dual ticker: main + background animation
+    const tickerFn = () => {
+      if (!containerRef.current) return
+      const rings = containerRef.current.children
 
-        // Build initial segments
-        const texture = await Assets.load(imageSrc)
-        buildSegments(mainContainer, texture, width, height,
-          { segments, zoom, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, mirrorMode, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, grabOutlineVisible, mainEnabled, blendMode, showBackground, bgAnimate, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgSpeed, bgMirrorMode, bgRotationDirection, bgSplitRotation, bgBlendMode, bgWrapMode, bgFillMode }, app, outlineRef)
+      if (animateRef.current && enabledRef.current) {
+        const dir = rotDirRef.current === 'counterclockwise' ? -1 : 1
+        const step = speedRef.current * 0.01
+        const flip = splitRotationRef.current
 
-        app.ticker.add(() => {
-          if (!containerRef.current) return
-          const rings = containerRef.current.children
-
-          // Main animation
-          if (animateRef.current && enabledRef.current) {
-            const dir = rotDirRef.current === 'counterclockwise' ? -1 : 1
-            const step = speedRef.current * 0.01
-            const flip = splitRotationRef.current
-
-            if (flip) {
-              rings.forEach((ring) => {
-                if (ring._isBgRing) return
-                ring.children.forEach((seg, i) => {
-                  const segDir = i % 2 === 0 ? dir : -dir
-                  seg.rotation += step * segDir
-                })
-              })
-            } else {
-              rings.forEach((ring) => {
-                if (ring._isBgRing) return
-                ring.rotation += step * dir
-              })
-            }
-          }
-
-          // Background animation (independent)
-          if (bgAnimateRef.current) {
-            const bgDir = bgRotDirRef.current === 'counterclockwise' ? -1 : 1
-            const bgStep = bgSpeedRef.current * 0.01
-            const bgFlip = bgSplitRotationRef.current
-
-            rings.forEach((ring) => {
-              if (!ring._isBgRing) return
-              if (bgFlip) {
-                ring.children.forEach((seg, i) => {
-                  const segDir = i % 2 === 0 ? bgDir : -bgDir
-                  seg.rotation += bgStep * segDir
-                })
-              } else {
-                ring.rotation += bgStep * bgDir
-              }
+        if (flip) {
+          rings.forEach((ring) => {
+            if (ring._isBgRing) return
+            ring.children.forEach((seg, i) => {
+              const segDir = i % 2 === 0 ? dir : -dir
+              seg.rotation += step * segDir
             })
+          })
+        } else {
+          rings.forEach((ring) => {
+            if (ring._isBgRing) return
+            ring.rotation += step * dir
+          })
+        }
+      }
+
+      if (bgAnimateRef.current) {
+        const bgDir = bgRotDirRef.current === 'counterclockwise' ? -1 : 1
+        const bgStep = bgSpeedRef.current * 0.01
+        const bgFlip = bgSplitRotationRef.current
+
+        rings.forEach((ring) => {
+          if (!ring._isBgRing) return
+          if (bgFlip) {
+            ring.children.forEach((seg, i) => {
+              const segDir = i % 2 === 0 ? bgDir : -bgDir
+              seg.rotation += bgStep * segDir
+            })
+          } else {
+            ring.rotation += bgStep * bgDir
           }
         })
-      } catch (error) {
-        console.error('PixiJS Kaleidoscope initialization error:', error)
       }
     }
+    app.ticker.add(tickerFn)
 
-    const timer = setTimeout(() => initPixi(), 100)
-    return () => {
-      clearTimeout(timer)
-      if (appRef.current) {
-        appRef.current.destroy(true, { children: true, texture: true, baseTexture: true })
-        appRef.current = null
-        containerRef.current = null
-      }
-    }
-  }, [])
-
-  // Pause/resume — keep current frame, don't reset
-  // (ticker already checks enabledRef/animateRef, so pausing is automatic)
-
-  // Rebuild segments when any kaleidoscope param changes
-  useEffect(() => {
-    if (!appRef.current || !containerRef.current || !imageSrc) return
-
-    const rebuildSegments = async () => {
-      try {
-        const texture = await Assets.load(imageSrc)
-        const mainContainer = containerRef.current
-        const width = appRef.current.screen.width
-        const height = appRef.current.screen.height
-
-        mainContainer.x = width / 2
-        mainContainer.y = height / 2
-        mainContainer.removeChildren()
-        buildSegments(mainContainer, texture, width, height,
-          { segments, zoom, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, mirrorMode, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, grabOutlineVisible, mainEnabled, blendMode, showBackground, bgAnimate, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgSpeed, bgMirrorMode, bgRotationDirection, bgSplitRotation, bgBlendMode, bgWrapMode, bgFillMode }, appRef.current, outlineRef)
-
-        // Restore rotation state after rebuild
-        mainContainer.children.forEach((ring) => {
-          if (!ring._isBgRing && !splitRotation) {
-            ring.rotation = rotationRef.current
-          }
-        })
-      } catch (error) {
-        console.error('Error rebuilding kaleidoscope segments:', error)
-      }
-    }
-
-    rebuildSegments()
-  }, [segments, zoom, mirrorMode, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, imageSrc, edgeZoomScale, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, mainEnabled, blendMode, showBackground, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgMirrorMode, bgBlendMode, bgEdgeZoomScale, bgWrapMode, bgFillMode])
+    return () => { app.ticker?.remove(tickerFn) }
+  }, [size.width, size.height, segments, zoom, mirrorMode, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, edgeZoomScale, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, mainEnabled, blendMode, showBackground, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgMirrorMode, bgBlendMode, bgEdgeZoomScale, bgWrapMode, bgFillMode])
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div
-          className="kol-helper-s text-fg-64 cursor-help"
-          onMouseEnter={() => setShowInfo(true)}
-          onMouseLeave={() => setShowInfo(false)}
-        >
-          {title}
-        </div>
-        <div className="flex gap-2">
-          <div
-            className={`kol-helper-xs cursor-pointer select-none ${isEnabled ? 'accentYellow' : 'text-fg-64'} hover:text-fg-96`}
-            onClick={onToggleEnabled}
-          >
-            [{isEnabled ? 'ON' : 'OFF'}]
-          </div>
-          <div
-            className={`kol-helper-xs cursor-pointer select-none ${isSelected ? 'accentYellowStrong' : 'text-fg-64'} hover:text-fg-96`}
-            onClick={onToggleSelect}
-          >
-            [{isSelected ? 'SELECT' : 'UNSELECT'}]
-          </div>
-        </div>
-      </div>
-
+    <VariantFrame
+      title={title}
+      isEnabled={isEnabled}
+      isSelected={isSelected}
+      onToggleEnabled={onToggleEnabled}
+      onToggleSelect={onToggleSelect}
+      onImageUpload={onImageUpload}
+      imageSrc={imageSrc}
+      interactive
+      info={
+        <>
+          <div><strong>Segments:</strong> {segments}</div>
+          <div><strong>Zoom:</strong> {zoom.toFixed(1)}x</div>
+          <div><strong>Source Offset:</strong> {sourceOffsetX}, {sourceOffsetY}</div>
+          <div><strong>Cut Offset:</strong> {cutOffset}°</div>
+        </>
+      }
+      stats={`segments: ${segments} | zoom: ${zoom.toFixed(1)}`}
+    >
       <div
-        className="relative aspect-[4/3] overflow-hidden border border-fg-08"
-        style={{ borderRadius: '4px' }}
+        className="absolute inset-0"
+        style={{ pointerEvents: grabSegment ? 'auto' : 'none' }}
+        onPointerMove={grabSegment && !grabDragRef.current ? (e) => {
+          const el = e.currentTarget
+          const rect = el.getBoundingClientRect()
+          const cx = rect.width / 2 + wedgeOffsetX
+          const cy = rect.height / 2 + wedgeOffsetY
+          const mx = e.clientX - rect.left - cx
+          const my = e.clientY - rect.top - cy
+          const dist = Math.sqrt(mx * mx + my * my)
+          const angle = (Math.atan2(my, mx) + Math.PI * 2) % (Math.PI * 2)
+          const segAngle = (Math.PI * 2) / segments
+          const wedgeEnd = segAngle - ((segmentGap / 360) * Math.PI * 2)
+          const r = Math.max(el.clientWidth, el.clientHeight) / 2
+          const inWedge = dist < r && angle >= 0 && angle <= wedgeEnd
+          el.style.cursor = inWedge ? 'grab' : 'default'
+        } : undefined}
+        onPointerDown={grabSegment ? (e) => {
+          const el = e.currentTarget
+          const rect = el.getBoundingClientRect()
+          const cx = rect.width / 2 + wedgeOffsetX
+          const cy = rect.height / 2 + wedgeOffsetY
+          const mx = e.clientX - rect.left - cx
+          const my = e.clientY - rect.top - cy
+          const dist = Math.sqrt(mx * mx + my * my)
+          const angle = (Math.atan2(my, mx) + Math.PI * 2) % (Math.PI * 2)
+          const segAngle = (Math.PI * 2) / segments
+          const wedgeEnd = segAngle - ((segmentGap / 360) * Math.PI * 2)
+          const r = Math.max(el.clientWidth, el.clientHeight) / 2
+          if (!(dist < r && angle >= 0 && angle <= wedgeEnd)) return
+
+          e.preventDefault()
+          const startX = e.clientX
+          const startY = e.clientY
+          const startOffsetX = wedgeOffsetX
+          const startOffsetY = wedgeOffsetY
+          grabDragRef.current = true
+          el.style.cursor = 'grabbing'
+
+          const handleMove = (me) => {
+            const dx = me.clientX - startX
+            const dy = me.clientY - startY
+            if (onParamChange) {
+              onParamChange('wedgeOffsetX', startOffsetX + dx)
+              onParamChange('wedgeOffsetY', startOffsetY + dy)
+            }
+          }
+
+          const handleUp = () => {
+            grabDragRef.current = false
+            el.style.cursor = 'default'
+            window.removeEventListener('pointermove', handleMove)
+            window.removeEventListener('pointerup', handleUp)
+          }
+
+          window.addEventListener('pointermove', handleMove)
+          window.addEventListener('pointerup', handleUp)
+        } : undefined}
       >
-        {showInfo && (
-          <div className="absolute top-0 left-0 right-0 kol-helper-xs textAbsoluteWhite p-3 space-y-1 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--kol-surface-primary) 60%, transparent)' }}>
-            <div><strong>Segments:</strong> {segments}</div>
-            <div><strong>Zoom:</strong> {zoom.toFixed(1)}x</div>
-            <div><strong>Source Offset:</strong> {sourceOffsetX}, {sourceOffsetY}</div>
-            <div><strong>Cut Offset:</strong> {cutOffset}°</div>
-          </div>
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            display: isEnabled ? 'block' : 'none',
-            pointerEvents: grabSegment ? 'auto' : 'none',
-          }}
-          onPointerMove={grabSegment && !grabDragRef.current ? (e) => {
-            const el = e.currentTarget
-            const rect = el.getBoundingClientRect()
-            const cx = rect.width / 2 + wedgeOffsetX
-            const cy = rect.height / 2 + wedgeOffsetY
-            const mx = e.clientX - rect.left - cx
-            const my = e.clientY - rect.top - cy
-            const dist = Math.sqrt(mx * mx + my * my)
-            const angle = (Math.atan2(my, mx) + Math.PI * 2) % (Math.PI * 2)
-            const segAngle = (Math.PI * 2) / segments
-            const wedgeEnd = segAngle - ((segmentGap / 360) * Math.PI * 2)
-            const r = Math.max(el.clientWidth, el.clientHeight) / 2
-            const inWedge = dist < r && angle >= 0 && angle <= wedgeEnd
-            el.style.cursor = inWedge ? 'grab' : 'default'
-          } : undefined}
-          onPointerDown={grabSegment ? (e) => {
-            const el = e.currentTarget
-            const rect = el.getBoundingClientRect()
-            const cx = rect.width / 2 + wedgeOffsetX
-            const cy = rect.height / 2 + wedgeOffsetY
-            const mx = e.clientX - rect.left - cx
-            const my = e.clientY - rect.top - cy
-            const dist = Math.sqrt(mx * mx + my * my)
-            const angle = (Math.atan2(my, mx) + Math.PI * 2) % (Math.PI * 2)
-            const segAngle = (Math.PI * 2) / segments
-            const wedgeEnd = segAngle - ((segmentGap / 360) * Math.PI * 2)
-            const r = Math.max(el.clientWidth, el.clientHeight) / 2
-            if (!(dist < r && angle >= 0 && angle <= wedgeEnd)) return
-
-            e.preventDefault()
-            const startX = e.clientX
-            const startY = e.clientY
-            const startOffsetX = wedgeOffsetX
-            const startOffsetY = wedgeOffsetY
-            grabDragRef.current = true
-            el.style.cursor = 'grabbing'
-
-            const handleMove = (me) => {
-              const dx = me.clientX - startX
-              const dy = me.clientY - startY
-              if (onParamChange) {
-                onParamChange('wedgeOffsetX', startOffsetX + dx)
-                onParamChange('wedgeOffsetY', startOffsetY + dy)
-              }
-            }
-
-            const handleUp = () => {
-              grabDragRef.current = false
-              el.style.cursor = 'default'
-              window.removeEventListener('pointermove', handleMove)
-              window.removeEventListener('pointerup', handleUp)
-            }
-
-            window.addEventListener('pointermove', handleMove)
-            window.addEventListener('pointerup', handleUp)
-          } : undefined}
-        >
-          <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
-        </div>
-        <div className="absolute inset-0 pointer-events-none" style={{ display: !isEnabled ? 'block' : 'none' }}>
-          <img src={imageSrc} alt={title} className="w-full h-full object-cover" />
-        </div>
+        <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
       </div>
-
-      <div className="flex items-center justify-between">
-        <div className="kol-helper-xs text-fg-48 font-mono">
-          segments: {segments} | zoom: {zoom.toFixed(1)}
-        </div>
-        <label className="kol-helper-s textAbsoluteWhite cursor-pointer hover:opacity-80">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={onImageUpload}
-            className="hidden"
-          />
-          [UPLOAD]
-        </label>
-      </div>
-    </div>
+    </VariantFrame>
   )
 }

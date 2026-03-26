@@ -15,6 +15,7 @@ export default function VariantFrame({
   info,
   stats,
   aspect = '4/3',
+  interactive = false,
   children,
   canvasProps,
 }) {
@@ -59,7 +60,7 @@ export default function VariantFrame({
             {info}
           </div>
         )}
-        <div className="absolute inset-0 pointer-events-none" style={{ display: isEnabled ? 'block' : 'none' }}>
+        <div className={`absolute inset-0 ${interactive ? '' : 'pointer-events-none'}`} style={{ display: isEnabled ? 'block' : 'none' }}>
           {children}
         </div>
         <div className="absolute inset-0 pointer-events-none" style={{ display: !isEnabled ? 'block' : 'none' }}>
