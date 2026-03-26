@@ -50,9 +50,8 @@ function buildTiledContent(texture, zoom, sourceOffsetX, sourceOffsetY, cutOffse
 function buildSegments(container, texture, width, height, opts, app, outlineRef) {
   const { segments, zoom, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, mirrorMode, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, grabOutlineVisible, mainEnabled, blendMode,
     showBackground, bgAnimate, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgSpeed,
-    bgMirrorMode, bgRotationDirection, bgSplitRotation, bgExplode, bgWrapMode, bgFillMode } = opts
-  const edgeActive = wrapMode && wrapMode !== 'clamp-to-edge'
-  const effectiveZoom = edgeActive ? zoom * 0.15 : zoom
+    bgMirrorMode, bgRotationDirection, bgSplitRotation, bgBlendMode, bgWrapMode, bgFillMode } = opts
+  const effectiveZoom = zoom * (opts.edgeZoomScale ?? 1.0)
   const segmentAngle = (Math.PI * 2) / segments
   const gapRad = (segmentGap / 360) * Math.PI * 2
   const wedgeAngle = segmentAngle - gapRad
@@ -151,8 +150,7 @@ function buildSegments(container, texture, width, height, opts, app, outlineRef)
     const bgWedgeAngle = bgSegAngle - bgGapRad
     const bgCutOffsetRad = (bgCutOffset / 360) * Math.PI * 2
     const bgEvenOffsetRad = (bgEvenOffset / 360) * Math.PI * 2
-    const bgEdgeActive = bgWrapMode && bgWrapMode !== 'clamp-to-edge'
-    const bgEffectiveZoom = bgEdgeActive ? bgZoom * 0.15 : bgZoom
+    const bgEffectiveZoom = bgZoom * (opts.bgEdgeZoomScale ?? 1.0)
     const bgRadius = fillRadius
     const bgFillActive = bgFillMode && bgFillMode !== 'none'
     const bgFillRadius = bgFillActive ? fillRadius : bgRadius
@@ -176,15 +174,11 @@ function buildSegments(container, texture, width, height, opts, app, outlineRef)
         segContainer.addChild(mask)
         segContainer.mask = mask
         segContainer.rotation = i * bgSegAngle + (i % 2 === 0 ? bgEvenOffsetRad : 0)
-        if (bgExplode > 0) {
-          const midAngle = i * bgSegAngle + bgWedgeAngle / 2
-          segContainer.x = Math.cos(midAngle) * bgExplode
-          segContainer.y = Math.sin(midAngle) * bgExplode
-        }
         if (bgMirrorMode === 'alternating' && i % 2 === 1) content.scale.x *= -1
         bgFillRing.addChild(segContainer)
       }
       bgFillRing._isBgRing = true
+      if (bgBlendMode && bgBlendMode !== 'normal') bgFillRing.blendMode = bgBlendMode
       container.addChild(bgFillRing)
     }
 
@@ -199,15 +193,11 @@ function buildSegments(container, texture, width, height, opts, app, outlineRef)
       segContainer.addChild(mask)
       segContainer.mask = mask
       segContainer.rotation = i * bgSegAngle + (i % 2 === 0 ? bgEvenOffsetRad : 0)
-      if (bgExplode > 0) {
-        const midAngle = i * bgSegAngle + bgWedgeAngle / 2
-        segContainer.x = Math.cos(midAngle) * bgExplode
-        segContainer.y = Math.sin(midAngle) * bgExplode
-      }
       if (bgMirrorMode === 'alternating' && i % 2 === 1) content.scale.x *= -1
       bgRing.addChild(segContainer)
     }
     bgRing._isBgRing = true
+    if (bgBlendMode && bgBlendMode !== 'normal') bgRing.blendMode = bgBlendMode
     container.addChild(bgRing)
   }
 
@@ -312,9 +302,11 @@ export default function PixiKaleidoscopeVariant({
   bgMirrorMode = 'alternating',
   bgRotationDirection = 'clockwise',
   bgSplitRotation = false,
-  bgExplode = 0,
+  bgBlendMode = 'normal',
+  bgEdgeZoomScale = 0.15,
   bgWrapMode = 'clamp-to-edge',
   bgFillMode = 'none',
+  edgeZoomScale = 0.15,
   wrapMode = 'clamp-to-edge',
   fillMode = 'none',
   onParamChange,
@@ -387,7 +379,7 @@ export default function PixiKaleidoscopeVariant({
         // Build initial segments
         const texture = await Assets.load(imageSrc)
         buildSegments(mainContainer, texture, width, height,
-          { segments, zoom, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, mirrorMode, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, grabOutlineVisible, mainEnabled, blendMode, showBackground, bgAnimate, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgSpeed, bgMirrorMode, bgRotationDirection, bgSplitRotation, bgExplode, bgWrapMode, bgFillMode }, app, outlineRef)
+          { segments, zoom, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, mirrorMode, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, grabOutlineVisible, mainEnabled, blendMode, showBackground, bgAnimate, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgSpeed, bgMirrorMode, bgRotationDirection, bgSplitRotation, bgBlendMode, bgWrapMode, bgFillMode }, app, outlineRef)
 
         app.ticker.add(() => {
           if (!containerRef.current) return
@@ -468,7 +460,7 @@ export default function PixiKaleidoscopeVariant({
         mainContainer.y = height / 2
         mainContainer.removeChildren()
         buildSegments(mainContainer, texture, width, height,
-          { segments, zoom, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, mirrorMode, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, grabOutlineVisible, mainEnabled, blendMode, showBackground, bgAnimate, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgSpeed, bgMirrorMode, bgRotationDirection, bgSplitRotation, bgExplode, bgWrapMode, bgFillMode }, appRef.current, outlineRef)
+          { segments, zoom, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, mirrorMode, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, grabOutlineVisible, mainEnabled, blendMode, showBackground, bgAnimate, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgSpeed, bgMirrorMode, bgRotationDirection, bgSplitRotation, bgBlendMode, bgWrapMode, bgFillMode }, appRef.current, outlineRef)
 
         // Restore rotation state after rebuild
         mainContainer.children.forEach((ring) => {
@@ -482,7 +474,7 @@ export default function PixiKaleidoscopeVariant({
     }
 
     rebuildSegments()
-  }, [segments, zoom, mirrorMode, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, imageSrc, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, mainEnabled, blendMode, showBackground, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgMirrorMode, bgExplode, bgWrapMode, bgFillMode])
+  }, [segments, zoom, mirrorMode, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, imageSrc, edgeZoomScale, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, mainEnabled, blendMode, showBackground, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgMirrorMode, bgBlendMode, bgEdgeZoomScale, bgWrapMode, bgFillMode])
 
   return (
     <div className="flex flex-col gap-4">

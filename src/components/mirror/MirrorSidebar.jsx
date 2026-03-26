@@ -79,8 +79,9 @@ export default function MirrorSidebar({ state, onClose }) {
         const img = new Image()
         img.onload = () => {
           const canvas = document.createElement('canvas')
-          canvas.width = img.naturalWidth || 1024
-          canvas.height = img.naturalHeight || 1024
+          const RASTER_SCALE = 4
+          canvas.width = (img.naturalWidth || 1024) * RASTER_SCALE
+          canvas.height = (img.naturalHeight || 1024) * RASTER_SCALE
           const ctx = canvas.getContext('2d')
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           URL.revokeObjectURL(svgUrl)
@@ -284,7 +285,15 @@ export default function MirrorSidebar({ state, onClose }) {
                 { value: 'custom', label: 'Custom' },
               ]}
               value={state.hallCanvasRatio}
-              onChange={(v) => state.setHallCanvasRatio(v)}
+              onChange={(v) => {
+                if (v === 'custom' && state.hallCanvasRatio !== 'custom' && state.hallCanvasRatio !== 'none') {
+                  const [rw, rh] = (state.hallCanvasRatio || '16:9').split(':').map(Number)
+                  const base = Math.max(rw, rh) <= 16 ? Math.round(1024 / Math.max(rw, rh)) : 1
+                  state.setHallCustomWidth(rw * base)
+                  state.setHallCustomHeight(rh * base)
+                }
+                state.setHallCanvasRatio(v)
+              }}
               variant="minimal"
               size="md"
             />
@@ -406,7 +415,15 @@ export default function MirrorSidebar({ state, onClose }) {
                   { value: 'custom', label: 'Custom' },
                 ]}
                 value={state.symphonyRatio}
-                onChange={(v) => state.setSymphonyRatio(v)}
+                onChange={(v) => {
+                  if (v === 'custom' && state.symphonyRatio !== 'custom') {
+                    const [rw, rh] = (state.symphonyRatio || '16:9').split(':').map(Number)
+                    const base = Math.max(rw, rh) <= 16 ? Math.round(1024 / Math.max(rw, rh)) : 1
+                    state.setSymphonyCustomWidth(rw * base)
+                    state.setSymphonyCustomHeight(rh * base)
+                  }
+                  state.setSymphonyRatio(v)
+                }}
                 variant="minimal"
                 size="md"
               />
@@ -451,8 +468,16 @@ export default function MirrorSidebar({ state, onClose }) {
               />
             )}
 
-            {/* Vector + background color */}
+            {/* Raster theme + vector + background color */}
             <Divider className="my-2" />
+            <div
+              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
+              style={{ height: '24px' }}
+              onClick={() => state.setSymphonyRasterTheme(state.symphonyRasterTheme === 'dark' ? 'light' : 'dark')}
+            >
+              <span>Raster</span>
+              <span>[{state.symphonyRasterTheme === 'dark' ? 'LIGHT' : 'DARK'}]</span>
+            </div>
             <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
               <span className="kol-helper-xs text-fg-96 shrink-0">Vector Color</span>
               <ColorPicker

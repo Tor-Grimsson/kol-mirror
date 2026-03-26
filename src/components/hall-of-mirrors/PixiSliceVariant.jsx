@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { Application, Assets, TilingSprite } from 'pixi.js'
+import { useEffect, useRef } from 'react'
+import { TilingSprite } from 'pixi.js'
+import usePixiApp, { applyImageFit } from '../../hooks/usePixiApp'
+import VariantFrame from './VariantFrame'
 
 export default function PixiSliceVariant({
   title,
@@ -13,217 +15,98 @@ export default function PixiSliceVariant({
   tileScaleX = 0.3,
   speed = 1,
   direction = 'horizontal',
-  wrapMode = 'clamp-to-edge'
+  wrapMode = 'clamp-to-edge',
+  imageFitMode = 'contain'
 }) {
   const canvasRef = useRef(null)
-  const appRef = useRef(null)
+  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc)
   const tilingRef = useRef(null)
   const speedRef = useRef(speed)
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
   const directionRef = useRef(direction)
-  const wrapModeRef = useRef(wrapMode)
-  const [showInfo, setShowInfo] = useState(false)
 
-  // Keep refs updated
-  useEffect(() => {
-    speedRef.current = speed
-  }, [speed])
+  useEffect(() => { speedRef.current = speed }, [speed])
+  useEffect(() => { directionRef.current = direction }, [direction])
+  useEffect(() => { animateRef.current = animate }, [animate])
+  useEffect(() => { enabledRef.current = isEnabled }, [isEnabled])
 
   useEffect(() => {
-    directionRef.current = direction
-  }, [direction])
-
-  useEffect(() => {
-    animateRef.current = animate
-  }, [animate])
-
-  useEffect(() => {
-    enabledRef.current = isEnabled
-  }, [isEnabled])
-
-  useEffect(() => {
-    wrapModeRef.current = wrapMode
     if (tilingRef.current?.texture?.source?.style) {
       tilingRef.current.texture.source.style.addressMode = wrapMode
       tilingRef.current.texture.source.style.update()
     }
   }, [wrapMode])
 
+  // Build content + ticker
   useEffect(() => {
-    if (!canvasRef.current || appRef.current) return
+    if (!appRef.current || !textureRef.current) return
+    const app = appRef.current
+    const texture = textureRef.current
+    const { width, height } = size
 
-    // Wrap in async IIFE to avoid Vite top-level await issue
-    const initPixi = async () => {
-      try {
-        // Get container dimensions - need to go up two levels
-        const canvasWrapper = canvasRef.current?.parentElement
-        const imageContainer = canvasWrapper?.parentElement
+    if (width === 0 || height === 0) return
 
-        if (!imageContainer) {
-          console.error('PixiJS: No image container found')
-          return
+    // Clear previous content
+    app.stage.removeChildren()
+
+    texture.source.style.addressMode = wrapMode
+    texture.source.style.update()
+
+    const tilingSprite = new TilingSprite({ texture, width, height })
+    applyImageFit(tilingSprite, texture, width, height, imageFitMode)
+    tilingSprite.tileScale.x *= tileScaleX
+
+    app.stage.addChild(tilingSprite)
+    tilingRef.current = tilingSprite
+
+    const tickerFn = () => {
+      if (tilingRef.current && animateRef.current && enabledRef.current) {
+        const s = speedRef.current
+        const d = directionRef.current
+        if (d === 'vertical') {
+          tilingRef.current.tilePosition.y += s
+        } else if (d === 'diagonal') {
+          tilingRef.current.tilePosition.x += s
+          tilingRef.current.tilePosition.y += s * 0.5
+        } else {
+          tilingRef.current.tilePosition.x += s
         }
-
-        const width = imageContainer.clientWidth
-        const height = imageContainer.clientHeight
-
-        if (width === 0 || height === 0) {
-          console.warn('PixiJS: Container has zero dimensions')
-          return
-        }
-
-        // Create Pixi Application
-        const app = new Application()
-        appRef.current = app
-
-        await app.init({
-          canvas: canvasRef.current,
-          width: width,
-          height: height,
-          backgroundColor: 0x1a1a1a,
-          resolution: window.devicePixelRatio || 1,
-          autoDensity: true
-        })
-
-        // Load the texture
-        const texture = await Assets.load(imageSrc)
-        texture.source.style.addressMode = wrapModeRef.current || 'clamp-to-edge'
-        texture.source.style.update()
-
-        // Create tiling sprite
-        const tilingSprite = new TilingSprite({
-          texture,
-          width: width,
-          height: height
-        })
-
-        // Scale the tiling to create slices
-        tilingSprite.tileScale.x = tileScaleX
-        tilingSprite.tileScale.y = 1
-
-        app.stage.addChild(tilingSprite)
-        tilingRef.current = tilingSprite
-
-        // Animation loop
-        app.ticker.add(() => {
-          if (tilingRef.current && animateRef.current && enabledRef.current) {
-            const s = speedRef.current
-            const d = directionRef.current
-            if (d === 'vertical') {
-              tilingRef.current.tilePosition.y += s
-            } else if (d === 'diagonal') {
-              tilingRef.current.tilePosition.x += s
-              tilingRef.current.tilePosition.y += s * 0.5
-            } else {
-              tilingRef.current.tilePosition.x += s
-            }
-          }
-        })
-      } catch (error) {
-        console.error('PixiJS initialization error:', error)
       }
     }
-
-    // Small delay to ensure DOM is fully ready
-    const timer = setTimeout(() => {
-      initPixi()
-    }, 100)
+    app.ticker.add(tickerFn)
 
     return () => {
-      clearTimeout(timer)
-      if (appRef.current) {
-        appRef.current.destroy(true, { children: true, texture: true, baseTexture: true })
-        appRef.current = null
-        tilingRef.current = null
-      }
+      app.ticker?.remove(tickerFn)
     }
-  }, [])
+  }, [size.width, size.height, tileScaleX, wrapMode, imageFitMode])
 
-  // Pause/resume — ticker checks refs, no reset needed
-
-  // Update tile scale when tileScaleX changes
+  // Update tile scale live
   useEffect(() => {
     if (tilingRef.current) {
       tilingRef.current.tileScale.x = tileScaleX
     }
   }, [tileScaleX])
 
-  // Reload texture when image changes
-  useEffect(() => {
-    if (!appRef.current || !imageSrc) return
-
-    ;(async () => {
-      try {
-        const texture = await Assets.load(imageSrc)
-        if (tilingRef.current) {
-          tilingRef.current.texture = texture
-        }
-      } catch (error) {
-        console.error('Error loading new image:', error)
-      }
-    })()
-  }, [imageSrc])
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div
-          className="kol-helper-s text-fg-64 cursor-help"
-          onMouseEnter={() => setShowInfo(true)}
-          onMouseLeave={() => setShowInfo(false)}
-        >
-          {title}
-        </div>
-        <div className="flex gap-2">
-          <div
-            className={`kol-helper-xs cursor-pointer select-none ${isEnabled ? 'accentYellow' : 'text-fg-64'} hover:text-fg-96`}
-            onClick={onToggleEnabled}
-          >
-            [{isEnabled ? 'ON' : 'OFF'}]
-          </div>
-          <div
-            className={`kol-helper-xs cursor-pointer select-none ${isSelected ? 'accentYellowStrong' : 'text-fg-64'} hover:text-fg-96`}
-            onClick={onToggleSelect}
-          >
-            [{isSelected ? 'SELECT' : 'UNSELECT'}]
-          </div>
-        </div>
-      </div>
-
-      <div
-        className="relative aspect-[4/3] overflow-hidden border border-fg-08"
-        style={{ borderRadius: '4px' }}
-      >
-        {showInfo && (
-          <div className="absolute top-0 left-0 right-0 kol-helper-xs textAbsoluteWhite p-3 space-y-1 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--kol-surface-primary) 60%, transparent)' }}>
-            <div><strong>Tile Scale X:</strong> {tileScaleX} - {tileScaleX < 0.4 ? 'Narrow slices' : tileScaleX < 0.7 ? 'Medium slices' : 'Wide slices'}</div>
-            <div><strong>Speed:</strong> {speed} - {speed < 2 ? 'Slow shift' : speed < 4 ? 'Medium shift' : 'Fast shift'}</div>
-            <div><strong>Effect:</strong> PixiJS TilingSprite creates repeating vertical slices that shift horizontally</div>
-          </div>
-        )}
-        <div className="absolute inset-0 pointer-events-none" style={{ display: isEnabled ? 'block' : 'none' }}>
-          <canvas ref={canvasRef} className="w-full h-full" />
-        </div>
-        <div className="absolute inset-0 pointer-events-none" style={{ display: !isEnabled ? 'block' : 'none' }}>
-          <img src={imageSrc} alt={title} className="w-full h-full object-cover" />
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="kol-helper-xs text-fg-48 font-mono">
-          tileScale: {tileScaleX} | speed: {speed}
-        </div>
-        <label className="kol-helper-s textAbsoluteWhite cursor-pointer hover:opacity-80">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={onImageUpload}
-            className="hidden"
-          />
-          [UPLOAD]
-        </label>
-      </div>
-    </div>
+    <VariantFrame
+      title={title}
+      isEnabled={isEnabled}
+      isSelected={isSelected}
+      onToggleEnabled={onToggleEnabled}
+      onToggleSelect={onToggleSelect}
+      onImageUpload={onImageUpload}
+      imageSrc={imageSrc}
+      info={
+        <>
+          <div><strong>Tile Scale X:</strong> {tileScaleX} - {tileScaleX < 0.4 ? 'Narrow slices' : tileScaleX < 0.7 ? 'Medium slices' : 'Wide slices'}</div>
+          <div><strong>Speed:</strong> {speed} - {speed < 2 ? 'Slow shift' : speed < 4 ? 'Medium shift' : 'Fast shift'}</div>
+          <div><strong>Effect:</strong> PixiJS TilingSprite creates repeating vertical slices that shift horizontally</div>
+        </>
+      }
+      stats={`tileScale: ${tileScaleX} | speed: ${speed}`}
+    >
+      <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
+    </VariantFrame>
   )
 }

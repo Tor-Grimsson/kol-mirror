@@ -80,20 +80,30 @@ export function useMirrorState() {
     })
   }, [])
 
-  // Get params for a variant, falling back to defaults
+  // Get params for a variant — always merges stored over defaults
   const getVariantParams = useCallback((variantId) => {
-    if (variantParams[variantId]) return variantParams[variantId]
     const variant = findVariant(variantId)
-    if (variant) return getDefaultParams(variant.controls)
-    return {}
+    const defaults = variant ? getDefaultParams(variant.controls) : {}
+    return variantParams[variantId] ? { ...defaults, ...variantParams[variantId] } : defaults
   }, [variantParams])
 
-  // Set a single param for a variant
-  const setVariantParam = useCallback((variantId, key, value) => {
+  // Bulk-set all params for a variant (overwrites existing)
+  const setAllVariantParams = useCallback((variantId, params) => {
     setVariantParams(prev => ({
       ...prev,
-      [variantId]: { ...(prev[variantId] || {}), [key]: value }
+      [variantId]: { ...params }
     }))
+  }, [])
+
+  // Set a single param for a variant — always starts from defaults if no prior params
+  const setVariantParam = useCallback((variantId, key, value) => {
+    setVariantParams(prev => {
+      const base = prev[variantId] || (() => {
+        const variant = findVariant(variantId)
+        return variant ? getDefaultParams(variant.controls) : {}
+      })()
+      return { ...prev, [variantId]: { ...base, [key]: value } }
+    })
   }, [])
 
   const handleImageUpload = useCallback((e) => {
@@ -113,8 +123,9 @@ export function useMirrorState() {
         const img = new Image()
         img.onload = () => {
           const canvas = document.createElement('canvas')
-          canvas.width = img.naturalWidth || 1024
-          canvas.height = img.naturalHeight || 1024
+          const RASTER_SCALE = 4
+          canvas.width = (img.naturalWidth || 1024) * RASTER_SCALE
+          canvas.height = (img.naturalHeight || 1024) * RASTER_SCALE
           const ctx = canvas.getContext('2d')
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           URL.revokeObjectURL(url)
@@ -195,7 +206,7 @@ export function useMirrorState() {
         wrapMode: 'clamp-to-edge', fillMode: 'repeat',
         showBackground: true, bgAnimate: true, bgSegments: 6, bgZoom: 1.5, bgSourceOffsetX: 0, bgSourceOffsetY: 0,
         bgCutOffset: 0, bgSegmentGap: 0, bgEvenOffset: 0, bgSpeed: 0.5, bgMirrorMode: 'alternating',
-        bgRotationDirection: 'clockwise', bgSplitRotation: false, bgExplode: 0,
+        bgRotationDirection: 'clockwise', bgSplitRotation: false, bgBlendMode: 'normal',
         bgWrapMode: 'clamp-to-edge', bgFillMode: 'none',
       })
     }
@@ -227,6 +238,10 @@ export function useMirrorState() {
   const [symphonyCanvasRaster, setSymphonyCanvasRaster] = useState(null)
   const [symphonyCanvasIsSvg, setSymphonyCanvasIsSvg] = useState(false)
   const [symphonyLoadMode, setSymphonyLoadMode] = useState('effect')
+  const [symphonyRasterTheme, setSymphonyRasterTheme] = useState(() => {
+    const t = document.documentElement.getAttribute('data-theme')
+    return t === 'light' ? 'light' : 'dark'
+  })
   const [symphonyLayout, setSymphonyLayout] = useState('row')
   const [symphonyRatio, setSymphonyRatio] = useState('16:9')
   const [symphonyCustomWidth, setSymphonyCustomWidth] = useState(1024)
@@ -251,6 +266,7 @@ export function useMirrorState() {
     variantParams,
     getVariantParams,
     setVariantParam,
+    setAllVariantParams,
     initVariantParams,
 
     archiveSlots,
@@ -288,6 +304,8 @@ export function useMirrorState() {
     setSymphonyCanvasIsSvg,
     symphonyLoadMode,
     setSymphonyLoadMode,
+    symphonyRasterTheme,
+    setSymphonyRasterTheme,
     symphonyLayout,
     setSymphonyLayout,
     symphonyRatio,

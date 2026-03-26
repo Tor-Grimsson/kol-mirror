@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { findVariant, getDefaultParams, getIntensityDialValue, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS } from '../../data/mirrorVariants'
+import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, RASTER_TIER_SCALES, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS } from '../../data/mirrorVariants'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import ChannelLayer from './ChannelLayer'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
@@ -23,41 +23,41 @@ export default function SymphonyViewport({ state }) {
   const canvasImage = state.symphonyCanvasImage
   const canvasRaster = state.symphonyCanvasRaster
   const hasCustomImage = !!state.symphonyCanvasImage
-  const [defaultRasterWhite, setDefaultRasterWhite] = useState(null)
-  const [defaultRasterBlack, setDefaultRasterBlack] = useState(null)
+  const [defaultRasters, setDefaultRasters] = useState({ white: {}, black: {} })
 
-  // Rasterize default SVG in both themes on mount
+  // Rasterize default SVG in both themes at multiple tiers on mount
   useEffect(() => {
-    const rasterize = (fillColor, callback) => {
+    const rasterize = (fillColor, themeKey) => {
       const colored = defaultCanvasSvg.replace(/currentColor/g, fillColor)
       const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(colored)
       const img = new Image()
       img.onload = () => {
-        const canvas = document.createElement('canvas')
-        canvas.width = img.naturalWidth || 1024
-        canvas.height = img.naturalHeight || 1024
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        callback(canvas.toDataURL('image/png'))
+        const tiers = {}
+        for (const [tier, scale] of Object.entries(RASTER_TIER_SCALES)) {
+          const canvas = document.createElement('canvas')
+          canvas.width = (img.naturalWidth || 1024) * scale
+          canvas.height = (img.naturalHeight || 1024) * scale
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          tiers[tier] = canvas.toDataURL('image/png')
+        }
+        setDefaultRasters(prev => ({ ...prev, [themeKey]: tiers }))
       }
       img.src = url
     }
-    rasterize('#ffffff', setDefaultRasterWhite)
-    rasterize('#000000', setDefaultRasterBlack)
+    rasterize('#ffffff', 'white')
+    rasterize('#000000', 'black')
   }, [])
 
-  const theme = document.documentElement.getAttribute('data-theme')
-  // Dark mode = white content, light mode = black content
-  const defaultRaster = theme === 'dark' ? defaultRasterWhite : defaultRasterBlack
+  const themeRasters = state.symphonyRasterTheme === 'light' ? defaultRasters.black : defaultRasters.white
 
   // Image sources for channels
   const svgImageSrc = canvasImage || DEFAULT_SVG_DATA_URL
-  const defaultFallback = state.symphonyLoadMode === 'source' ? '/images/stack-hero-800.jpg' : defaultRaster
-  const rasterImageSrc = canvasRaster || defaultFallback
+  const sourceFallback = state.symphonyLoadMode === 'source' ? '/images/stack-hero-800.jpg' : null
 
   // Color-correct default SVG for dry signal display
   const vectorColor = state.canvasVectorColor === 'currentColor'
-    ? (theme === 'dark' ? '#ffffff' : '#000000')
+    ? (state.symphonyRasterTheme === 'light' ? '#000000' : '#ffffff')
     : state.canvasVectorColor
   const defaultSvgColored = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
     defaultCanvasSvg.replace(/currentColor/g, vectorColor)
@@ -146,6 +146,8 @@ export default function SymphonyViewport({ state }) {
       const slot = state.archiveSlots[item.slotIndex]
       if (!slot) return
       const baseIntensity = getIntensityDialValue(slot.variantId)
+      // Load slot params into global variantParams so getVariantParams resolves them
+      state.setAllVariantParams(slot.variantId, slot.params)
       updateChannel(channel, {
         variantId: slot.variantId,
         slotIndex: item.slotIndex,
@@ -211,13 +213,15 @@ export default function SymphonyViewport({ state }) {
                 ? { ...ch, variantId: state.archiveSlots[ch.slotIndex].variantId, params: state.getVariantParams(state.archiveSlots[ch.slotIndex].variantId) }
                 : ch
               const isSlotRef = ch.slotIndex != null
+              const tier = getRasterTier(resolvedChannel.variantId, resolvedChannel.params)
+              const rasterForChannel = canvasRaster || sourceFallback || themeRasters[tier] || themeRasters.mid
               return (
               <ChannelLayer
                 key={i}
                 channel={resolvedChannel}
                 channelIndex={i}
                 imageSrc={svgImageSrc}
-                rasterSrc={rasterImageSrc}
+                rasterSrc={rasterForChannel}
                 defaultSvgSrc={hasCustomImage ? canvasImage : defaultSvgColored}
                 isAnimating={isAnimating}
                 imageFitMode={state.imageFitMode}

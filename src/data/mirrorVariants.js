@@ -38,7 +38,7 @@ const GLITCH_CONTROLS = [
   { key: 'maxOffset', type: 'slider', label: 'Max Offset', min: 0, max: 200, step: 1, default: 50 },
   { key: 'speed', type: 'slider', label: 'Speed', min: 0.1, max: 5, step: 0.1, default: 1 },
   { key: 'smoothing', type: 'slider', label: 'Smoothing', min: 0, max: 1, step: 0.05, default: 0.1 },
-  { key: 'direction', type: 'binary', label: 'Direction', options: [{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }], default: 'horizontal' },
+  { key: 'direction', type: 'select', label: 'Direction', options: [{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }], default: 'horizontal' },
   WRAP_CONTROL,
 ]
 
@@ -90,14 +90,25 @@ const KALEIDOSCOPE_CONTROLS = [
   { key: 'rotationDirection', type: 'binary', label: 'Rotation', options: [{ value: 'clockwise', label: 'CW' }, { value: 'counterclockwise', label: 'CCW' }], default: 'clockwise', tab: 'main' },
   { key: 'splitRotation', type: 'toggle', label: 'Split Rotation', default: false, tab: 'main' },
   { type: 'divider', tab: 'main' },
-  { ...WRAP_CONTROL, tab: 'main' },
+  { ...WRAP_CONTROL, tab: 'main', linkedDefaults: { edgeZoomScale: { 'clamp-to-edge': 1.0, '*': 0.15 } } },
+  { key: 'edgeZoomScale', type: 'slider', label: 'Edge Zoom', min: 0.05, max: 1.0, step: 0.05, default: 1.0, tab: 'main' },
   { key: 'fillMode', type: 'select', label: 'Fill', options: [
     { value: 'none', label: 'None' },
     { value: 'repeat', label: 'Repeat' },
     { value: 'mirror-repeat', label: 'Mirror' },
     { value: 'clamp-to-edge', label: 'Clamp' },
   ], default: 'none', tab: 'main' },
-  // Background controls
+  // Background controls (mirrors main)
+  { key: 'bgBlendMode', type: 'select', label: 'Blend', options: [
+    { value: 'normal', label: 'Normal' },
+    { value: 'multiply', label: 'Multiply' },
+    { value: 'screen', label: 'Screen' },
+    { value: 'overlay', label: 'Overlay' },
+    { value: 'add', label: 'Add' },
+    { value: 'soft-light', label: 'Soft Light' },
+    { value: 'difference', label: 'Difference' },
+  ], default: 'normal', tab: 'background' },
+  { key: 'bgGrabSegment', type: 'toggle', label: 'Grab', default: true, tab: 'background', visibilityKey: 'bgGrabOutlineVisible' },
   { key: 'bgSegments', type: 'slider', label: 'Segments', min: 2, max: 24, step: 1, default: 6, tab: 'background' },
   { key: 'bgZoom', type: 'slider', label: 'Zoom', min: 0.5, max: 5.0, step: 0.1, default: 1.5, tab: 'background' },
   { key: 'bgSourceOffsetX', type: 'slider', label: 'Source X', min: -200, max: 200, step: 1, default: 0, tab: 'background' },
@@ -110,9 +121,9 @@ const KALEIDOSCOPE_CONTROLS = [
   { key: 'bgMirrorMode', type: 'binary', label: 'Mirror', options: [{ value: 'alternating', label: 'Alternating' }, { value: 'all-same', label: 'All Same' }], default: 'alternating', tab: 'background' },
   { key: 'bgRotationDirection', type: 'binary', label: 'Rotation', options: [{ value: 'clockwise', label: 'CW' }, { value: 'counterclockwise', label: 'CCW' }], default: 'clockwise', tab: 'background' },
   { key: 'bgSplitRotation', type: 'toggle', label: 'Split Rotation', default: false, tab: 'background' },
-  { key: 'bgExplode', type: 'slider', label: 'Explode', min: 0, max: 200, step: 1, default: 0, tab: 'background' },
   { type: 'divider', tab: 'background' },
-  { key: 'bgWrapMode', type: 'select', label: 'Edge', options: WRAP_OPTIONS, default: 'clamp-to-edge', tab: 'background' },
+  { key: 'bgWrapMode', type: 'select', label: 'Edge', options: WRAP_OPTIONS, default: 'clamp-to-edge', tab: 'background', linkedDefaults: { bgEdgeZoomScale: { 'clamp-to-edge': 1.0, '*': 0.15 } } },
+  { key: 'bgEdgeZoomScale', type: 'slider', label: 'Edge Zoom', min: 0.05, max: 1.0, step: 0.05, default: 1.0, tab: 'background' },
   { key: 'bgFillMode', type: 'select', label: 'Fill', options: [
     { value: 'none', label: 'None' },
     { value: 'repeat', label: 'Repeat' },
@@ -188,7 +199,69 @@ export function isPixiVariant(variantId) {
 }
 
 export function getDefaultParams(controls) {
-  return Object.fromEntries(controls.map(c => [c.key, c.default]))
+  return Object.fromEntries(controls.filter(c => c.key).map(c => [c.key, c.default]))
+}
+
+export function getActiveTab(controls, params) {
+  if (params.controlTab) return params.controlTab
+  const tabCtrl = controls.find(c => c.type === 'tabs')
+  return tabCtrl?.options?.[0]?.value ?? null
+}
+
+export function filterControlsByTab(controls, params) {
+  const activeTab = getActiveTab(controls, params)
+  const hasTabs = controls.some(c => c.type === 'tabs')
+  let skippedFirstDivider = !hasTabs
+  return controls.filter(c => {
+    if (c.type === 'tabs') return false
+    if (!skippedFirstDivider && c.type === 'divider') { skippedFirstDivider = true; return false }
+    if (c.tab && activeTab && c.tab !== activeTab) return false
+    return true
+  })
+}
+
+// Raster tier selection — pick resolution based on visual density
+export const RASTER_TIER_SCALES = { low: 1, mid: 3, high: 6 }
+
+export function getRasterTier(variantId, params) {
+  if (!variantId || !params) return 'mid'
+  if (!isPixiVariant(variantId)) return 'mid'
+
+  if (variantId === 'pixi-kaleidoscope') {
+    const segments = params.segments || 6
+    const zoom = params.zoom || 1.5
+    const edgeZoomScale = params.edgeZoomScale ?? 1.0
+    const effectiveZoom = zoom * edgeZoomScale
+    const copySize = effectiveZoom / segments
+    if (copySize > 0.1) return 'high'
+    if (copySize > 0.03) return 'mid'
+    return 'low'
+  }
+
+  if (variantId === 'pixi-slices') {
+    const tileScale = params.tileScaleX || 0.3
+    if (tileScale < 0.2) return 'low'
+    if (tileScale < 0.5) return 'mid'
+    return 'high'
+  }
+
+  if (variantId === 'pixi-glitch') {
+    const slices = params.sliceCount || 20
+    if (slices > 40) return 'low'
+    if (slices > 15) return 'mid'
+    return 'high'
+  }
+
+  if (variantId === 'pixi-radial') {
+    const tileScale = params.tileScale || 0.5
+    if (tileScale < 0.3) return 'low'
+    if (tileScale < 0.7) return 'mid'
+    return 'high'
+  }
+
+  if (variantId === 'pixi-morph') return 'high'
+
+  return 'mid'
 }
 
 // Map dial (0–100) to each intensity key's full min–max range

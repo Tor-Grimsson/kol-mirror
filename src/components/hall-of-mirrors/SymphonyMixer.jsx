@@ -3,7 +3,7 @@ import Slider from '../atoms/Slider'
 import { Icon } from '../icons'
 import Divider from '../atoms/Divider'
 import VariantControls from '../mirror/VariantControls'
-import { findVariant } from '../../data/mirrorVariants'
+import { findVariant, filterControlsByTab } from '../../data/mirrorVariants'
 import RotaryDial from './RotaryDial'
 
 function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
@@ -213,21 +213,15 @@ function Channel({
         {(() => {
           const ROWS_PER_COL = 7
           const tabControls = controls.filter(c => c.type === 'tabs')
-          let skippedFirstDivider = !tabControls.length
-          const filtered = controls.filter(c => {
-            if (c.type === 'tabs') return false
-            if (!skippedFirstDivider && c.type === 'divider') { skippedFirstDivider = true; return false }
-            if (c.tab && params.controlTab && c.tab !== params.controlTab) return false
-            return true
-          })
+          const filtered = filterControlsByTab(controls, params)
           const pages = []
           for (let i = 0; i < filtered.length; i += ROWS_PER_COL) {
-            pages.push(filtered.slice(i, i + ROWS_PER_COL))
+            let page = filtered.slice(i, i + ROWS_PER_COL)
+            while (page.length && page[0].type === 'divider') page = page.slice(1)
+            pages.push(page)
           }
           const safePage = Math.min(shelfPage, pages.length - 1)
-          let currentPage = pages[safePage] || []
-          // Strip leading dividers — pinned tabs already has one
-          while (currentPage.length && currentPage[0].type === 'divider') currentPage = currentPage.slice(1)
+          const currentPage = pages[safePage] || []
           return (
             <>
               {tabControls.length > 0 && (

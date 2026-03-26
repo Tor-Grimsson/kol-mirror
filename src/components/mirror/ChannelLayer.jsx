@@ -139,6 +139,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
           onImageUpload={() => {}}
           onParamChange={onParamChange}
           {...scaledParams}
+          imageFitMode={imageFitMode}
           speed={effectiveSpeed}
           bgSpeed={effectiveBgSpeed}
           animate={isAnimating}

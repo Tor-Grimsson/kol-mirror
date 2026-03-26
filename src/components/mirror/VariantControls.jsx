@@ -2,15 +2,17 @@ import Slider from '../atoms/Slider'
 import Dropdown from '../molecules/Dropdown'
 import Divider from '../atoms/Divider'
 import Icon from '../icons/Icon'
+import { getActiveTab } from '../../data/mirrorVariants'
 
 export default function VariantControls({ controls, params, onParamChange, rowHeight = 24 }) {
   if (!controls || !params) return null
 
+  const activeTab = getActiveTab(controls, params)
+
   return (
     <div className="flex flex-col" style={{ gap: '4px' }}>
       {controls.map((ctrl, idx) => {
-        // Tab filtering — if control has a tab, only show when controlTab matches
-        if (ctrl.tab && params.controlTab && ctrl.tab !== params.controlTab) return null
+        if (ctrl.tab && activeTab && ctrl.tab !== activeTab) return null
 
         if (ctrl.type === 'divider') {
           return <Divider key={`divider-${idx}`} className="my-2" />
@@ -45,13 +47,11 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
                     )}
                     {opt.animateKey && (
                       <span
-                        className="cursor-pointer select-none"
+                        className={`cursor-pointer select-none ${(params[opt.animateKey] ?? false) ? 'text-fg-96' : 'text-fg-32'}`}
                         onClick={() => onParamChange(opt.animateKey, !(params[opt.animateKey] ?? false))}
                         title={(params[opt.animateKey] ?? false) ? 'Stop' : 'Animate'}
                       >
-                        <svg width="10" height="10" viewBox="0 0 10 10" className={(params[opt.animateKey] ?? false) ? 'text-fg-96' : 'text-fg-32'}>
-                          <path d="M1 5 Q3 0 5 5 Q7 10 9 5" fill={(params[opt.animateKey] ?? false) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1" />
-                        </svg>
+                        <Icon name="rabbit" size={12} />
                       </span>
                     )}
                   </div>
@@ -127,7 +127,14 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
               <Dropdown
                 options={ctrl.options}
                 value={params[ctrl.key] ?? ctrl.default}
-                onChange={v => onParamChange(ctrl.key, v)}
+                onChange={v => {
+                  onParamChange(ctrl.key, v)
+                  if (ctrl.linkedDefaults) {
+                    for (const [key, map] of Object.entries(ctrl.linkedDefaults)) {
+                      onParamChange(key, map[v] ?? map['*'])
+                    }
+                  }
+                }}
                 variant="minimal"
                 size="md"
                 rowHeight={rowHeight}
