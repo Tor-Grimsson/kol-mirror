@@ -338,6 +338,35 @@ export default function MirrorSidebar({ state, onClose }) {
       {state.activeHall === 'symphony' && (
         <div className="p-4 overflow-visible border-t border-fg-08">
           <div className="flex flex-col" style={{ gap: '4px' }}>
+            <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+              <span
+                className="text-fg-32 hover:text-fg-96 cursor-pointer select-none"
+                onClick={() => {
+                  const empty = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
+                  state.setSymphonyChannels([
+                    { ...empty, enabled: true },
+                    { ...empty },
+                    { ...empty },
+                  ])
+                }}
+              >[RESET]</span>
+              <div className="flex items-center gap-2">
+                {['1', '2', '3'].map((n, i) => (
+                  <span
+                    key={i}
+                    className={`cursor-pointer select-none ${state.symphonyChannels[i]?.variantId ? 'text-fg-96' : 'text-fg-32'} hover:text-fg-96`}
+                    onClick={() => {
+                      const empty = { variantId: null, params: {}, slotIndex: null, enabled: i === 0, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
+                      state.setSymphonyChannels(prev => {
+                        const next = [...prev]
+                        next[i] = empty
+                        return next
+                      })
+                    }}
+                  >[{n}]</span>
+                ))}
+              </div>
+            </div>
             <div
               className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
               style={{ height: '24px' }}
@@ -354,7 +383,14 @@ export default function MirrorSidebar({ state, onClose }) {
                   { value: 'source', label: 'Effect + Source' },
                 ]}
                 value={state.symphonyLoadMode}
-                onChange={(v) => state.setSymphonyLoadMode(v)}
+                onChange={(v) => {
+                  state.setSymphonyLoadMode(v)
+                  state.setSymphonyChannels([
+                    { ...state.symphonyChannels[0], variantId: null, params: {}, name: null },
+                    { ...state.symphonyChannels[1], variantId: null, params: {}, name: null },
+                    { ...state.symphonyChannels[2], variantId: null, params: {}, name: null },
+                  ])
+                }}
                 variant="minimal"
                 size="md"
               />

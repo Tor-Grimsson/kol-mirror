@@ -148,6 +148,7 @@ function CopiesViewport({ state }) {
         onToggleEnabled={() => {}}
         onToggleSelect={() => {}}
         onImageUpload={() => {}}
+        onParamChange={(key, value) => state.setVariantParam(state.activeVariant, key, value)}
         {...params}
       />
     </div>

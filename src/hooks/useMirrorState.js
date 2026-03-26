@@ -9,7 +9,7 @@ const FIRST_VARIANT = {
 
 const EMPTY_ARCHIVE = Array.from({ length: 9 }, () => null)
 
-const EMPTY_CHANNEL = { variantId: null, params: {}, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
+const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
 
 const DEV_SLOT_IDS = [
   'subtle-ripple', 'breathing-scale', 'pixi-slices',
@@ -167,7 +167,7 @@ export function useMirrorState() {
   const [devPresetsLoaded, setDevPresetsLoaded] = useState(false)
 
   const buildSlots = useCallback((randomize) => {
-    return DEV_SLOT_IDS.map(id => {
+    const slots = DEV_SLOT_IDS.map(id => {
       const variant = findVariant(id)
       if (!variant) return null
       const params = getDefaultParams(variant.controls)
@@ -183,6 +183,24 @@ export function useMirrorState() {
       params.animate = false
       return { variantId: id, params }
     })
+
+    // Slot 9: specific kaleidoscope settings
+    const slot9 = slots[8]
+    if (slot9 && slot9.variantId === 'pixi-kaleidoscope') {
+      Object.assign(slot9.params, {
+        controlTab: 'main', mainEnabled: true, animate: true,
+        blendMode: 'normal', segments: 14, zoom: 1.5, sourceOffsetX: -48, sourceOffsetY: 172,
+        cutOffset: 224, segmentGap: 1.5, evenOffset: -1, speed: 0.3, mirrorMode: 'all-same',
+        rotationDirection: 'clockwise', splitRotation: true, wedgeOffsetX: 0, wedgeOffsetY: 0, grabSegment: true, grabOutlineVisible: false,
+        wrapMode: 'clamp-to-edge', fillMode: 'repeat',
+        showBackground: true, bgAnimate: true, bgSegments: 6, bgZoom: 1.5, bgSourceOffsetX: 0, bgSourceOffsetY: 0,
+        bgCutOffset: 0, bgSegmentGap: 0, bgEvenOffset: 0, bgSpeed: 0.5, bgMirrorMode: 'alternating',
+        bgRotationDirection: 'clockwise', bgSplitRotation: false, bgExplode: 0,
+        bgWrapMode: 'clamp-to-edge', bgFillMode: 'none',
+      })
+    }
+
+    return slots
   }, [])
 
   const loadDevPresets = useCallback(() => {

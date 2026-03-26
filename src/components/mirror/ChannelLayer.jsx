@@ -15,7 +15,7 @@ const PIXI_COMPONENTS = {
   'pixi-kaleidoscope': PixiKaleidoscopeVariant,
 }
 
-export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, imageFitMode, imageScale, rawParams = false }) {
+export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, imageFitMode, imageScale, rawParams = false, onParamChange }) {
   if (!channel.enabled) return null
 
   const effectSrc = rasterSrc || imageSrc
@@ -48,7 +48,21 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   const variant = findVariant(channel.variantId)
   if (!variant) return null
 
-  const scaledParams = rawParams ? channel.params : scaleParamsByIntensity(channel.variantId, channel.params, channel.intensity, channel.boosted)
+  // Dial as multiplier relative to base position. At baseIntensity = 1x (exact slot params). Above = overdrive.
+  const base = channel.baseIntensity || 100
+  const multiplier = (base > 0 ? channel.intensity / base : 1) * (channel.boosted ? 2 : 1)
+  let scaledParams
+  if (rawParams || multiplier === 1) {
+    scaledParams = channel.params
+  } else {
+    scaledParams = { ...channel.params }
+    const ik = variant.intensityKeys || []
+    for (const key of ik) {
+      if (key in scaledParams && typeof scaledParams[key] === 'number') {
+        scaledParams[key] = scaledParams[key] * multiplier
+      }
+    }
+  }
   const timeScale = channel.speed / 100
   if (!effectSrc) return null
 
@@ -109,7 +123,9 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     const Component = PIXI_COMPONENTS[channel.variantId]
     if (!Component) return null
 
-    const effectiveSpeed = (scaledParams.speed || 1) * (channel.speed / 100)
+    const speedMultiplier = channel.speed / 100
+    const effectiveSpeed = (scaledParams.speed || 1) * speedMultiplier
+    const effectiveBgSpeed = (scaledParams.bgSpeed || 0.5) * speedMultiplier
 
     return (
       <div className="absolute inset-0 pixi-fullbleed" style={{ opacity: channel.opacity / 100, pointerEvents: 'none' }}>
@@ -121,9 +137,12 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
           onToggleEnabled={() => {}}
           onToggleSelect={() => {}}
           onImageUpload={() => {}}
+          onParamChange={onParamChange}
           {...scaledParams}
           speed={effectiveSpeed}
+          bgSpeed={effectiveBgSpeed}
           animate={isAnimating}
+          bgAnimate={isAnimating}
         />
       </div>
     )

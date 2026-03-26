@@ -53,7 +53,8 @@ export default function SymphonyViewport({ state }) {
 
   // Image sources for channels
   const svgImageSrc = canvasImage || DEFAULT_SVG_DATA_URL
-  const rasterImageSrc = canvasRaster || defaultRaster
+  const defaultFallback = state.symphonyLoadMode === 'source' ? '/images/stack-hero-800.jpg' : defaultRaster
+  const rasterImageSrc = canvasRaster || defaultFallback
 
   // Color-correct default SVG for dry signal display
   const vectorColor = state.canvasVectorColor === 'currentColor'
@@ -143,28 +144,35 @@ export default function SymphonyViewport({ state }) {
       return
     }
 
-    let variantId, params, imageSrc = null
     if (item.type === 'slot') {
       const slot = state.archiveSlots[item.slotIndex]
       if (!slot) return
-      variantId = slot.variantId
-      params = { ...slot.params }
-      imageSrc = slot.imageSrc
+      const baseIntensity = getIntensityDialValue(slot.variantId)
+      updateChannel(channel, {
+        variantId: slot.variantId,
+        slotIndex: item.slotIndex,
+        params: null,
+        enabled: true,
+        intensity: baseIntensity,
+        baseIntensity,
+        speed: 100,
+        name: item.name,
+      })
     } else {
-      variantId = item.variantId
-      const variant = findVariant(variantId)
+      const variant = findVariant(item.variantId)
       if (!variant) return
-      params = getDefaultParams(variant.controls)
+      const presetBase = getIntensityDialValue(item.variantId)
+      updateChannel(channel, {
+        variantId: item.variantId,
+        slotIndex: null,
+        params: getDefaultParams(variant.controls),
+        enabled: true,
+        intensity: presetBase,
+        baseIntensity: presetBase,
+        speed: 100,
+        name: item.name,
+      })
     }
-
-    updateChannel(channel, {
-      variantId,
-      params,
-      enabled: true,
-      intensity: getIntensityDialValue(variantId),
-      speed: 100,
-      name: item.name,
-    })
 
     if (state.symphonyLoadMode === 'source' && imageSrc) {
       state.setSymphonyCanvasImage(imageSrc)
@@ -198,10 +206,17 @@ export default function SymphonyViewport({ state }) {
             }}
           >
             {/* Channel layers — each fully independent, no base layer */}
-            {channels.map((ch, i) => (
+            {channels.map((ch, i) => {
+              // Resolve slot params live — not a copy
+              // Slot channels resolve params live — first from hall edits (variantParams), then from saved slot
+              const resolvedChannel = ch.slotIndex != null && state.archiveSlots[ch.slotIndex]
+                ? { ...ch, variantId: state.archiveSlots[ch.slotIndex].variantId, params: state.getVariantParams(state.archiveSlots[ch.slotIndex].variantId) }
+                : ch
+              const isSlotRef = ch.slotIndex != null
+              return (
               <ChannelLayer
                 key={i}
-                channel={ch}
+                channel={resolvedChannel}
                 channelIndex={i}
                 imageSrc={svgImageSrc}
                 rasterSrc={rasterImageSrc}
@@ -209,8 +224,19 @@ export default function SymphonyViewport({ state }) {
                 isAnimating={isAnimating}
                 imageFitMode={state.imageFitMode}
                 imageScale={state.imageScale}
+                onParamChange={(key, value) => {
+                  if (isSlotRef && state.archiveSlots[ch.slotIndex]) {
+                    // Write directly to the slot
+                    const slot = state.archiveSlots[ch.slotIndex]
+                    state.setVariantParam(slot.variantId, key, value)
+                  } else {
+                    const channelNames = ['displacement', 'movement', 'copies']
+                    updateChannel(channelNames[i], { params: { ...ch.params, [key]: value } })
+                  }
+                }}
               />
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -238,6 +264,12 @@ export default function SymphonyViewport({ state }) {
           nineVariants={nineVariants}
           openNineDropdown={openNineDropdown}
           onSelectVariant={handleSelectVariant} onCloseDropdown={() => setOpenNineDropdown(null)}
+          onEditChannel={(channelIdx) => {
+            const ch = channels[channelIdx]
+            if (ch.slotIndex != null) {
+              state.loadSlotToHall(ch.slotIndex)
+            }
+          }}
         />
       </div>
     </div>

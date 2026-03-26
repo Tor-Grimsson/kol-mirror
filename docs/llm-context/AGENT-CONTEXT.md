@@ -3,50 +3,45 @@
 ## Current State
 
 ### Active Work
-- Archive system: 9 slots for saving variant snapshots (variant + params + image)
-- Symphony mixer loads from archive slots or hall presets via load icon dropdown
-- Canvas aspect ratio control in both halls and symphony (16:9 through 9:16 + custom + full-bleed)
-- Image fit modes: Contain, Fit Width, Fit Height, Manual (with scale slider)
-- Vector color + background color pickers in symphony (react-colorful, rgba with opacity)
-- SVG + image upload supported in both halls and symphony
-- Symphony is default home view
+- Symphony mixer: live slot routing (channels reference slots, not copies), dial as multiplier with overdrive
+- Kaleidoscope: Comp A/B tab system, grab-to-move wedge, fill/edge controls, background comp
+- Archive/Memory: 9 slots, save/load/edit workflow, thumbnails, [EDIT] from symphony to hall
+- Canvas controls: aspect ratio, image fit, vector/background color pickers
 
-### Recent Changes (2026-03-25)
-- **Archive system**: 9-slot save/load, sidebar save dropdown, Memory view with previews
-- **Symphony rework**: load icon shows archive slots + hall presets, load mode (effect only / effect + source), animate toggle in sidebar
-- **Canvas controls**: aspect ratio dropdown, custom resolution via QuantityInput, image fit mode, vector/background color pickers
-- **Canvas scaling**: ResizeObserver-based contain-fit preserving locked aspect ratio for both halls and symphony
-- **SVG upload**: rasterized to PNG for Pixi compat, direct load to symphony canvas
-- **Sidebar reorg**: Mixer → Halls → Library groups, Symphony as home
-- **New atoms**: ColorPicker (react-colorful wrapper), QuantityInput (chevron up/down with keyboard edit)
-- **Theme fixes**: btn-control hover uses bg-fg-08, mixer elements use text-fg-96
+### Known Issues
+- **Feather keying**: Gradient donut renders but can't convert to transparency. Pixi alpha mask failed (r*a shader). Erase blend needs render groups.
+- **Blend modes**: Don't work on Pixi containers without render groups (isRenderGroup broke rendering).
+- Old hall page components still exist (dead code)
+
+### Recent Changes (2026-03-26)
+- **Comp A/B tabs**: `controlTab` with `tabs` type in VariantControls, enable circles + animate squiggles, full independent controls per comp
+- **Grab segment**: Pointer drag on canvas, dashed red outline, hit test on wedge, `wedgeOffsetX/Y` updated via `onParamChange` threaded through all viewports
+- **Live slot routing**: Channels store `slotIndex`, resolve params from `archiveSlots` + `variantParams` live
+- **Dial as multiplier**: `baseIntensity` stored at load, dial scales relative to it (25-35% = 1x, 100% = overdrive)
+- **Speed/animate global**: Both comp A and B controlled by symphony's global toggles
+- **Rotation preservation**: `rotationRef.current` re-applied after rebuilds (boost toggle no longer resets position)
+- **Channel controls**: [RESET] all, [1][2][3] individual, [EDIT] navigates to hall
+- **Load mode change**: Clears all channels
 
 ## Project Overview
 
 **Hall of Mirrors** — Interactive image distortion playground. Part of the Kolkrabbi Apparat suite.
 
 ### Architecture
-- Single-page app with sidebar + viewport layout (no router, state-driven)
-- Sidebar groups: Mixer (Symphony) → Halls (Displacement, Movement, Copies) → Library (Memory)
-- Per-variant controls render dynamically from descriptors
-- Symphony has its own control panel: animate, load mode, canvas ratio, image fit, colors, mixer layout
-- `useMirrorState` holds all shared state: navigation, params, archive, symphony settings, canvas controls
+- Single-page app with sidebar + viewport (no router, state-driven)
+- Sidebar: Mixer (Symphony) → Halls (Displacement, Movement, Copies) → Library (Memory, Presets)
+- Controls render from descriptors with tab/divider support
+- Symphony: 3 channels via ChannelLayer, slot channels reference live data
+- Kaleidoscope: two-comp architecture (Comp A main + Comp B background), independent params/animation
 
 ### Key Files
-- `src/data/mirrorVariants.js` — Variant definitions with control descriptors
-- `src/hooks/useMirrorState.js` — All shared state (navigation, params, archive, symphony, canvas)
-- `src/components/mirror/VariantControls.jsx` — Data-driven control renderer
-- `src/components/mirror/MirrorSidebar.jsx` — Navigation + controls + theme toggle + symphony controls
-- `src/components/mirror/MirrorViewport.jsx` — Renders active variant with CanvasFrame for aspect ratio
-- `src/components/mirror/SymphonyViewport.jsx` — Symphony canvas + mixer with ResizeObserver scaling
-- `src/components/mirror/ArchiveViewport.jsx` — 9-slot memory grid with load/clear
-- `src/components/hall-of-mirrors/SymphonyMixer.jsx` — 3-channel mixer with load icon + dropdown
-- `src/components/atoms/ColorPicker.jsx` — react-colorful wrapper (rgba, direction-aware popover)
-- `src/components/atoms/QuantityInput.jsx` — Compact numeric input with chevron up/down
-
-### Known Issues
-- Displacement animation loop: hardcoded 3s duration + sine.inOut ease (not yet controllable)
-- Pixi continuous animations (Slice, Radial, Kaleidoscope) are linear — no easing options yet
-- Image fit mode only affects displacement hall + symphony (Pixi variants handle own images internally)
-- Old hall page components still exist (dead code)
-- Symphony copies channel unwired
+- `src/data/mirrorVariants.js` — Variant definitions, intensityKeys, controls with tabs/dividers
+- `src/hooks/useMirrorState.js` — All state (navigation, params, archive, symphony channels, canvas)
+- `src/components/mirror/ChannelLayer.jsx` — Routes channel to renderer, multiplier-based intensity
+- `src/components/mirror/VariantControls.jsx` — Control renderer (toggle, slider, binary, select, tabs, divider)
+- `src/components/mirror/MirrorSidebar.jsx` — Navigation + controls + symphony controls + reset
+- `src/components/mirror/SymphonyViewport.jsx` — Symphony canvas + mixer, live slot resolution
+- `src/components/mirror/ArchiveViewport.jsx` — Memory grid with thumbnails
+- `src/components/hall-of-mirrors/SymphonyMixer.jsx` — 3-channel mixer UI with [EDIT]
+- `src/components/hall-of-mirrors/PixiKaleidoscopeVariant.jsx` — Kaleidoscope with Comp A/B, fill, edge, grab
+- `src/components/hall-of-mirrors/RotaryDial.jsx` — Pointer-based drag dial

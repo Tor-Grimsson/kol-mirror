@@ -37,7 +37,7 @@ export default function ArchiveViewport({ state }) {
               >
                 {slot ? (
                   <ChannelLayer
-                    channel={{ ...slot, enabled: true, intensity: 100, boosted: false, speed: 100, opacity: 100 }}
+                    channel={{ ...slot, params: { ...slot.params, animate: false, bgAnimate: false }, enabled: true, intensity: 100, boosted: false, speed: 100, opacity: 100 }}
                     channelIndex={index}
                     imageSrc="/thumbnails/stripe-base.png"
                     rasterSrc="/thumbnails/stripe-base.png"

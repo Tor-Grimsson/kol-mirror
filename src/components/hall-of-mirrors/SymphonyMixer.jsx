@@ -82,11 +82,15 @@ function Channel({
   loadedName = null,
   opacity = 100,
   onOpacityChange,
+  onEdit,
 }) {
   return (
     <div className="flex flex-col gap-2" style={{ overflow: 'visible' }}>
-      <div className="kol-helper-xs text-fg-48 truncate" style={{ minHeight: '16px' }}>
-        {loadedName || '\u00A0'}
+      <div className="flex items-center justify-between kol-helper-xs" style={{ minHeight: '16px' }}>
+        <span className="text-fg-48 truncate">{loadedName || '\u00A0'}</span>
+        {onEdit && loadedName && (
+          <span className="text-fg-32 hover:text-fg-96 cursor-pointer select-none shrink-0" onClick={onEdit}>[EDIT]</span>
+        )}
       </div>
       <div
         className="flex flex-col items-center gap-6 p-4 bg-surface-secondary border border-fg-08 relative"
@@ -210,7 +214,8 @@ export default function SymphonyMixer({
   nineVariants = {},
   openNineDropdown = null,
   onSelectVariant,
-  onCloseDropdown
+  onCloseDropdown,
+  onEditChannel,
 }) {
   return (
     <div className="flex flex-col gap-6" style={{ overflow: 'visible' }}>
@@ -234,6 +239,7 @@ export default function SymphonyMixer({
           onSelectItem={(id) => onSelectVariant('displacement', id)}
           onCloseDropdown={onCloseDropdown}
           loadedName={displacementLoaded}
+          onEdit={() => onEditChannel && onEditChannel(0)}
           opacity={displacementOpacity}
           onOpacityChange={onDisplacementOpacityChange}
         />
@@ -254,6 +260,7 @@ export default function SymphonyMixer({
           onSelectItem={(id) => onSelectVariant('movement', id)}
           onCloseDropdown={onCloseDropdown}
           loadedName={movementLoaded}
+          onEdit={() => onEditChannel && onEditChannel(1)}
           opacity={movementOpacity}
           onOpacityChange={onMovementOpacityChange}
         />
@@ -274,6 +281,7 @@ export default function SymphonyMixer({
           onSelectItem={(id) => onSelectVariant('copies', id)}
           onCloseDropdown={onCloseDropdown}
           loadedName={copiesLoaded}
+          onEdit={() => onEditChannel && onEditChannel(2)}
           opacity={copiesOpacity}
           onOpacityChange={onCopiesOpacityChange}
         />
