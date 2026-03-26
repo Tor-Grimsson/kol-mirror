@@ -476,7 +476,13 @@ export default function MirrorSidebar({ state, onClose }) {
               onClick={() => state.setSymphonyRasterTheme(state.symphonyRasterTheme === 'dark' ? 'light' : 'dark')}
             >
               <span>Raster</span>
-              <span>[{state.symphonyRasterTheme === 'dark' ? 'LIGHT' : 'DARK'}]</span>
+              <span className="flex gap-2">
+                <span>[{state.symphonyRasterTheme === 'dark' ? 'LIGHT' : 'DARK'}]</span>
+                <span
+                  className="text-fg-32 hover:text-fg-96 cursor-pointer"
+                  onClick={(e) => { e.stopPropagation(); state.setRasterRecalcCounter(c => c + 1) }}
+                >[RECALC]</span>
+              </span>
             </div>
             <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
               <span className="kol-helper-xs text-fg-96 shrink-0">Vector Color</span>

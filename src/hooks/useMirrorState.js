@@ -247,6 +247,9 @@ export function useMirrorState() {
   const [symphonyCustomWidth, setSymphonyCustomWidth] = useState(1024)
   const [symphonyCustomHeight, setSymphonyCustomHeight] = useState(600)
 
+  // Raster recalc trigger — bump to force re-evaluation
+  const [rasterRecalcCounter, setRasterRecalcCounter] = useState(0)
+
   // Symphony channel state — persists across navigation
   const [symphonyChannels, setSymphonyChannels] = useState([
     { ...EMPTY_CHANNEL, enabled: true },
@@ -317,5 +320,8 @@ export function useMirrorState() {
 
     symphonyChannels,
     setSymphonyChannels,
+
+    rasterRecalcCounter,
+    setRasterRecalcCounter,
   }
 }

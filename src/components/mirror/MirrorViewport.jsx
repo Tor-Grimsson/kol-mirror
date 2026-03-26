@@ -5,6 +5,8 @@ import PixiGlitchSliceVariant from '../hall-of-mirrors/PixiGlitchSliceVariant'
 import PixiMorphVariant from '../hall-of-mirrors/PixiMorphVariant'
 import PixiRadialVariant from '../hall-of-mirrors/PixiRadialVariant'
 import PixiKaleidoscopeVariant from '../hall-of-mirrors/PixiKaleidoscopeVariant'
+import useImageTiers from '../../hooks/useImageTiers'
+import { getRasterTier } from '../../data/mirrorVariants'
 import SymphonyViewport from './SymphonyViewport'
 import ArchiveViewport from './ArchiveViewport'
 import PresetsViewport from './PresetsViewport'
@@ -136,7 +138,10 @@ function CopiesViewport({ state }) {
   const Component = PIXI_COMPONENTS[state.activeVariant]
   if (!Component) return null
   const params = state.getVariantParams(state.activeVariant)
-  const imageSrc = state.getImageSrc(state.activeVariant)
+  const rawImageSrc = state.getImageSrc(state.activeVariant)
+  const { tiers, ready } = useImageTiers(rawImageSrc)
+  const tier = getRasterTier(state.activeVariant, params)
+  const imageSrc = (ready && tiers[tier]) || rawImageSrc
 
   return (
     <div className="absolute inset-0 pixi-fullbleed">

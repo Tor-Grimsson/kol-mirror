@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { TilingSprite } from 'pixi.js'
-import usePixiApp, { applyImageFit } from '../../hooks/usePixiApp'
+import { TilingSprite, Graphics } from 'pixi.js'
+import usePixiApp, { applyImageFit, drawDashedRect } from '../../hooks/usePixiApp'
 import VariantFrame from './VariantFrame'
 
 export default function PixiMorphVariant({
@@ -12,16 +12,23 @@ export default function PixiMorphVariant({
   onToggleSelect,
   onImageUpload,
   animate = false,
+  grab = false,
+  grabOutlineVisible = true,
+  imageOffsetX = 0,
+  imageOffsetY = 0,
   scaleIntensity = 2,
   speed = 1,
   waveform = 'sine',
   shiftDirection = 'diagonal',
   wrapMode = 'clamp-to-edge',
-  imageFitMode = 'contain'
+  imageFitMode = 'contain',
+  onParamChange,
 }) {
   const canvasRef = useRef(null)
   const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc)
   const tilingRef = useRef(null)
+  const outlineRef = useRef(null)
+  const grabDragRef = useRef(null)
   const speedRef = useRef(speed)
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
@@ -36,6 +43,9 @@ export default function PixiMorphVariant({
   useEffect(() => { shiftDirectionRef.current = shiftDirection }, [shiftDirection])
   useEffect(() => { animateRef.current = animate }, [animate])
   useEffect(() => { enabledRef.current = isEnabled }, [isEnabled])
+  useEffect(() => {
+    if (outlineRef.current) outlineRef.current.visible = grabOutlineVisible !== false
+  }, [grabOutlineVisible])
 
   useEffect(() => {
     if (tilingRef.current?.texture?.source?.style) {
@@ -62,9 +72,23 @@ export default function PixiMorphVariant({
     applyImageFit(tilingSprite, texture, width, height, imageFitMode)
     tilingSprite.tileScale.x *= scaleIntensity
     tilingSprite.tileScale.y *= scaleIntensity
+    tilingSprite.tilePosition.x += imageOffsetX
+    tilingSprite.tilePosition.y += imageOffsetY
 
     app.stage.addChild(tilingSprite)
     tilingRef.current = tilingSprite
+
+    const baseTw = texture.width * tilingSprite.tileScale.x
+    const baseTh = texture.height * tilingSprite.tileScale.y
+
+    let outline = null
+    if (grab) {
+      outline = new Graphics()
+      drawDashedRect(outline, (width - baseTw) / 2 + imageOffsetX, (height - baseTh) / 2 + imageOffsetY, baseTw, baseTh)
+      outline.visible = grabOutlineVisible !== false
+      outlineRef.current = outline
+      app.stage.addChild(outline)
+    }
 
     const wave = (t) => {
       const w = waveformRef.current
@@ -92,13 +116,19 @@ export default function PixiMorphVariant({
         tilingRef.current.tileScale.x = si
         tilingRef.current.tileScale.y = si
       }
+
+      if (outline && outline.visible && tilingRef.current) {
+        const tw = texture.width * tilingRef.current.tileScale.x
+        const th = texture.height * tilingRef.current.tileScale.y
+        outline.clear()
+        drawDashedRect(outline, tilingRef.current.tilePosition.x, tilingRef.current.tilePosition.y, tw, th)
+      }
     }
     app.ticker.add(tickerFn)
 
     return () => { app.ticker?.remove(tickerFn) }
-  }, [size.width, size.height, wrapMode, imageFitMode])
+  }, [size.width, size.height, wrapMode, imageFitMode, grab, imageOffsetX, imageOffsetY])
 
-  // Update scale when not animating
   useEffect(() => {
     if (tilingRef.current && !animateRef.current) {
       tilingRef.current.tileScale.x = scaleIntensity
@@ -115,6 +145,7 @@ export default function PixiMorphVariant({
       onToggleSelect={onToggleSelect}
       onImageUpload={onImageUpload}
       imageSrc={imageSrc}
+      interactive={grab}
       info={
         <>
           <div><strong>Scale Intensity:</strong> {scaleIntensity.toFixed(1)} - {scaleIntensity < 1.5 ? 'Subtle morph' : scaleIntensity < 2.5 ? 'Medium morph' : 'Intense morph'}</div>
@@ -124,7 +155,35 @@ export default function PixiMorphVariant({
       }
       stats={`intensity: ${scaleIntensity.toFixed(1)} | speed: ${speed.toFixed(1)}`}
     >
-      <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
+      <div
+        className="absolute inset-0"
+        style={{ pointerEvents: grab ? 'auto' : 'none', cursor: grab ? 'grab' : 'default' }}
+        onPointerDown={grab ? (e) => {
+          e.preventDefault()
+          const startX = e.clientX
+          const startY = e.clientY
+          const startOffsetX = imageOffsetX
+          const startOffsetY = imageOffsetY
+          grabDragRef.current = true
+          e.currentTarget.style.cursor = 'grabbing'
+
+          const handleMove = (me) => {
+            if (onParamChange) {
+              onParamChange('imageOffsetX', startOffsetX + (me.clientX - startX))
+              onParamChange('imageOffsetY', startOffsetY + (me.clientY - startY))
+            }
+          }
+          const handleUp = () => {
+            grabDragRef.current = false
+            window.removeEventListener('pointermove', handleMove)
+            window.removeEventListener('pointerup', handleUp)
+          }
+          window.addEventListener('pointermove', handleMove)
+          window.addEventListener('pointerup', handleUp)
+        } : undefined}
+      >
+        <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
+      </div>
     </VariantFrame>
   )
 }

@@ -26,6 +26,7 @@ function displacementControls({ baseFrequency, numOctaves, scale, seed }) {
 
 const SLICE_CONTROLS = [
   { key: 'animate', type: 'toggle', label: 'Animate', default: false },
+  { key: 'grab', type: 'toggle', label: 'Grab', default: false, visibilityKey: 'grabOutlineVisible' },
   { key: 'tileScaleX', type: 'slider', label: 'Tile Scale X', min: 0.1, max: 2.0, step: 0.1, default: 0.3 },
   { key: 'speed', type: 'slider', label: 'Speed', min: 0.1, max: 10, step: 0.1, default: 1 },
   { key: 'direction', type: 'select', label: 'Direction', options: [{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }, { value: 'diagonal', label: 'Diagonal' }], default: 'horizontal' },
@@ -34,6 +35,7 @@ const SLICE_CONTROLS = [
 
 const GLITCH_CONTROLS = [
   { key: 'animate', type: 'toggle', label: 'Animate', default: false },
+  { key: 'grab', type: 'toggle', label: 'Grab', default: false, visibilityKey: 'grabOutlineVisible' },
   { key: 'sliceCount', type: 'slider', label: 'Slices', min: 5, max: 60, step: 1, default: 20 },
   { key: 'maxOffset', type: 'slider', label: 'Max Offset', min: 0, max: 200, step: 1, default: 50 },
   { key: 'speed', type: 'slider', label: 'Speed', min: 0.1, max: 5, step: 0.1, default: 1 },
@@ -44,6 +46,7 @@ const GLITCH_CONTROLS = [
 
 const MORPH_CONTROLS = [
   { key: 'animate', type: 'toggle', label: 'Animate', default: false },
+  { key: 'grab', type: 'toggle', label: 'Grab', default: false, visibilityKey: 'grabOutlineVisible' },
   { key: 'scaleIntensity', type: 'slider', label: 'Intensity', min: 0.5, max: 5.0, step: 0.1, default: 1 },
   { key: 'speed', type: 'slider', label: 'Speed', min: 0.1, max: 5.0, step: 0.1, default: 1 },
   { key: 'waveform', type: 'select', label: 'Waveform', options: [{ value: 'sine', label: 'Sine' }, { value: 'triangle', label: 'Triangle' }, { value: 'square', label: 'Square' }, { value: 'sawtooth', label: 'Sawtooth' }], default: 'sine' },
@@ -53,6 +56,7 @@ const MORPH_CONTROLS = [
 
 const RADIAL_CONTROLS = [
   { key: 'animate', type: 'toggle', label: 'Animate', default: false },
+  { key: 'grab', type: 'toggle', label: 'Grab', default: false, visibilityKey: 'grabOutlineVisible' },
   { key: 'radius', type: 'slider', label: 'Radius', min: 10, max: 300, step: 1, default: 50 },
   { key: 'tileScale', type: 'slider', label: 'Tile Scale', min: 0.1, max: 2.0, step: 0.05, default: 0.5 },
   { key: 'speed', type: 'slider', label: 'Speed', min: 0.1, max: 5.0, step: 0.1, default: 1 },
@@ -221,11 +225,18 @@ export function filterControlsByTab(controls, params) {
 }
 
 // Raster tier selection — pick resolution based on visual density
-export const RASTER_TIER_SCALES = { low: 1, mid: 3, high: 6 }
+// Only mid (3x) and high (6x) — never use 1x
+export const RASTER_TIER_SCALES = { mid: 3, high: 6 }
 
 export function getRasterTier(variantId, params) {
   if (!variantId || !params) return 'mid'
   if (!isPixiVariant(variantId)) return 'mid'
+
+  const wrapRepeat = params.wrapMode && params.wrapMode !== 'clamp-to-edge'
+  const fitCenter = params.imageFitMode === 'center'
+
+  // Center mode always needs high res (native size, no scaling)
+  if (fitCenter) return 'high'
 
   if (variantId === 'pixi-kaleidoscope') {
     const segments = params.segments || 6
@@ -233,29 +244,26 @@ export function getRasterTier(variantId, params) {
     const edgeZoomScale = params.edgeZoomScale ?? 1.0
     const effectiveZoom = zoom * edgeZoomScale
     const copySize = effectiveZoom / segments
-    if (copySize > 0.1) return 'high'
-    if (copySize > 0.03) return 'mid'
-    return 'low'
+    const hasBg = params.showBackground
+    if (copySize < 0.05 && hasBg) return 'mid'
+    return 'high'
   }
 
   if (variantId === 'pixi-slices') {
     const tileScale = params.tileScaleX || 0.3
-    if (tileScale < 0.2) return 'low'
-    if (tileScale < 0.5) return 'mid'
+    if (tileScale < 0.2 && wrapRepeat) return 'mid'
     return 'high'
   }
 
   if (variantId === 'pixi-glitch') {
     const slices = params.sliceCount || 20
-    if (slices > 40) return 'low'
-    if (slices > 15) return 'mid'
+    if (slices > 40 && wrapRepeat) return 'mid'
     return 'high'
   }
 
   if (variantId === 'pixi-radial') {
     const tileScale = params.tileScale || 0.5
-    if (tileScale < 0.3) return 'low'
-    if (tileScale < 0.7) return 'mid'
+    if (tileScale < 0.3 && wrapRepeat) return 'mid'
     return 'high'
   }
 

@@ -149,3 +149,26 @@ export function applyImageFit(sprite, texture, canvasW, canvasH, mode = 'contain
     sprite.tilePosition.y = (canvasH - th * scale) / 2
   }
 }
+
+/**
+ * Draw a dashed rectangle outline using Pixi Graphics.
+ * Matches kaleidoscope's wedge outline style.
+ */
+export function drawDashedRect(graphics, x, y, w, h, { color = 0xff0000, lineWidth = 2, alpha = 0.8, dash = 8, gap = 5 } = {}) {
+  const total = dash + gap
+  const drawDashedLine = (x0, y0, x1, y1) => {
+    const dx = x1 - x0, dy = y1 - y0
+    const len = Math.sqrt(dx * dx + dy * dy)
+    const ux = dx / len, uy = dy / len
+    for (let d = 0; d < len; d += total) {
+      const end = Math.min(d + dash, len)
+      graphics.moveTo(x0 + ux * d, y0 + uy * d)
+      graphics.lineTo(x0 + ux * end, y0 + uy * end)
+    }
+  }
+  drawDashedLine(x, y, x + w, y)
+  drawDashedLine(x + w, y, x + w, y + h)
+  drawDashedLine(x + w, y + h, x, y + h)
+  drawDashedLine(x, y + h, x, y)
+  graphics.stroke({ color, width: lineWidth, alpha })
+}

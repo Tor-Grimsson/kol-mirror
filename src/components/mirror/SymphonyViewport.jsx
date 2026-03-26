@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, RASTER_TIER_SCALES, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS } from '../../data/mirrorVariants'
+import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS } from '../../data/mirrorVariants'
+import useImageTiers from '../../hooks/useImageTiers'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import ChannelLayer from './ChannelLayer'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
@@ -23,33 +24,11 @@ export default function SymphonyViewport({ state }) {
   const canvasImage = state.symphonyCanvasImage
   const canvasRaster = state.symphonyCanvasRaster
   const hasCustomImage = !!state.symphonyCanvasImage
-  const [defaultRasters, setDefaultRasters] = useState({ white: {}, black: {} })
 
-  // Rasterize default SVG in both themes at multiple tiers on mount
-  useEffect(() => {
-    const rasterize = (fillColor, themeKey) => {
-      const colored = defaultCanvasSvg.replace(/currentColor/g, fillColor)
-      const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(colored)
-      const img = new Image()
-      img.onload = () => {
-        const tiers = {}
-        for (const [tier, scale] of Object.entries(RASTER_TIER_SCALES)) {
-          const canvas = document.createElement('canvas')
-          canvas.width = (img.naturalWidth || 1024) * scale
-          canvas.height = (img.naturalHeight || 1024) * scale
-          const ctx = canvas.getContext('2d')
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-          tiers[tier] = canvas.toDataURL('image/png')
-        }
-        setDefaultRasters(prev => ({ ...prev, [themeKey]: tiers }))
-      }
-      img.src = url
-    }
-    rasterize('#ffffff', 'white')
-    rasterize('#000000', 'black')
-  }, [])
-
-  const themeRasters = state.symphonyRasterTheme === 'light' ? defaultRasters.black : defaultRasters.white
+  // Tiered rasters — for default SVG (themed) or custom uploads
+  const svgFillColor = state.symphonyRasterTheme === 'light' ? '#000000' : '#ffffff'
+  const rasterSource = canvasRaster || DEFAULT_SVG_DATA_URL
+  const { tiers: rasterTiers, ready: rastersReady } = useImageTiers(rasterSource, { svgFillColor })
 
   // Image sources for channels
   const svgImageSrc = canvasImage || DEFAULT_SVG_DATA_URL
@@ -89,6 +68,17 @@ export default function SymphonyViewport({ state }) {
     observer.observe(el)
     return () => observer.disconnect()
   }, [rw, rh])
+
+  // Periodic tier re-evaluation during animation (every 500ms)
+  const [tierTick, setTierTick] = useState(0)
+  useEffect(() => {
+    if (!isAnimating) return
+    const interval = setInterval(() => setTierTick(t => t + 1), 500)
+    return () => clearInterval(interval)
+  }, [isAnimating])
+
+  // Also re-evaluate when recalc is triggered
+  const _recalc = state.rasterRecalcCounter + tierTick
 
   // Build dropdown items
   const HALL_PRESETS = [
@@ -214,7 +204,7 @@ export default function SymphonyViewport({ state }) {
                 : ch
               const isSlotRef = ch.slotIndex != null
               const tier = getRasterTier(resolvedChannel.variantId, resolvedChannel.params)
-              const rasterForChannel = canvasRaster || sourceFallback || themeRasters[tier] || themeRasters.mid
+              const rasterForChannel = sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null)
               return (
               <ChannelLayer
                 key={i}

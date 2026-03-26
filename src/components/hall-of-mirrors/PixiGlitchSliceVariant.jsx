@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Container, TilingSprite, Graphics } from 'pixi.js'
-import usePixiApp, { applyImageFit } from '../../hooks/usePixiApp'
+import usePixiApp, { drawDashedRect } from '../../hooks/usePixiApp'
 import VariantFrame from './VariantFrame'
 
 export default function PixiGlitchSliceVariant({
@@ -12,17 +12,24 @@ export default function PixiGlitchSliceVariant({
   onToggleSelect,
   onImageUpload,
   animate = false,
+  grab = false,
+  grabOutlineVisible = true,
+  imageOffsetX = 0,
+  imageOffsetY = 0,
   sliceCount = 20,
   maxOffset = 50,
   speed = 1,
   smoothing = 0.1,
   direction = 'horizontal',
   wrapMode = 'clamp-to-edge',
-  imageFitMode = 'contain'
+  imageFitMode = 'contain',
+  onParamChange,
 }) {
   const canvasRef = useRef(null)
   const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc)
   const slicesRef = useRef([])
+  const outlineRef = useRef(null)
+  const grabDragRef = useRef(null)
   const speedRef = useRef(speed)
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
@@ -34,6 +41,9 @@ export default function PixiGlitchSliceVariant({
   useEffect(() => { smoothingRef.current = smoothing }, [smoothing])
   useEffect(() => { animateRef.current = animate }, [animate])
   useEffect(() => { enabledRef.current = isEnabled }, [isEnabled])
+  useEffect(() => {
+    if (outlineRef.current) outlineRef.current.visible = grabOutlineVisible !== false
+  }, [grabOutlineVisible])
 
   useEffect(() => {
     if (slicesRef.current?.[0]?.sprite?.texture?.source?.style) {
@@ -83,11 +93,10 @@ export default function PixiGlitchSliceVariant({
       sprite.tileScale.set(scale)
       sprite.x = -maxOffset
       sprite.y = -maxOffset
-      // Center the image in the frame
       const tw = texture.width * scale
       const th = texture.height * scale
-      sprite.tilePosition.x = (width - tw) / 2 + maxOffset
-      sprite.tilePosition.y = (height - th) / 2 + maxOffset
+      sprite.tilePosition.x = (width - tw) / 2 + maxOffset + imageOffsetX
+      sprite.tilePosition.y = (height - th) / 2 + maxOffset + imageOffsetY
 
       const mask = new Graphics()
       if (isVertical) {
@@ -110,6 +119,18 @@ export default function PixiGlitchSliceVariant({
     }
 
     slicesRef.current = slices
+
+    // Grab outline
+    if (grab && slices.length > 0) {
+      const s = slices[0]
+      const tw = texture.width * s.sprite.tileScale.x
+      const th = texture.height * s.sprite.tileScale.y
+      const outline = new Graphics()
+      drawDashedRect(outline, s.sprite.tilePosition.x - maxOffset, s.sprite.tilePosition.y - maxOffset, tw, th)
+      outline.visible = grabOutlineVisible !== false
+      outlineRef.current = outline
+      app.stage.addChild(outline)
+    }
 
     let frameCount = 0
     const tickerFn = () => {
@@ -138,7 +159,7 @@ export default function PixiGlitchSliceVariant({
     app.ticker.add(tickerFn)
 
     return () => { app.ticker?.remove(tickerFn) }
-  }, [size.width, size.height, sliceCount, maxOffset, direction, wrapMode, imageFitMode])
+  }, [size.width, size.height, sliceCount, maxOffset, direction, wrapMode, imageFitMode, grab, imageOffsetX, imageOffsetY])
 
   return (
     <VariantFrame
@@ -149,6 +170,7 @@ export default function PixiGlitchSliceVariant({
       onToggleSelect={onToggleSelect}
       onImageUpload={onImageUpload}
       imageSrc={imageSrc}
+      interactive={grab}
       info={
         <>
           <div><strong>Slices:</strong> {sliceCount} - {sliceCount < 15 ? 'Chunky bands' : sliceCount < 30 ? 'Medium slices' : 'Fine slices'}</div>
@@ -159,7 +181,35 @@ export default function PixiGlitchSliceVariant({
       }
       stats={`slices: ${sliceCount} | offset: ${maxOffset}px | speed: ${speed.toFixed(1)}`}
     >
-      <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
+      <div
+        className="absolute inset-0"
+        style={{ pointerEvents: grab ? 'auto' : 'none', cursor: grab ? 'grab' : 'default' }}
+        onPointerDown={grab ? (e) => {
+          e.preventDefault()
+          const startX = e.clientX
+          const startY = e.clientY
+          const startOffsetX = imageOffsetX
+          const startOffsetY = imageOffsetY
+          grabDragRef.current = true
+          e.currentTarget.style.cursor = 'grabbing'
+
+          const handleMove = (me) => {
+            if (onParamChange) {
+              onParamChange('imageOffsetX', startOffsetX + (me.clientX - startX))
+              onParamChange('imageOffsetY', startOffsetY + (me.clientY - startY))
+            }
+          }
+          const handleUp = () => {
+            grabDragRef.current = false
+            window.removeEventListener('pointermove', handleMove)
+            window.removeEventListener('pointerup', handleUp)
+          }
+          window.addEventListener('pointermove', handleMove)
+          window.addEventListener('pointerup', handleUp)
+        } : undefined}
+      >
+        <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
+      </div>
     </VariantFrame>
   )
 }

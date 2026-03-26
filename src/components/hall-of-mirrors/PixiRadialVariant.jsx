@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { TilingSprite } from 'pixi.js'
-import usePixiApp, { applyImageFit } from '../../hooks/usePixiApp'
+import { TilingSprite, Graphics } from 'pixi.js'
+import usePixiApp, { applyImageFit, drawDashedRect } from '../../hooks/usePixiApp'
 import VariantFrame from './VariantFrame'
 
 export default function PixiRadialVariant({
@@ -12,16 +12,23 @@ export default function PixiRadialVariant({
   onToggleSelect,
   onImageUpload,
   animate = false,
+  grab = false,
+  grabOutlineVisible = true,
+  imageOffsetX = 0,
+  imageOffsetY = 0,
   radius = 50,
   tileScale = 0.5,
   speed = 1,
   rotationDirection = 'clockwise',
   wrapMode = 'clamp-to-edge',
-  imageFitMode = 'contain'
+  imageFitMode = 'contain',
+  onParamChange,
 }) {
   const canvasRef = useRef(null)
   const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc)
   const tilingRef = useRef(null)
+  const outlineRef = useRef(null)
+  const grabDragRef = useRef(null)
   const speedRef = useRef(speed)
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
@@ -34,6 +41,9 @@ export default function PixiRadialVariant({
   useEffect(() => { rotDirRef.current = rotationDirection }, [rotationDirection])
   useEffect(() => { animateRef.current = animate }, [animate])
   useEffect(() => { enabledRef.current = isEnabled }, [isEnabled])
+  useEffect(() => {
+    if (outlineRef.current) outlineRef.current.visible = grabOutlineVisible !== false
+  }, [grabOutlineVisible])
 
   useEffect(() => {
     if (tilingRef.current?.texture?.source?.style) {
@@ -60,9 +70,26 @@ export default function PixiRadialVariant({
     applyImageFit(tilingSprite, texture, width, height, imageFitMode)
     tilingSprite.tileScale.x *= tileScale
     tilingSprite.tileScale.y *= tileScale
+    tilingSprite.tilePosition.x += imageOffsetX
+    tilingSprite.tilePosition.y += imageOffsetY
+
+    // Store base centering from applyImageFit
+    const baseTpX = tilingSprite.tilePosition.x
+    const baseTpY = tilingSprite.tilePosition.y
+    const imgScale = tilingSprite.tileScale.y
+    const tw = texture.width * imgScale
+    const th = texture.height * imgScale
 
     app.stage.addChild(tilingSprite)
     tilingRef.current = tilingSprite
+
+    let outline = null
+    if (grab) {
+      outline = new Graphics()
+      outline.visible = grabOutlineVisible !== false
+      outlineRef.current = outline
+      app.stage.addChild(outline)
+    }
 
     const tickerFn = () => {
       if (!tilingRef.current) return
@@ -73,15 +100,23 @@ export default function PixiRadialVariant({
         angleRef.current += 0.02 * speedRef.current * dir
       }
 
-      tilingRef.current.tilePosition.x = Math.cos(angleRef.current) * r
-      tilingRef.current.tilePosition.y = Math.sin(angleRef.current) * r
+      const orbitX = Math.cos(angleRef.current) * r
+      const orbitY = Math.sin(angleRef.current) * r
+      tilingRef.current.tilePosition.x = baseTpX + orbitX + imageOffsetX
+      tilingRef.current.tilePosition.y = baseTpY + orbitY + imageOffsetY
+
+      if (outline && outline.visible) {
+        outline.clear()
+        const orbitX = Math.cos(angleRef.current) * radiusRef.current
+        const orbitY = Math.sin(angleRef.current) * radiusRef.current
+        drawDashedRect(outline, (width - tw) / 2 + orbitX + imageOffsetX, (height - th) / 2 + orbitY + imageOffsetY, tw, th)
+      }
     }
     app.ticker.add(tickerFn)
 
     return () => { app.ticker?.remove(tickerFn) }
-  }, [size.width, size.height, wrapMode, imageFitMode])
+  }, [size.width, size.height, wrapMode, imageFitMode, grab, imageOffsetX, imageOffsetY])
 
-  // Update tile scale live
   useEffect(() => {
     if (tilingRef.current) {
       tilingRef.current.tileScale.x = tileScale
@@ -98,6 +133,7 @@ export default function PixiRadialVariant({
       onToggleSelect={onToggleSelect}
       onImageUpload={onImageUpload}
       imageSrc={imageSrc}
+      interactive={grab}
       info={
         <>
           <div><strong>Radius:</strong> {radius}px - {radius < 30 ? 'Tight orbit' : radius < 60 ? 'Medium orbit' : 'Wide orbit'}</div>
@@ -108,7 +144,35 @@ export default function PixiRadialVariant({
       }
       stats={`radius: ${radius}px | scale: ${tileScale.toFixed(2)} | speed: ${speed.toFixed(1)}`}
     >
-      <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
+      <div
+        className="absolute inset-0"
+        style={{ pointerEvents: grab ? 'auto' : 'none', cursor: grab ? 'grab' : 'default' }}
+        onPointerDown={grab ? (e) => {
+          e.preventDefault()
+          const startX = e.clientX
+          const startY = e.clientY
+          const startOffsetX = imageOffsetX
+          const startOffsetY = imageOffsetY
+          grabDragRef.current = true
+          e.currentTarget.style.cursor = 'grabbing'
+
+          const handleMove = (me) => {
+            if (onParamChange) {
+              onParamChange('imageOffsetX', startOffsetX + (me.clientX - startX))
+              onParamChange('imageOffsetY', startOffsetY + (me.clientY - startY))
+            }
+          }
+          const handleUp = () => {
+            grabDragRef.current = false
+            window.removeEventListener('pointermove', handleMove)
+            window.removeEventListener('pointerup', handleUp)
+          }
+          window.addEventListener('pointermove', handleMove)
+          window.addEventListener('pointerup', handleUp)
+        } : undefined}
+      >
+        <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
+      </div>
     </VariantFrame>
   )
 }
