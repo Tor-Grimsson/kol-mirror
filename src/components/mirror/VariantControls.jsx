@@ -3,7 +3,7 @@ import Dropdown from '../molecules/Dropdown'
 import Divider from '../atoms/Divider'
 import Icon from '../icons/Icon'
 
-export default function VariantControls({ controls, params, onParamChange }) {
+export default function VariantControls({ controls, params, onParamChange, rowHeight = 24 }) {
   if (!controls || !params) return null
 
   return (
@@ -19,7 +19,7 @@ export default function VariantControls({ controls, params, onParamChange }) {
         if (ctrl.type === 'tabs') {
           const current = params[ctrl.key] ?? ctrl.default
           return (
-            <div key={ctrl.key} className="flex items-center justify-between" style={{ height: '24px' }}>
+            <div key={ctrl.key} className="flex items-center justify-between" style={{ height: `${rowHeight}px` }}>
               {ctrl.options.map(opt => {
                 const isActive = current === opt.value
                 const enableDefault = ctrl.options.find(o => o.value === opt.value)?.enableDefault
@@ -69,7 +69,7 @@ export default function VariantControls({ controls, params, onParamChange }) {
             <div
               key={ctrl.key}
               className="flex items-center justify-between kol-helper-xs text-fg-96 select-none"
-              style={{ height: '24px' }}
+              style={{ height: `${rowHeight}px` }}
             >
               <div className="flex items-center gap-2">
                 <span className="cursor-pointer" onClick={() => onParamChange(ctrl.key, !isOn)}>{ctrl.label}</span>
@@ -111,7 +111,7 @@ export default function VariantControls({ controls, params, onParamChange }) {
             <div
               key={ctrl.key}
               className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
-              style={{ height: '24px' }}
+              style={{ height: `${rowHeight}px` }}
               onClick={() => onParamChange(ctrl.key, other.value)}
             >
               <span>{ctrl.label}</span>
@@ -122,7 +122,7 @@ export default function VariantControls({ controls, params, onParamChange }) {
 
         if (ctrl.type === 'select') {
           return (
-            <div key={ctrl.key} className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
+            <div key={ctrl.key} className="flex items-center justify-between" style={{ height: `${rowHeight}px`, gap: '12px' }}>
               <span className="kol-helper-xs text-fg-96 shrink-0">{ctrl.label}</span>
               <Dropdown
                 options={ctrl.options}
@@ -130,6 +130,7 @@ export default function VariantControls({ controls, params, onParamChange }) {
                 onChange={v => onParamChange(ctrl.key, v)}
                 variant="minimal"
                 size="md"
+                rowHeight={rowHeight}
               />
             </div>
           )

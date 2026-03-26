@@ -5,7 +5,6 @@ import ChannelLayer from './ChannelLayer'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
 
 const DEFAULT_SVG_DATA_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
-const CHANNEL_INDEX = { displacement: 0, movement: 1, copies: 2 }
 
 export default function SymphonyViewport({ state }) {
   const canvasContainerRef = useRef(null)
@@ -124,11 +123,10 @@ export default function SymphonyViewport({ state }) {
     copies: dropdownItems,
   }
 
-  const updateChannel = (channelName, updates) => {
-    const idx = CHANNEL_INDEX[channelName]
+  const updateChannel = (idx, updates) => {
     setChannels(prev => {
       const next = [...prev]
-      next[idx] = { ...next[idx], ...updates }
+      if (next[idx]) next[idx] = { ...next[idx], ...updates }
       return next
     })
   }
@@ -226,12 +224,9 @@ export default function SymphonyViewport({ state }) {
                 imageScale={state.imageScale}
                 onParamChange={(key, value) => {
                   if (isSlotRef && state.archiveSlots[ch.slotIndex]) {
-                    // Write directly to the slot
-                    const slot = state.archiveSlots[ch.slotIndex]
-                    state.setVariantParam(slot.variantId, key, value)
+                    state.setVariantParam(state.archiveSlots[ch.slotIndex].variantId, key, value)
                   } else {
-                    const channelNames = ['displacement', 'movement', 'copies']
-                    updateChannel(channelNames[i], { params: { ...ch.params, [key]: value } })
+                    updateChannel(i, { params: { ...ch.params, [key]: value } })
                   }
                 }}
               />
@@ -240,35 +235,41 @@ export default function SymphonyViewport({ state }) {
           </div>
         )}
       </div>
-      <div className="shrink-0 mt-auto pt-6">
+      <div className="shrink-0 mt-auto pt-6" style={{ marginRight: '-16px' }}>
         <SymphonyMixer
-          displacementValue={channels[0].intensity} onDisplacementChange={(v) => updateChannel('displacement', { intensity: v })}
-          displacementEnabled={channels[0].enabled} onDisplacementEnabledChange={(v) => updateChannel('displacement', { enabled: v })}
-          displacementBoosted={channels[0].boosted} onDisplacementBoostChange={(v) => updateChannel('displacement', { boosted: v })}
-          displacementRandomness={channels[0].speed} onDisplacementRandomnessChange={(v) => updateChannel('displacement', { speed: v })}
-          displacementLoaded={channels[0].name}
-          displacementOpacity={channels[0].opacity} onDisplacementOpacityChange={(v) => updateChannel('displacement', { opacity: v })}
-          movementValue={channels[1].intensity} onMovementChange={(v) => updateChannel('movement', { intensity: v })}
-          movementEnabled={channels[1].enabled} onMovementEnabledChange={(v) => updateChannel('movement', { enabled: v })}
-          movementBoosted={channels[1].boosted} onMovementBoostChange={(v) => updateChannel('movement', { boosted: v })}
-          movementRandomness={channels[1].speed} onMovementRandomnessChange={(v) => updateChannel('movement', { speed: v })}
-          movementLoaded={channels[1].name}
-          movementOpacity={channels[1].opacity} onMovementOpacityChange={(v) => updateChannel('movement', { opacity: v })}
-          copiesValue={channels[2].intensity} onCopiesChange={(v) => updateChannel('copies', { intensity: v })}
-          copiesEnabled={channels[2].enabled} onCopiesEnabledChange={(v) => updateChannel('copies', { enabled: v })}
-          copiesBoosted={channels[2].boosted} onCopiesBoostChange={(v) => updateChannel('copies', { boosted: v })}
-          copiesRandomness={channels[2].speed} onCopiesRandomnessChange={(v) => updateChannel('copies', { speed: v })}
-          copiesLoaded={channels[2].name}
-          copiesOpacity={channels[2].opacity} onCopiesOpacityChange={(v) => updateChannel('copies', { opacity: v })}
-          onLoadPreset={handleLoadPreset} layout={mixerLayout}
-          nineVariants={nineVariants}
+          channels={channels}
+          onChannelUpdate={updateChannel}
+          onLoadPreset={handleLoadPreset}
+          layout={mixerLayout}
+          resolvedParams={channels.map((ch, i) => {
+            if (ch.slotIndex != null && state.archiveSlots[ch.slotIndex]) {
+              return state.getVariantParams(state.archiveSlots[ch.slotIndex].variantId)
+            }
+            return ch.params
+          })}
+          onChannelParamChange={(idx, key, value) => {
+            const ch = channels[idx]
+            if (ch.slotIndex != null && state.archiveSlots[ch.slotIndex]) {
+              state.setVariantParam(state.archiveSlots[ch.slotIndex].variantId, key, value)
+            } else {
+              updateChannel(idx, { params: { ...ch.params, [key]: value } })
+            }
+          }}
+          dropdownItems={dropdownItems}
           openNineDropdown={openNineDropdown}
-          onSelectVariant={handleSelectVariant} onCloseDropdown={() => setOpenNineDropdown(null)}
-          onEditChannel={(channelIdx) => {
-            const ch = channels[channelIdx]
+          onSelectVariant={handleSelectVariant}
+          onCloseDropdown={() => setOpenNineDropdown(null)}
+          onEditChannel={(idx) => {
+            const ch = channels[idx]
             if (ch.slotIndex != null) {
               state.loadSlotToHall(ch.slotIndex)
             }
+          }}
+          onRemoveChannel={(idx) => {
+            setChannels(prev => prev.filter((_, i) => i !== idx))
+          }}
+          onAddChannel={() => {
+            setChannels(prev => [...prev, { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null, baseIntensity: 100 }])
           }}
         />
       </div>

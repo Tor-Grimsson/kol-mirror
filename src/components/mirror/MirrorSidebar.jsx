@@ -343,18 +343,14 @@ export default function MirrorSidebar({ state, onClose }) {
                 className="text-fg-32 hover:text-fg-96 cursor-pointer select-none"
                 onClick={() => {
                   const empty = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
-                  state.setSymphonyChannels([
-                    { ...empty, enabled: true },
-                    { ...empty },
-                    { ...empty },
-                  ])
+                  state.setSymphonyChannels([{ ...empty, enabled: true }, { ...empty }, { ...empty }])
                 }}
               >[RESET]</span>
               <div className="flex items-center gap-2">
-                {['1', '2', '3'].map((n, i) => (
+                {state.symphonyChannels.map((ch, i) => (
                   <span
                     key={i}
-                    className={`cursor-pointer select-none ${state.symphonyChannels[i]?.variantId ? 'text-fg-96' : 'text-fg-32'} hover:text-fg-96`}
+                    className={`cursor-pointer select-none ${ch.variantId ? 'text-fg-96' : 'text-fg-32'} hover:text-fg-96`}
                     onClick={() => {
                       const empty = { variantId: null, params: {}, slotIndex: null, enabled: i === 0, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
                       state.setSymphonyChannels(prev => {
@@ -363,7 +359,7 @@ export default function MirrorSidebar({ state, onClose }) {
                         return next
                       })
                     }}
-                  >[{n}]</span>
+                  >[{i + 1}]</span>
                 ))}
               </div>
             </div>

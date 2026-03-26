@@ -189,6 +189,22 @@
   font-weight: 500;
 }
 
+.kol-helper-xs-2 {
+  font-family: var(--kol-font-family-mono);
+  font-size: 11px;
+  line-height: 100%;
+  font-weight: 500;
+}
+
+.kol-helper-xs-2 .kol-helper-xs {
+  font-size: 11px;
+}
+
+.kol-helper-xs-2 .control-slider-minimal {
+  height: 20px;
+}
+
+
 .kol-helper-xxs {
   font-family: var(--kol-font-family-mono);
   font-size: 10px;

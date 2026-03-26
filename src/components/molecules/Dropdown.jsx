@@ -12,7 +12,8 @@ const Dropdown = ({
   onChange,
   size,
   variant = 'default',
-  className = ''
+  className = '',
+  rowHeight,
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
@@ -91,7 +92,7 @@ const Dropdown = ({
       borderRadius: '0',
       backgroundColor: 'transparent',
       padding: '0',
-      height: '24px',
+      height: rowHeight ? `${rowHeight}px` : '24px',
       display: 'flex',
       alignItems: 'center'
     }
@@ -205,7 +206,7 @@ const Dropdown = ({
             backgroundColor: 'transparent',
             border: 'none',
             padding: styles.padding,
-            fontSize: `${metrics.fontSize}px`,
+            fontSize: rowHeight ? '11px' : `${metrics.fontSize}px`,
             lineHeight: '120%',
             fontFamily: 'var(--kol-font-family-mono)'
           }}

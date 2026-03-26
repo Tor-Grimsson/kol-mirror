@@ -1,18 +1,26 @@
 import { useRef, useState } from 'react'
 import Slider from '../atoms/Slider'
 import { Icon } from '../icons'
+import Divider from '../atoms/Divider'
+import VariantControls from '../mirror/VariantControls'
+import { findVariant } from '../../data/mirrorVariants'
 import RotaryDial from './RotaryDial'
 
 function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
   const btnRef = useRef(null)
   const [direction, setDirection] = useState('down')
 
+  const [panelPos, setPanelPos] = useState(null)
+
   const handleClick = (e) => {
     e.stopPropagation()
     if (!isOpen && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
-      const spaceBelow = window.innerHeight - rect.bottom
-      setDirection(spaceBelow < 320 ? 'up' : 'down')
+      setDirection('up')
+      setPanelPos({
+        left: rect.left,
+        bottom: window.innerHeight - rect.top + 4,
+      })
     }
     onToggle()
   }
@@ -35,20 +43,18 @@ function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
             onClick={(e) => { e.stopPropagation(); onClose() }}
           />
           <div
-            className="absolute left-0 bottom-full mb-1 bg-surface-primary border border-fg-16 z-50 max-h-[300px] overflow-y-auto"
-            style={{ borderRadius: '4px', minWidth: '200px' }}
+            className="fixed bg-surface-primary border border-fg-16 z-50 max-h-[300px] overflow-y-auto flex flex-col gap-1 p-2"
+            style={{ borderRadius: '4px', minWidth: '200px', ...panelPos }}
           >
             {items?.map((item, index) => (
               <div
                 key={item.id}
-                className={`kol-helper-xs px-3 py-1.5 transition-all ${
+                className={`kol-helper-xs px-2 py-1 transition-all ${
                   item.empty || item.type === 'separator'
                     ? 'text-fg-32 cursor-default'
                     : 'text-fg-64 hover:text-fg-96 hover:bg-surface-secondary cursor-pointer'
                 }`}
-                style={{
-                  borderBottom: index < items.length - 1 ? '1px solid var(--kol-fg-08)' : 'none'
-                }}
+                style={{ borderRadius: '2px' }}
                 onClick={(e) => {
                   e.stopPropagation()
                   onSelect(item.id)
@@ -83,35 +89,51 @@ function Channel({
   opacity = 100,
   onOpacityChange,
   onEdit,
+  onRemove,
+  controls,
+  params,
+  onParamChange,
 }) {
+  const [showRemove, setShowRemove] = useState(false)
+  const [shelfOpen, setShelfOpen] = useState(false)
+  const [shelfPage, setShelfPage] = useState(0)
   return (
-    <div className="flex flex-col gap-2" style={{ overflow: 'visible' }}>
-      <div className="flex items-center justify-between kol-helper-xs" style={{ minHeight: '16px' }}>
+    <div className="flex flex-col gap-2 shrink-0" style={{ overflow: 'visible' }}>
+      <div className="flex items-center justify-between kol-helper-xs" style={{ minHeight: '16px', width: '320px' }}>
         <span className="text-fg-48 truncate">{loadedName || '\u00A0'}</span>
         {onEdit && loadedName && (
           <span className="text-fg-32 hover:text-fg-96 cursor-pointer select-none shrink-0" onClick={onEdit}>[EDIT]</span>
         )}
       </div>
+      <div className="flex flex-row items-stretch" style={{ overflow: 'visible' }}>
       <div
-        className="flex flex-col items-center gap-6 p-4 bg-surface-secondary border border-fg-08 relative"
+        className="flex flex-col items-center gap-6 p-4 bg-surface-secondary border border-fg-08 relative shrink-0"
         style={{
           borderRadius: '4px',
-          overflow: 'visible'
+          overflow: 'visible',
+          width: '320px',
+          minHeight: '264px',
         }}
       >
-      <div className="w-full flex items-center justify-between">
-        <LoadButton
-          isOpen={isDropdownOpen}
-          onToggle={onLoadFromNine}
-          onClose={onCloseDropdown}
-          items={items}
-          onSelect={onSelectItem}
-        />
+      <div className="w-full flex items-start justify-between">
         <div
-          className="cursor-pointer select-none flex items-center justify-center"
-          onClick={() => onEnabledChange(!enabled)}
+          className="cursor-pointer select-none flex items-center justify-center relative"
+          onClick={() => { setShowRemove(false); onEnabledChange(!enabled) }}
+          onContextMenu={(e) => { e.preventDefault(); setShowRemove(!showRemove) }}
           title={enabled ? 'ON' : 'OFF'}
         >
+          {showRemove && onRemove && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowRemove(false)} />
+              <div
+                className="absolute left-0 top-full mt-1 bg-surface-primary border border-fg-16 z-50 kol-helper-xs px-3 py-1.5 text-fg-64 hover:text-fg-96 hover:bg-surface-secondary cursor-pointer transition-all"
+                style={{ borderRadius: '4px', whiteSpace: 'nowrap' }}
+                onClick={(e) => { e.stopPropagation(); setShowRemove(false); onRemove() }}
+              >
+                Remove Channel
+              </div>
+            </>
+          )}
           <div
             className="w-6 h-6 rounded-full border-2 border-fg-48 flex items-center justify-center"
           >
@@ -120,6 +142,23 @@ function Channel({
                 enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'
               }`}
             />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <LoadButton
+            isOpen={isDropdownOpen}
+            onToggle={onLoadFromNine}
+            onClose={onCloseDropdown}
+            items={items}
+            onSelect={onSelectItem}
+          />
+          <div
+            className={`cursor-pointer select-none flex items-center justify-center p-1 border transition-all ${shelfOpen ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+            style={{ borderRadius: '4px' }}
+            onClick={() => setShelfOpen(!shelfOpen)}
+            title="Effects"
+          >
+            <Icon name="frequency" size={16} />
           </div>
         </div>
       </div>
@@ -165,126 +204,133 @@ function Channel({
         />
       </div>
     </div>
+    {/* Shelf — expands to the right */}
+    {shelfOpen && controls && params && (
+      <div
+        className="flex flex-col px-4 py-4 my-4 shrink-0 border border-fg-08 kol-helper-xs-2"
+        style={{ borderRadius: '0 4px 4px 0', backgroundColor: '#0e0e11', width: '280px', marginLeft: '-8px', paddingLeft: '24px' }}
+      >
+        {(() => {
+          const ROWS_PER_COL = 7
+          const tabControls = controls.filter(c => c.type === 'tabs')
+          let skippedFirstDivider = !tabControls.length
+          const filtered = controls.filter(c => {
+            if (c.type === 'tabs') return false
+            if (!skippedFirstDivider && c.type === 'divider') { skippedFirstDivider = true; return false }
+            if (c.tab && params.controlTab && c.tab !== params.controlTab) return false
+            return true
+          })
+          const pages = []
+          for (let i = 0; i < filtered.length; i += ROWS_PER_COL) {
+            pages.push(filtered.slice(i, i + ROWS_PER_COL))
+          }
+          const safePage = Math.min(shelfPage, pages.length - 1)
+          let currentPage = pages[safePage] || []
+          // Strip leading dividers — pinned tabs already has one
+          while (currentPage.length && currentPage[0].type === 'divider') currentPage = currentPage.slice(1)
+          return (
+            <>
+              {tabControls.length > 0 && (
+                <>
+                  <VariantControls
+                    controls={tabControls}
+                    params={params}
+                    onParamChange={onParamChange}
+                    rowHeight={20}
+                  />
+                  <Divider className="my-2" />
+                </>
+              )}
+              <div style={{ flex: 1 }}>
+                <VariantControls
+                  controls={currentPage}
+                  params={params}
+                  onParamChange={onParamChange}
+                  rowHeight={20}
+                />
+              </div>
+              {pages.length > 1 && (
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  {pages.map((_, pi) => (
+                    <span
+                      key={pi}
+                      className={`cursor-pointer select-none ${pi === safePage ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`}
+                      onClick={() => setShelfPage(pi)}
+                    >
+                      {pi + 1}/{pages.length}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
+          )
+        })()}
+      </div>
+    )}
+    </div>{/* close flex-row */}
     </div>
   )
 }
 
 export default function SymphonyMixer({
-  displacementValue = 0,
-  onDisplacementChange,
-  displacementEnabled = false,
-  onDisplacementEnabledChange,
-  displacementBoosted = false,
-  onDisplacementBoostChange,
-  displacementRandomness = 0,
-  onDisplacementRandomnessChange,
-
-  movementValue = 0,
-  onMovementChange,
-  movementEnabled = false,
-  onMovementEnabledChange,
-  movementBoosted = false,
-  onMovementBoostChange,
-  movementRandomness = 0,
-  onMovementRandomnessChange,
-
-  copiesValue = 0,
-  onCopiesChange,
-  copiesEnabled = false,
-  onCopiesEnabledChange,
-  copiesBoosted = false,
-  onCopiesBoostChange,
-  copiesRandomness = 0,
-  onCopiesRandomnessChange,
-  copiesLoaded = null,
-  copiesOpacity = 100,
-  onCopiesOpacityChange,
-
-  displacementLoaded = null,
-  displacementOpacity = 100,
-  onDisplacementOpacityChange,
-  movementLoaded = null,
-  movementOpacity = 100,
-  onMovementOpacityChange,
-
+  channels = [],
+  resolvedParams = [],
+  onChannelUpdate,
+  onChannelParamChange,
   onLoadPreset,
-
   layout = 'row',
-
-  nineVariants = {},
+  dropdownItems = [],
   openNineDropdown = null,
   onSelectVariant,
   onCloseDropdown,
   onEditChannel,
+  onAddChannel,
+  onRemoveChannel,
 }) {
   return (
-    <div className="flex flex-col gap-6" style={{ overflow: 'visible' }}>
+    <div className="flex flex-col gap-6">
       <div
         className={`flex ${layout === 'row' ? 'flex-row' : 'flex-col'} gap-4`}
-        style={{ overflow: 'visible' }}
+        style={{ overflowX: layout === 'row' ? 'auto' : 'visible' }}
       >
-        <Channel
-          value={displacementValue}
-          onChange={onDisplacementChange}
-          enabled={displacementEnabled}
-          onEnabledChange={onDisplacementEnabledChange}
-          boosted={displacementBoosted}
-          onBoostChange={onDisplacementBoostChange}
-          randomness={displacementRandomness}
-          onRandomnessChange={onDisplacementRandomnessChange}
-          onLoadFromNine={() => onLoadPreset && onLoadPreset({ channel: 'displacement', source: 'nine' })}
-          channelId="displacement"
-          isDropdownOpen={openNineDropdown === 'displacement'}
-          items={nineVariants['displacement']}
-          onSelectItem={(id) => onSelectVariant('displacement', id)}
-          onCloseDropdown={onCloseDropdown}
-          loadedName={displacementLoaded}
-          onEdit={() => onEditChannel && onEditChannel(0)}
-          opacity={displacementOpacity}
-          onOpacityChange={onDisplacementOpacityChange}
-        />
+        {channels.map((ch, i) => (
+          <Channel
+            key={i}
+            value={ch.intensity}
+            onChange={(v) => onChannelUpdate(i, { intensity: v })}
+            enabled={ch.enabled}
+            onEnabledChange={(v) => onChannelUpdate(i, { enabled: v })}
+            boosted={ch.boosted}
+            onBoostChange={(v) => onChannelUpdate(i, { boosted: v })}
+            randomness={ch.speed}
+            onRandomnessChange={(v) => onChannelUpdate(i, { speed: v })}
+            onLoadFromNine={() => onLoadPreset && onLoadPreset({ channel: i, source: 'nine' })}
+            channelId={`ch-${i}`}
+            isDropdownOpen={openNineDropdown === i}
+            items={dropdownItems}
+            onSelectItem={(id) => onSelectVariant(i, id)}
+            onCloseDropdown={onCloseDropdown}
+            loadedName={ch.name}
+            onEdit={() => onEditChannel && onEditChannel(i)}
+            onRemove={channels.length > 1 ? () => onRemoveChannel && onRemoveChannel(i) : null}
+            opacity={ch.opacity}
+            onOpacityChange={(v) => onChannelUpdate(i, { opacity: v })}
+            controls={ch.variantId ? findVariant(ch.variantId)?.controls : null}
+            params={resolvedParams[i] || ch.params}
+            onParamChange={(key, value) => onChannelParamChange && onChannelParamChange(i, key, value)}
+          />
+        ))}
 
-        <Channel
-          value={movementValue}
-          onChange={onMovementChange}
-          enabled={movementEnabled}
-          onEnabledChange={onMovementEnabledChange}
-          boosted={movementBoosted}
-          onBoostChange={onMovementBoostChange}
-          randomness={movementRandomness}
-          onRandomnessChange={onMovementRandomnessChange}
-          onLoadFromNine={() => onLoadPreset && onLoadPreset({ channel: 'movement', source: 'nine' })}
-          channelId="movement"
-          isDropdownOpen={openNineDropdown === 'movement'}
-          items={nineVariants['movement']}
-          onSelectItem={(id) => onSelectVariant('movement', id)}
-          onCloseDropdown={onCloseDropdown}
-          loadedName={movementLoaded}
-          onEdit={() => onEditChannel && onEditChannel(1)}
-          opacity={movementOpacity}
-          onOpacityChange={onMovementOpacityChange}
-        />
-
-        <Channel
-          value={copiesValue}
-          onChange={onCopiesChange}
-          enabled={copiesEnabled}
-          onEnabledChange={onCopiesEnabledChange}
-          boosted={copiesBoosted}
-          onBoostChange={onCopiesBoostChange}
-          randomness={copiesRandomness}
-          onRandomnessChange={onCopiesRandomnessChange}
-          onLoadFromNine={() => onLoadPreset && onLoadPreset({ channel: 'copies', source: 'nine' })}
-          channelId="copies"
-          isDropdownOpen={openNineDropdown === 'copies'}
-          items={nineVariants['copies']}
-          onSelectItem={(id) => onSelectVariant('copies', id)}
-          onCloseDropdown={onCloseDropdown}
-          loadedName={copiesLoaded}
-          onEdit={() => onEditChannel && onEditChannel(2)}
-          opacity={copiesOpacity}
-          onOpacityChange={onCopiesOpacityChange}
-        />
+        {/* Add channel */}
+        <div
+          className="flex items-center justify-center shrink-0 cursor-pointer"
+          style={{ width: '48px' }}
+          onClick={() => onAddChannel && onAddChannel()}
+        >
+          <div className="w-8 h-8 rounded-full bg-fg-08 hover:bg-fg-16 flex items-center justify-center transition-colors">
+            <Icon name="plus" size={14} className="text-fg-48" />
+          </div>
+        </div>
       </div>
 
     </div>
