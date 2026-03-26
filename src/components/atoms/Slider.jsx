@@ -57,7 +57,7 @@ const Slider = ({
   return (
     <div className={`${variantClass} gap-3 shadow-none ${className}`}>
       {label && (
-        <label className="kol-mono-xs whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
+        <label className="kol-helper-xs whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
           {label}
         </label>
       )}
@@ -70,7 +70,7 @@ const Slider = ({
         onChange={handleChange}
         className="slider-black flex-1 w-full cursor-pointer"
       />
-      <span className="kol-mono-xs text-right shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
+      <span className="kol-helper-xs text-right shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
         {displayValue}
       </span>
     </div>

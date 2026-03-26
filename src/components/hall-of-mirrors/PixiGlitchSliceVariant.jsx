@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Application, Assets, Container, Sprite, Graphics, Rectangle } from 'pixi.js'
+import { Application, Assets, Container, TilingSprite, Graphics, Rectangle } from 'pixi.js'
 
 export default function PixiGlitchSliceVariant({
   title,
@@ -12,7 +12,10 @@ export default function PixiGlitchSliceVariant({
   animate = false,
   sliceCount = 20,
   maxOffset = 50,
-  speed = 1
+  speed = 1,
+  smoothing = 0.1,
+  direction = 'horizontal',
+  wrapMode = 'clamp-to-edge'
 }) {
   const canvasRef = useRef(null)
   const appRef = useRef(null)
@@ -22,6 +25,9 @@ export default function PixiGlitchSliceVariant({
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
   const frameCountRef = useRef(0)
+  const smoothingRef = useRef(smoothing)
+  const maxOffsetRef = useRef(maxOffset)
+  const wrapModeRef = useRef(wrapMode)
   const [showInfo, setShowInfo] = useState(false)
 
   // Keep refs updated
@@ -30,12 +36,28 @@ export default function PixiGlitchSliceVariant({
   }, [speed])
 
   useEffect(() => {
+    maxOffsetRef.current = maxOffset
+  }, [maxOffset])
+
+  useEffect(() => {
+    smoothingRef.current = smoothing
+  }, [smoothing])
+
+  useEffect(() => {
     animateRef.current = animate
   }, [animate])
 
   useEffect(() => {
     enabledRef.current = isEnabled
   }, [isEnabled])
+
+  useEffect(() => {
+    wrapModeRef.current = wrapMode
+    if (slicesRef.current?.[0]?.sprite?.texture?.source?.style) {
+      slicesRef.current[0].sprite.texture.source.style.addressMode = wrapMode
+      slicesRef.current[0].sprite.texture.source.style.update()
+    }
+  }, [wrapMode])
 
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return
@@ -72,6 +94,8 @@ export default function PixiGlitchSliceVariant({
         })
 
         const texture = await Assets.load(imageSrc)
+        texture.source.style.addressMode = wrapModeRef.current || 'clamp-to-edge'
+        texture.source.style.update()
 
         // Create main container for all slices
         const mainContainer = new Container()
@@ -83,15 +107,12 @@ export default function PixiGlitchSliceVariant({
         const slices = []
 
         for (let i = 0; i < sliceCount; i++) {
-          const sprite = new Sprite(texture)
-
-          // Scale to fit container
           const scale = Math.max(width / texture.width, height / texture.height)
-          sprite.scale.set(scale)
-
-          // Center the image
-          sprite.x = (width - texture.width * scale) / 2
-          sprite.y = (height - texture.height * scale) / 2
+          const sprite = new TilingSprite({ texture, width: width * 2, height: height })
+          sprite.tileScale.set(scale)
+          sprite.anchor.set(0.25, 0)
+          sprite.x = 0
+          sprite.y = 0
 
           // Create mask for this horizontal slice
           const mask = new Graphics()
@@ -125,26 +146,27 @@ export default function PixiGlitchSliceVariant({
         // Animation loop
         let frameCount = 0
         app.ticker.add(() => {
-          if (!slicesRef.current.length || !animateRef.current || !enabledRef.current) return
+          if (!slicesRef.current.length) return
 
-          frameCount++
-          frameCountRef.current = frameCount
+          if (animateRef.current && enabledRef.current) {
+            frameCount++
+            frameCountRef.current = frameCount
 
-          // Update offsets every N frames based on speed
-          const updateInterval = Math.max(1, Math.floor(60 / speedRef.current))
+            const updateInterval = Math.max(1, Math.floor(60 / speedRef.current))
 
-          if (frameCount % updateInterval === 0) {
+            if (frameCount % updateInterval === 0) {
+              slicesRef.current.forEach(slice => {
+                slice.targetOffset = (Math.random() - 0.5) * maxOffsetRef.current * 2
+              })
+            }
+
+            // Smoothly interpolate to target
             slicesRef.current.forEach(slice => {
-              // Randomize target offset
-              slice.targetOffset = (Math.random() - 0.5) * maxOffset * 2
+              slice.currentOffset += (slice.targetOffset - slice.currentOffset) * smoothingRef.current
+              slice.sprite.x = slice.baseX + slice.currentOffset
             })
           }
-
-          // Smoothly interpolate to target
-          slicesRef.current.forEach(slice => {
-            slice.currentOffset += (slice.targetOffset - slice.currentOffset) * 0.1
-            slice.sprite.x = slice.baseX + slice.currentOffset
-          })
+          // When paused: slices stay at current position (no reset)
         })
       } catch (error) {
         console.error('PixiJS Glitch initialization error:', error)
@@ -166,16 +188,7 @@ export default function PixiGlitchSliceVariant({
     }
   }, [])
 
-  // Reset offsets when disabled
-  useEffect(() => {
-    if (slicesRef.current.length && !isEnabled) {
-      slicesRef.current.forEach(slice => {
-        slice.currentOffset = 0
-        slice.targetOffset = 0
-        slice.sprite.x = slice.baseX
-      })
-    }
-  }, [isEnabled])
+  // Pause/resume — ticker checks refs, glitch freezes at current frame
 
   // Rebuild slices when slice count or max offset changes
   useEffect(() => {
@@ -196,13 +209,12 @@ export default function PixiGlitchSliceVariant({
         const slices = []
 
         for (let i = 0; i < sliceCount; i++) {
-          const sprite = new Sprite(texture)
-
           const scale = Math.max(width / texture.width, height / texture.height)
-          sprite.scale.set(scale)
-
-          sprite.x = (width - texture.width * scale) / 2
-          sprite.y = (height - texture.height * scale) / 2
+          const sprite = new TilingSprite({ texture, width: width * 2, height: height })
+          sprite.tileScale.set(scale)
+          sprite.anchor.set(0.25, 0)
+          sprite.x = 0
+          sprite.y = 0
 
           const mask = new Graphics()
           mask.rect(0, i * sliceHeight, width, sliceHeight)

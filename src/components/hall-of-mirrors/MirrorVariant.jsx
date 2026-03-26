@@ -8,15 +8,22 @@ const MirrorVariant = ({
   numOctaves = 2,
   scale = 20,
   seed = 0,
+  turbulenceType = 'turbulence',
+  xChannelSelector = 'R',
+  yChannelSelector = 'G',
   animate = false,
+  speed = 3,
   isEnabled = true,
   isSelected = false,
   onToggleEnabled,
   onToggleSelect,
   description = '',
-  onImageUpload
+  onImageUpload,
+  fullBleed = false,
+  timeScale = 1
 }) => {
   const filterRef = useRef(null)
+  const tweenRef = useRef(null)
   const filterId = `distortion-${title.replace(/\s+/g, '-').toLowerCase()}`
   const [showInfo, setShowInfo] = useState(false)
 
@@ -29,19 +36,62 @@ const MirrorVariant = ({
     if (!animate) {
       gsap.killTweensOf(turbulence)
       turbulence.setAttribute('baseFrequency', String(baseFrequency))
+      tweenRef.current = null
       return
     }
 
     const tween = gsap.to(turbulence, {
       attr: { baseFrequency: baseFrequency * 1.5 },
-      duration: 3,
+      duration: speed,
       repeat: -1,
       yoyo: true,
       ease: 'sine.inOut'
     })
+    tweenRef.current = tween
 
-    return () => tween.kill()
-  }, [animate, baseFrequency])
+    return () => { tween.kill(); tweenRef.current = null }
+  }, [animate, baseFrequency, speed])
+
+  useEffect(() => {
+    if (tweenRef.current) {
+      tweenRef.current.timeScale(Math.max(0.01, timeScale))
+    }
+  }, [timeScale])
+
+  if (fullBleed) {
+    return (
+      <div className="absolute inset-0 overflow-hidden">
+        <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+          <filter id={filterId} ref={filterRef}>
+            <feTurbulence
+              type={turbulenceType}
+              baseFrequency={baseFrequency}
+              numOctaves={numOctaves}
+              seed={seed}
+              result="turbulence"
+            />
+            <feDisplacementMap
+              in2="turbulence"
+              in="SourceGraphic"
+              scale={scale}
+              xChannelSelector={xChannelSelector}
+              yChannelSelector={yChannelSelector}
+            />
+          </filter>
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+          <div style={{
+            transform: 'scale(1.3)',
+            width: '100%',
+            height: '100%',
+            filter: isEnabled ? `url(#${filterId})` : 'none'
+          }}>
+            {children}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,7 +122,7 @@ const MirrorVariant = ({
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
         <filter id={filterId} ref={filterRef}>
           <feTurbulence
-            type="turbulence"
+            type={turbulenceType}
             baseFrequency={baseFrequency}
             numOctaves={numOctaves}
             seed={seed}
@@ -82,8 +132,8 @@ const MirrorVariant = ({
             in2="turbulence"
             in="SourceGraphic"
             scale={scale}
-            xChannelSelector="R"
-            yChannelSelector="G"
+            xChannelSelector={xChannelSelector}
+            yChannelSelector={yChannelSelector}
           />
         </filter>
       </svg>

@@ -11,7 +11,9 @@ export default function PixiSliceVariant({
   onImageUpload,
   animate = false,
   tileScaleX = 0.3,
-  speed = 1
+  speed = 1,
+  direction = 'horizontal',
+  wrapMode = 'clamp-to-edge'
 }) {
   const canvasRef = useRef(null)
   const appRef = useRef(null)
@@ -19,6 +21,8 @@ export default function PixiSliceVariant({
   const speedRef = useRef(speed)
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
+  const directionRef = useRef(direction)
+  const wrapModeRef = useRef(wrapMode)
   const [showInfo, setShowInfo] = useState(false)
 
   // Keep refs updated
@@ -27,12 +31,24 @@ export default function PixiSliceVariant({
   }, [speed])
 
   useEffect(() => {
+    directionRef.current = direction
+  }, [direction])
+
+  useEffect(() => {
     animateRef.current = animate
   }, [animate])
 
   useEffect(() => {
     enabledRef.current = isEnabled
   }, [isEnabled])
+
+  useEffect(() => {
+    wrapModeRef.current = wrapMode
+    if (tilingRef.current?.texture?.source?.style) {
+      tilingRef.current.texture.source.style.addressMode = wrapMode
+      tilingRef.current.texture.source.style.update()
+    }
+  }, [wrapMode])
 
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return
@@ -72,6 +88,8 @@ export default function PixiSliceVariant({
 
         // Load the texture
         const texture = await Assets.load(imageSrc)
+        texture.source.style.addressMode = wrapModeRef.current || 'clamp-to-edge'
+        texture.source.style.update()
 
         // Create tiling sprite
         const tilingSprite = new TilingSprite({
@@ -90,7 +108,16 @@ export default function PixiSliceVariant({
         // Animation loop
         app.ticker.add(() => {
           if (tilingRef.current && animateRef.current && enabledRef.current) {
-            tilingRef.current.tilePosition.x += speedRef.current
+            const s = speedRef.current
+            const d = directionRef.current
+            if (d === 'vertical') {
+              tilingRef.current.tilePosition.y += s
+            } else if (d === 'diagonal') {
+              tilingRef.current.tilePosition.x += s
+              tilingRef.current.tilePosition.y += s * 0.5
+            } else {
+              tilingRef.current.tilePosition.x += s
+            }
           }
         })
       } catch (error) {
@@ -113,12 +140,7 @@ export default function PixiSliceVariant({
     }
   }, [])
 
-  // Update animation state
-  useEffect(() => {
-    if (tilingRef.current && !isEnabled) {
-      tilingRef.current.tilePosition.x = 0
-    }
-  }, [isEnabled, animate])
+  // Pause/resume — ticker checks refs, no reset needed
 
   // Update tile scale when tileScaleX changes
   useEffect(() => {

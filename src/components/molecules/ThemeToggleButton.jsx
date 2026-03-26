@@ -36,9 +36,9 @@ export default function ThemeToggleButton({ className = '' }) {
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
       className={`kol-btn kol-btn-control ${className}`}
       style={{
-        width: '48px',
-        height: '48px',
-        padding: '12px',
+        width: '32px',
+        height: '32px',
+        padding: '8px',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -51,7 +51,7 @@ export default function ThemeToggleButton({ className = '' }) {
           transform: isDark ? 'rotate(180deg)' : 'rotate(0deg)'
         }}
       >
-        <Icon name="theme-toggle" size={24} />
+        <Icon name="theme-toggle" size={16} />
       </span>
     </button>
   )

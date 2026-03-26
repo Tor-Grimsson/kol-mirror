@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import Dropdown from '../../../design-system/components/3-selection/components/Dropdown'
-import Slider from '../../../design-system/components/4-input/components/Slider'
-import { Icon } from '../../../design-system/components/7-icons'
+import Dropdown from '../molecules/Dropdown'
+import Slider from '../atoms/Slider'
+import Icon from '../icons/Icon'
 
 const DEFAULT_IMAGE = '/images/stack-hero-800.jpg'
 

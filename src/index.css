@@ -1,6 +1,47 @@
 @import "tailwindcss";
-@import "../design-system/theme.css";
-@import "../design-system/components/components.css";
+@import "./styles/theme.css";
+@import "./styles/components.css";
 
 .accentYellow { color: var(--kol-accent-primary); }
 .accentYellowStrong { color: var(--kol-accent-primary-strong); }
+
+/*
+ * Mirror layout: mobile vs desktop detection.
+ * Desktop = non-touch screen ≥768px. Everything else gets mobile (hamburger).
+ * Touch devices (iPad etc.) always get mobile layout regardless of screen size.
+ */
+.mirror-sidebar-desktop { display: none; }
+.mirror-mobile-header { display: flex; }
+.mirror-mobile-drawer { display: block; }
+.mirror-viewport { padding-top: 3rem; /* h-12 header */ }
+
+@media (min-width: 768px) and (pointer: fine) {
+  .mirror-sidebar-desktop { display: flex; }
+  .mirror-mobile-header { display: none; }
+  .mirror-mobile-drawer { display: none; }
+  .mirror-viewport { padding-top: 0; }
+}
+
+/* Full-bleed wrapper for Pixi variants — hides card chrome, stretches canvas */
+.pixi-fullbleed {
+  display: flex;
+  flex-direction: column;
+}
+.pixi-fullbleed > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+/* Hide title bar and stats footer */
+.pixi-fullbleed > div > div:first-child,
+.pixi-fullbleed > div > div:last-child {
+  display: none;
+}
+/* Make the canvas container fill available space */
+.pixi-fullbleed > div > div:nth-child(2) {
+  flex: 1;
+  aspect-ratio: unset !important;
+  border: none !important;
+  border-radius: 0 !important;
+}

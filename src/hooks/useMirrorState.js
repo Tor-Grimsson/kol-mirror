@@ -1,0 +1,285 @@
+import { useState, useCallback, useMemo } from 'react'
+import { getResponsiveImage, getDefaultParams, findVariant, DISPLACEMENT_VARIANTS, COPIES_VARIANTS, MOVEMENT_VARIANTS } from '../data/mirrorVariants'
+
+const FIRST_VARIANT = {
+  displacement: DISPLACEMENT_VARIANTS[0]?.id,
+  movement: MOVEMENT_VARIANTS[0]?.id,
+  copies: COPIES_VARIANTS[0]?.id,
+}
+
+const EMPTY_ARCHIVE = Array.from({ length: 9 }, () => null)
+
+const EMPTY_CHANNEL = { variantId: null, params: {}, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
+
+const DEV_SLOT_IDS = [
+  'subtle-ripple', 'breathing-scale', 'pixi-slices',
+  'medium-wave', 'heavy-distortion', 'breathing-stretch',
+  'breathing-harmonica', 'pixi-glitch', 'pixi-kaleidoscope',
+]
+
+export function useMirrorState() {
+  // Navigation
+  const [activeHall, setActiveHall] = useState('symphony')
+  const [activeVariant, setActiveVariant] = useState(null)
+
+  // Responsive default image
+  const defaultImage = useMemo(() => getResponsiveImage(), [])
+
+  // Images
+  const [customImages, setCustomImages] = useState({})
+
+  // Which archive slot is being edited (null = none)
+  const [editingSlot, setEditingSlot] = useState(null)
+
+  // Per-variant params: { [variantId]: { key: value } }
+  const [variantParams, setVariantParams] = useState({})
+
+  // Archive: 9 slots, each null or { variantId, params, imageSrc }
+  const [archiveSlots, setArchiveSlots] = useState(EMPTY_ARCHIVE)
+
+  const selectHall = useCallback((hall) => {
+    setActiveHall(hall)
+    setActiveVariant(FIRST_VARIANT[hall] || null)
+    setEditingSlot(null)
+  }, [])
+
+  const selectVariant = useCallback((variantId) => {
+    setActiveVariant(prev => prev === variantId ? null : variantId)
+  }, [])
+
+  // Load a saved slot back into its hall for editing
+  const loadSlotToHall = useCallback((slotIndex) => {
+    const slot = archiveSlots[slotIndex]
+    if (!slot) return
+    const variant = findVariant(slot.variantId)
+    if (!variant) return
+
+    // Determine hall
+    const hallId = DISPLACEMENT_VARIANTS.some(v => v.id === slot.variantId) ? 'displacement'
+      : MOVEMENT_VARIANTS.some(v => v.id === slot.variantId) ? 'movement'
+      : COPIES_VARIANTS.some(v => v.id === slot.variantId) ? 'copies'
+      : null
+    if (!hallId) return
+
+    setActiveHall(hallId)
+    setActiveVariant(slot.variantId)
+    setEditingSlot(slotIndex)
+
+    // Force-set all params (overwrite any existing)
+    setVariantParams(prev => ({
+      ...prev,
+      [slot.variantId]: { ...slot.params }
+    }))
+  }, [archiveSlots])
+
+  // Initialize variant params from control descriptors (only on first selection)
+  const initVariantParams = useCallback((variantId, controls) => {
+    setVariantParams(prev => {
+      if (prev[variantId]) return prev
+      return { ...prev, [variantId]: getDefaultParams(controls) }
+    })
+  }, [])
+
+  // Get params for a variant, falling back to defaults
+  const getVariantParams = useCallback((variantId) => {
+    if (variantParams[variantId]) return variantParams[variantId]
+    const variant = findVariant(variantId)
+    if (variant) return getDefaultParams(variant.controls)
+    return {}
+  }, [variantParams])
+
+  // Set a single param for a variant
+  const setVariantParam = useCallback((variantId, key, value) => {
+    setVariantParams(prev => ({
+      ...prev,
+      [variantId]: { ...(prev[variantId] || {}), [key]: value }
+    }))
+  }, [])
+
+  const handleImageUpload = useCallback((e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isImage = file.type.startsWith('image/')
+    const isSvg = file.type === 'image/svg+xml'
+    if (!isImage) return
+
+    if (isSvg) {
+      // Rasterize SVG so it works in PixiJS WebGL variants too
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const svgText = event.target.result
+        const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.naturalWidth || 1024
+          canvas.height = img.naturalHeight || 1024
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          URL.revokeObjectURL(url)
+          const dataUrl = canvas.toDataURL('image/png')
+          if (activeVariant) {
+            setCustomImages(prev => ({ ...prev, [activeVariant]: dataUrl }))
+          }
+        }
+        img.onerror = () => URL.revokeObjectURL(url)
+        img.src = url
+      }
+      reader.readAsText(file)
+    } else {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        if (activeVariant) {
+          setCustomImages(prev => ({ ...prev, [activeVariant]: event.target.result }))
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }, [activeVariant])
+
+  const getImageSrc = useCallback((variantId) => {
+    return customImages[variantId] || defaultImage
+  }, [customImages, defaultImage])
+
+  // Save current variant state to an archive slot (0-8)
+  const saveToArchiveSlot = useCallback((slotIndex) => {
+    if (!activeVariant) return
+    const variant = findVariant(activeVariant)
+    if (!variant) return
+    const params = variantParams[activeVariant] || getDefaultParams(variant.controls)
+    const imageSrc = customImages[activeVariant] || getResponsiveImage()
+    setArchiveSlots(prev => {
+      const next = [...prev]
+      next[slotIndex] = { variantId: activeVariant, params: { ...params }, imageSrc }
+      return next
+    })
+  }, [activeVariant, variantParams, customImages])
+
+  const clearArchiveSlot = useCallback((slotIndex) => {
+    setArchiveSlots(prev => {
+      const next = [...prev]
+      next[slotIndex] = null
+      return next
+    })
+  }, [])
+
+  const [devPresetsLoaded, setDevPresetsLoaded] = useState(false)
+
+  const buildSlots = useCallback((randomize) => {
+    return DEV_SLOT_IDS.map(id => {
+      const variant = findVariant(id)
+      if (!variant) return null
+      const params = getDefaultParams(variant.controls)
+      if (randomize) {
+        for (const ctrl of variant.controls) {
+          if (ctrl.type === 'slider' && ctrl.key !== 'animate') {
+            const range = ctrl.max - ctrl.min
+            const jitter = (Math.random() - 0.5) * range * 0.5
+            params[ctrl.key] = Math.max(ctrl.min, Math.min(ctrl.max, params[ctrl.key] + jitter))
+          }
+        }
+      }
+      params.animate = false
+      return { variantId: id, params }
+    })
+  }, [])
+
+  const loadDevPresets = useCallback(() => {
+    setArchiveSlots(buildSlots(devPresetsLoaded))
+    setDevPresetsLoaded(true)
+  }, [devPresetsLoaded, buildSlots])
+
+  // Image fit mode + manual scale
+  const [imageFitMode, setImageFitMode] = useState('contain')
+  const [imageScale, setImageScale] = useState(100)
+
+  // Canvas colors
+  const [canvasVectorColor, setCanvasVectorColor] = useState('currentColor')
+  const [canvasBackgroundColor, setCanvasBackgroundColor] = useState('transparent')
+
+  // Canvas ratio for halls
+  const [hallCanvasRatio, setHallCanvasRatio] = useState('none')
+  const [hallCustomWidth, setHallCustomWidth] = useState(1024)
+  const [hallCustomHeight, setHallCustomHeight] = useState(600)
+
+  // Symphony animate + canvas image + load mode + layout + aspect ratio
+  const [symphonyAnimating, setSymphonyAnimating] = useState(false)
+  const [symphonyCanvasImage, setSymphonyCanvasImage] = useState(null)
+  const [symphonyCanvasRaster, setSymphonyCanvasRaster] = useState(null)
+  const [symphonyCanvasIsSvg, setSymphonyCanvasIsSvg] = useState(false)
+  const [symphonyLoadMode, setSymphonyLoadMode] = useState('effect')
+  const [symphonyLayout, setSymphonyLayout] = useState('row')
+  const [symphonyRatio, setSymphonyRatio] = useState('16:9')
+  const [symphonyCustomWidth, setSymphonyCustomWidth] = useState(1024)
+  const [symphonyCustomHeight, setSymphonyCustomHeight] = useState(600)
+
+  // Symphony channel state — persists across navigation
+  const [symphonyChannels, setSymphonyChannels] = useState([
+    { ...EMPTY_CHANNEL, enabled: true },
+    { ...EMPTY_CHANNEL },
+    { ...EMPTY_CHANNEL },
+  ])
+
+  return {
+    activeHall,
+    activeVariant,
+    selectHall,
+    selectVariant,
+
+    getImageSrc,
+    handleImageUpload,
+
+    variantParams,
+    getVariantParams,
+    setVariantParam,
+    initVariantParams,
+
+    archiveSlots,
+    saveToArchiveSlot,
+    clearArchiveSlot,
+    loadSlotToHall,
+    editingSlot,
+    setEditingSlot,
+    loadDevPresets,
+    devPresetsLoaded,
+
+    imageFitMode,
+    setImageFitMode,
+    imageScale,
+    setImageScale,
+    canvasVectorColor,
+    setCanvasVectorColor,
+    canvasBackgroundColor,
+    setCanvasBackgroundColor,
+
+    hallCanvasRatio,
+    setHallCanvasRatio,
+    hallCustomWidth,
+    setHallCustomWidth,
+    hallCustomHeight,
+    setHallCustomHeight,
+
+    symphonyAnimating,
+    setSymphonyAnimating,
+    symphonyCanvasImage,
+    setSymphonyCanvasImage,
+    symphonyCanvasRaster,
+    setSymphonyCanvasRaster,
+    symphonyCanvasIsSvg,
+    setSymphonyCanvasIsSvg,
+    symphonyLoadMode,
+    setSymphonyLoadMode,
+    symphonyLayout,
+    setSymphonyLayout,
+    symphonyRatio,
+    setSymphonyRatio,
+    symphonyCustomWidth,
+    setSymphonyCustomWidth,
+    symphonyCustomHeight,
+    setSymphonyCustomHeight,
+
+    symphonyChannels,
+    setSymphonyChannels,
+  }
+}

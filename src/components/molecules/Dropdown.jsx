@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 const SIZE_MAP = {
   sm: { fontSize: 11, paddingY: 12, paddingX: 24, radius: 20, icon: 10 },
@@ -17,8 +17,11 @@ const Dropdown = ({
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
   const buttonRef = useRef(null)
+  const panelRef = useRef(null)
   const [resolvedSize, setResolvedSize] = useState('md')
   const [dropdownWidth, setDropdownWidth] = useState('100px')
+  const [openDirection, setOpenDirection] = useState('down')
+  const [panelPos, setPanelPos] = useState(null)
 
   useEffect(() => {
     const determineSize = () => {
@@ -55,10 +58,8 @@ const Dropdown = ({
       if (typeof window === 'undefined') return
 
       if (variant === 'minimal') {
-        // Minimal: 100px mobile, 140px tablet+
         setDropdownWidth(window.innerWidth >= 768 ? '140px' : '100px')
       } else if (variant === 'default') {
-        // Default: 100px mobile, 140px tablet, 180px desktop
         if (window.innerWidth >= 1024) {
           setDropdownWidth('180px')
         } else if (window.innerWidth >= 768) {
@@ -98,9 +99,34 @@ const Dropdown = ({
 
   const styles = variantStyles[variant] || variantStyles.default
 
+  // Calculate panel position when opening
+  const updatePanelPosition = useCallback(() => {
+    if (!buttonRef.current) return
+    const rect = buttonRef.current.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const estimatedPanelHeight = Math.min(options.length * 32 + 16, 300)
+    const dir = spaceBelow < estimatedPanelHeight ? 'up' : 'down'
+
+    setOpenDirection(dir)
+    setPanelPos({
+      left: rect.left,
+      width: rect.width,
+      top: dir === 'down' ? rect.bottom : undefined,
+      bottom: dir === 'up' ? window.innerHeight - rect.top : undefined,
+    })
+  }, [options.length])
+
+  const handleToggle = () => {
+    if (!isOpen) {
+      updatePanelPosition()
+    }
+    setIsOpen(!isOpen)
+  }
+
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+          panelRef.current && !panelRef.current.contains(event.target)) {
         setIsOpen(false)
       }
     }
@@ -138,12 +164,17 @@ const Dropdown = ({
 
   const currentOption = options.find((opt) => opt.value === value) || options[0]
 
+  const panelBorderRadius = variant === 'minimal'
+    ? '4px'
+    : openDirection === 'down'
+      ? `0 0 ${metrics.radius}px ${metrics.radius}px`
+      : `${metrics.radius}px ${metrics.radius}px 0 0`
+
   return (
     <div
       ref={dropdownRef}
       className={`relative block ${className}`}
       style={{
-        zIndex: isOpen ? 100 : 50,
         ...((variant === 'minimal' || variant === 'default') && dropdownWidth && !className.includes('w-full') && {
           width: dropdownWidth,
           minWidth: dropdownWidth
@@ -168,7 +199,7 @@ const Dropdown = ({
         <button
           ref={buttonRef}
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggle}
           className="w-full flex items-center justify-between transition-colors duration-200"
           style={{
             backgroundColor: 'transparent',
@@ -205,22 +236,22 @@ const Dropdown = ({
         </button>
       </div>
 
-      {isOpen && (
+      {isOpen && panelPos && (
         <div
-          className="absolute w-full"
+          ref={panelRef}
           style={{
+            position: 'fixed',
+            left: panelPos.left,
+            width: panelPos.width,
+            top: panelPos.top,
+            bottom: panelPos.bottom,
             backgroundColor: variant === 'minimal'
               ? 'var(--kol-surface-primary)'
               : styles.backgroundColor,
             color: 'var(--kol-surface-on-primary)',
-            border: styles.border,
-            borderTop: variant === 'minimal' ? 'none' : '0',
-            top: '100%',
-            left: 0,
-            marginTop: variant === 'minimal' ? '0' : '-1px',
-            borderRadius: variant === 'minimal'
-              ? '0'
-              : `0 0 ${metrics.radius}px ${metrics.radius}px`
+            border: variant === 'minimal' ? '1px solid var(--kol-fg-08)' : styles.border,
+            borderRadius: panelBorderRadius,
+            zIndex: 'var(--kol-z-tooltip)',
           }}
           role="listbox"
         >
@@ -247,7 +278,7 @@ const Dropdown = ({
                   style={{
                     backgroundColor: 'transparent',
                     opacity: isActive ? 1 : 0.4,
-                    padding: `8px ${metrics.paddingX}px`,
+                    padding: '8px 12px',
                     fontSize: `${metrics.fontSize}px`,
                     lineHeight: '120%',
                     fontFamily: 'var(--kol-font-family-mono)'
@@ -267,7 +298,7 @@ const Dropdown = ({
                     <span
                       style={{
                         position: 'absolute',
-                        left: '12px',
+                        left: '4px',
                         top: '50%',
                         transform: 'translateY(-50%)',
                         width: '4px',

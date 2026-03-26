@@ -3,77 +3,50 @@
 ## Current State
 
 ### Active Work
-- Code cleanup complete: dead code removed, MirrorVariant and useVariantToggle extracted
-- Filter audit complete in README.md — documents all 9 filter types with current props and missing/desirable controls
-- PixiKaleidoscopeVariant copied to src, pending wiring into Hall of Copies (blocked on control panel redesign)
-- LLM_RULES.md needs updating — still references old kol-system project structure
+- Archive system: 9 slots for saving variant snapshots (variant + params + image)
+- Symphony mixer loads from archive slots or hall presets via load icon dropdown
+- Canvas aspect ratio control in both halls and symphony (16:9 through 9:16 + custom + full-bleed)
+- Image fit modes: Contain, Fit Width, Fit Height, Manual (with scale slider)
+- Vector color + background color pickers in symphony (react-colorful, rgba with opacity)
+- SVG + image upload supported in both halls and symphony
+- Symphony is default home view
 
-### Recent Changes (2026-03-09)
-- Deleted `hall-of-mirrors/` directory (~3,666 lines of pre-adaptation originals)
-- Deleted unused `PixiKaleidoscopeVariant.jsx` from src, then restored from `docs/_torg/`
-- Deleted empty `src/App.css`
-- Extracted shared `MirrorVariant.jsx` component (from ApparatusHallOfMirrors, better version with baseFrequency reset)
-- Extracted `useVariantToggle.js` hook (shared state + handlers for variant toggle/select/upload)
-- Updated ApparatusHallOfMirrors.jsx and HallOfDisplacement.jsx to use shared component + hook
-- Fixed CSS classes: `kol-display-lg` → `kol-heading-sm`, `kol-heading-s` → `kol-heading-sm`
-- Wrote full filter audit in README.md
+### Recent Changes (2026-03-25)
+- **Archive system**: 9-slot save/load, sidebar save dropdown, Memory view with previews
+- **Symphony rework**: load icon shows archive slots + hall presets, load mode (effect only / effect + source), animate toggle in sidebar
+- **Canvas controls**: aspect ratio dropdown, custom resolution via QuantityInput, image fit mode, vector/background color pickers
+- **Canvas scaling**: ResizeObserver-based contain-fit preserving locked aspect ratio for both halls and symphony
+- **SVG upload**: rasterized to PNG for Pixi compat, direct load to symphony canvas
+- **Sidebar reorg**: Mixer → Halls → Library groups, Symphony as home
+- **New atoms**: ColorPicker (react-colorful wrapper), QuantityInput (chevron up/down with keyboard edit)
+- **Theme fixes**: btn-control hover uses bg-fg-08, mixer elements use text-fg-96
 
 ## Project Overview
 
-**Hall of Mirrors** — Interactive image distortion playground. Part of the Kolkrabbi Apparat (apparatus/experiment) suite.
+**Hall of Mirrors** — Interactive image distortion playground. Part of the Kolkrabbi Apparat suite.
 
 ### Architecture
-- 6 halls accessible from splash screen (App.jsx)
-- Each hall contains variant grid + floating control panel
-- Filters split between SVG displacement (CPU) and PixiJS WebGL (GPU)
-
-### Halls
-1. **Apparatus Hall of Mirrors** — All 12 variants (8 SVG + 4 Pixi)
-2. **Hall of Displacement** — 8 SVG displacement variants only
-3. **Hall of Copies** — 4 Pixi tiling variants + 5 empty slots (kaleidoscope pending)
-4. **Hall of Movement** — 3 GSAP transform variants + 6 empty slots
-5. **Hall of Symphony** — Mixer combining displacement + movement + copies on SVG letters
-6. **Hall of Archive** — Placeholder (no functionality yet)
+- Single-page app with sidebar + viewport layout (no router, state-driven)
+- Sidebar groups: Mixer (Symphony) → Halls (Displacement, Movement, Copies) → Library (Memory)
+- Per-variant controls render dynamically from descriptors
+- Symphony has its own control panel: animate, load mode, canvas ratio, image fit, colors, mixer layout
+- `useMirrorState` holds all shared state: navigation, params, archive, symphony settings, canvas controls
 
 ### Key Files
-- `src/App.jsx` — Splash screen + hall routing
-- `src/components/hall-of-mirrors/MirrorVariant.jsx` — Shared SVG displacement component
-- `src/components/hall-of-mirrors/useVariantToggle.js` — Shared state hook
-- `src/components/hall-of-mirrors/DistortionControlsPanel.jsx` — 3-slider panel (Scale, Freq, Octaves)
-- `src/components/hall-of-mirrors/MovementControlsPanel.jsx` — Movement-specific panel (Duration, Amount, Easing)
-- `src/components/hall-of-mirrors/SymphonyMixer.jsx` — Multi-channel mixer UI
-- `src/components/hall-of-mirrors/Pixi*.jsx` — 5 PixiJS variant components + 1 image filter canvas
-- `design-system/` — Kolkrabbi design system (typography, color, components)
-
-### Tech Stack
-- React 19 + Vite 7
-- Tailwind CSS 4
-- PixiJS 8 (WebGL rendering)
-- GSAP 3 (SVG attribute animation, drag inertia)
-- Yarn (NOT npm)
-
-### Font Files
-Located in `/public/fonts/jetbrains-mono/` — JetBrains Mono woff2 (400, 500, 500i, 600)
-
-## Conventions
-
-### Typography Classes
-- `.kol-display-*` — Hero/section headings, weight 600
-- `.kol-heading-*` — Content headings, weight 500
-- `.kol-text-*` — Body copy, weight 400
-- `.kol-helper-*` — Labels/metadata, weight 500
-- Size scale: xl, lg, md, sm, xs, xxs, xxxs
-
-### Code Style
-- Prefer editing existing files over creating new ones
-- Remove unused code completely (no backwards-compat hacks)
-- Use clamp() for responsive typography
-- Follow existing component patterns (ON/OFF toggle, SELECT/UNSELECT, UPLOAD, info hover)
+- `src/data/mirrorVariants.js` — Variant definitions with control descriptors
+- `src/hooks/useMirrorState.js` — All shared state (navigation, params, archive, symphony, canvas)
+- `src/components/mirror/VariantControls.jsx` — Data-driven control renderer
+- `src/components/mirror/MirrorSidebar.jsx` — Navigation + controls + theme toggle + symphony controls
+- `src/components/mirror/MirrorViewport.jsx` — Renders active variant with CanvasFrame for aspect ratio
+- `src/components/mirror/SymphonyViewport.jsx` — Symphony canvas + mixer with ResizeObserver scaling
+- `src/components/mirror/ArchiveViewport.jsx` — 9-slot memory grid with load/clear
+- `src/components/hall-of-mirrors/SymphonyMixer.jsx` — 3-channel mixer with load icon + dropdown
+- `src/components/atoms/ColorPicker.jsx` — react-colorful wrapper (rgba, direction-aware popover)
+- `src/components/atoms/QuantityInput.jsx` — Compact numeric input with chevron up/down
 
 ### Known Issues
-- **3-slider problem**: DistortionControlsPanel forces SVG-centric sliders on all filter types. PixiJS variants use ad-hoc math to derive their params. See README.md audit for details.
-- HallOfSymphony copies channel is unwired
-- HallOfArchive is entirely placeholder
-- PixiKaleidoscopeVariant in src but not yet integrated (needs proper per-filter controls first)
-- MovementVariant has no image upload (hardcoded image)
-- Animation behavior inconsistent between Displacement hall (selected only) and Apparatus hall (all variants)
+- Displacement animation loop: hardcoded 3s duration + sine.inOut ease (not yet controllable)
+- Pixi continuous animations (Slice, Radial, Kaleidoscope) are linear — no easing options yet
+- Image fit mode only affects displacement hall + symphony (Pixi variants handle own images internally)
+- Old hall page components still exist (dead code)
+- Symphony copies channel unwired

@@ -11,7 +11,10 @@ export default function PixiMorphVariant({
   onImageUpload,
   animate = false,
   scaleIntensity = 2,
-  speed = 1
+  speed = 1,
+  waveform = 'sine',
+  shiftDirection = 'diagonal',
+  wrapMode = 'clamp-to-edge'
 }) {
   const canvasRef = useRef(null)
   const appRef = useRef(null)
@@ -20,6 +23,10 @@ export default function PixiMorphVariant({
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
   const countRef = useRef(0)
+  const scaleIntensityRef = useRef(scaleIntensity)
+  const waveformRef = useRef(waveform)
+  const shiftDirectionRef = useRef(shiftDirection)
+  const wrapModeRef = useRef(wrapMode)
   const [showInfo, setShowInfo] = useState(false)
 
   // Keep refs updated
@@ -28,12 +35,32 @@ export default function PixiMorphVariant({
   }, [speed])
 
   useEffect(() => {
+    scaleIntensityRef.current = scaleIntensity
+  }, [scaleIntensity])
+
+  useEffect(() => {
+    waveformRef.current = waveform
+  }, [waveform])
+
+  useEffect(() => {
+    shiftDirectionRef.current = shiftDirection
+  }, [shiftDirection])
+
+  useEffect(() => {
     animateRef.current = animate
   }, [animate])
 
   useEffect(() => {
     enabledRef.current = isEnabled
   }, [isEnabled])
+
+  useEffect(() => {
+    wrapModeRef.current = wrapMode
+    if (tilingRef.current?.texture?.source?.style) {
+      tilingRef.current.texture.source.style.addressMode = wrapMode
+      tilingRef.current.texture.source.style.update()
+    }
+  }, [wrapMode])
 
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return
@@ -70,6 +97,8 @@ export default function PixiMorphVariant({
         })
 
         const texture = await Assets.load(imageSrc)
+        texture.source.style.addressMode = wrapModeRef.current || 'clamp-to-edge'
+        texture.source.style.update()
 
         // Create tiling sprite
         const tilingSprite = new TilingSprite({
@@ -85,18 +114,39 @@ export default function PixiMorphVariant({
         app.stage.addChild(tilingSprite)
         tilingRef.current = tilingSprite
 
-        // Animation loop - morphing scale with sin/cos + diagonal shift
+        // Animation loop - morphing scale + shift
+        const wave = (t) => {
+          const w = waveformRef.current
+          if (w === 'triangle') return Math.asin(Math.sin(t)) * (2 / Math.PI)
+          if (w === 'square') return Math.sign(Math.sin(t))
+          if (w === 'sawtooth') return 2 * (t / (2 * Math.PI) - Math.floor(0.5 + t / (2 * Math.PI)))
+          return Math.sin(t) // sine (default)
+        }
+
         app.ticker.add(() => {
-          if (tilingRef.current && animateRef.current && enabledRef.current) {
+          if (!tilingRef.current) return
+          const si = scaleIntensityRef.current
+
+          if (animateRef.current && enabledRef.current) {
             countRef.current += 0.005 * speedRef.current
 
-            // Morphing scale using sin and cos (like the example)
-            tilingRef.current.tileScale.x = scaleIntensity + Math.sin(countRef.current)
-            tilingRef.current.tileScale.y = scaleIntensity + Math.cos(countRef.current)
+            tilingRef.current.tileScale.x = si + wave(countRef.current)
+            tilingRef.current.tileScale.y = si + wave(countRef.current + Math.PI / 2)
 
-            // Diagonal shift
-            tilingRef.current.tilePosition.x += speedRef.current * 0.5
-            tilingRef.current.tilePosition.y += speedRef.current * 0.5
+            const s = speedRef.current * 0.5
+            const d = shiftDirectionRef.current
+            if (d === 'horizontal') {
+              tilingRef.current.tilePosition.x += s
+            } else if (d === 'vertical') {
+              tilingRef.current.tilePosition.y += s
+            } else if (d === 'diagonal') {
+              tilingRef.current.tilePosition.x += s
+              tilingRef.current.tilePosition.y += s
+            }
+          } else {
+            // Static: apply intensity directly so sliders have visible effect
+            tilingRef.current.tileScale.x = si
+            tilingRef.current.tileScale.y = si
           }
         })
       } catch (error) {
@@ -118,14 +168,7 @@ export default function PixiMorphVariant({
     }
   }, [])
 
-  // Reset when disabled
-  useEffect(() => {
-    if (tilingRef.current && !isEnabled) {
-      tilingRef.current.tilePosition.x = 0
-      tilingRef.current.tilePosition.y = 0
-      countRef.current = 0
-    }
-  }, [isEnabled])
+  // Pause/resume — ticker checks refs, no reset needed
 
   // Update scale intensity
   useEffect(() => {

@@ -12,7 +12,9 @@ export default function PixiRadialVariant({
   animate = false,
   radius = 50,
   tileScale = 0.5,
-  speed = 1
+  speed = 1,
+  rotationDirection = 'clockwise',
+  wrapMode = 'clamp-to-edge'
 }) {
   const canvasRef = useRef(null)
   const appRef = useRef(null)
@@ -21,6 +23,9 @@ export default function PixiRadialVariant({
   const animateRef = useRef(animate)
   const enabledRef = useRef(isEnabled)
   const angleRef = useRef(0)
+  const rotDirRef = useRef(rotationDirection)
+  const radiusRef = useRef(radius)
+  const wrapModeRef = useRef(wrapMode)
   const [showInfo, setShowInfo] = useState(false)
 
   // Keep refs updated
@@ -29,12 +34,28 @@ export default function PixiRadialVariant({
   }, [speed])
 
   useEffect(() => {
+    radiusRef.current = radius
+  }, [radius])
+
+  useEffect(() => {
+    rotDirRef.current = rotationDirection
+  }, [rotationDirection])
+
+  useEffect(() => {
     animateRef.current = animate
   }, [animate])
 
   useEffect(() => {
     enabledRef.current = isEnabled
   }, [isEnabled])
+
+  useEffect(() => {
+    wrapModeRef.current = wrapMode
+    if (tilingRef.current?.texture?.source?.style) {
+      tilingRef.current.texture.source.style.addressMode = wrapMode
+      tilingRef.current.texture.source.style.update()
+    }
+  }, [wrapMode])
 
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return
@@ -71,6 +92,8 @@ export default function PixiRadialVariant({
         })
 
         const texture = await Assets.load(imageSrc)
+        texture.source.style.addressMode = wrapModeRef.current || 'clamp-to-edge'
+        texture.source.style.update()
 
         // Create tiling sprite
         const tilingSprite = new TilingSprite({
@@ -88,12 +111,19 @@ export default function PixiRadialVariant({
 
         // Animation loop - circular motion
         app.ticker.add(() => {
-          if (tilingRef.current && animateRef.current && enabledRef.current) {
-            angleRef.current += 0.02 * speedRef.current
+          if (!tilingRef.current) return
+          const r = radiusRef.current
 
-            // Circular motion using sin/cos for position
-            tilingRef.current.tilePosition.x = Math.cos(angleRef.current) * radius
-            tilingRef.current.tilePosition.y = Math.sin(angleRef.current) * radius
+          if (animateRef.current && enabledRef.current) {
+            const dir = rotDirRef.current === 'counterclockwise' ? -1 : 1
+            angleRef.current += 0.02 * speedRef.current * dir
+
+            tilingRef.current.tilePosition.x = Math.cos(angleRef.current) * r
+            tilingRef.current.tilePosition.y = Math.sin(angleRef.current) * r
+          } else {
+            // Static: show orbit position at current angle so radius slider has visible effect
+            tilingRef.current.tilePosition.x = Math.cos(angleRef.current) * r
+            tilingRef.current.tilePosition.y = Math.sin(angleRef.current) * r
           }
         })
       } catch (error) {
@@ -115,14 +145,7 @@ export default function PixiRadialVariant({
     }
   }, [])
 
-  // Reset when disabled
-  useEffect(() => {
-    if (tilingRef.current && !isEnabled) {
-      tilingRef.current.tilePosition.x = 0
-      tilingRef.current.tilePosition.y = 0
-      angleRef.current = 0
-    }
-  }, [isEnabled])
+  // Pause/resume — ticker checks refs, no reset needed
 
   // Update tile scale
   useEffect(() => {

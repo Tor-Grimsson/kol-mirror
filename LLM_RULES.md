@@ -1,4 +1,4 @@
-# LLM Rules for kolkrabbi.io
+# LLM Rules for Hall of Mirrors
 
 ---
 
@@ -22,7 +22,7 @@ Respond with a clear plan of what you'll do BEFORE taking any action.
 
 # LLM Agent Onboarding
 
-Welcome to the **Kolkrabbi Design System** project. This document helps AI agents get oriented and work effectively.
+Welcome to **Hall of Mirrors** — an interactive image distortion playground. Part of the Kolkrabbi design system.
 
 ## Quick Start
 
@@ -33,17 +33,13 @@ Welcome to the **Kolkrabbi Design System** project. This document helps AI agent
 
 ## Project Overview
 
-**Kolkrabbi** is a typography-focused design system using JetBrains Mono as the primary typeface. The system provides:
-- Responsive typography scales
-- Consistent weight hierarchy
-- Standalone CSS (no framework dependencies)
-- Interactive styleguide for developers
+**Hall of Mirrors** is a single-page React app for experimenting with image distortion effects using SVG filters, PixiJS WebGL, and GSAP animations. No router — navigation is state-driven.
 
 ### Tech Stack
-- CSS (standalone, no preprocessor)
-- React (for styleguide only)
-- JetBrains Mono (local font files)
-- Tailwind CSS (for utility composition)
+- React 19 + Vite 7
+- Tailwind CSS 4
+- PixiJS 8 (WebGL rendering)
+- GSAP 3 (SVG attribute animation, transforms)
 - **Yarn** (package manager - NOT npm)
 
 ### Package Manager
@@ -53,31 +49,79 @@ Welcome to the **Kolkrabbi Design System** project. This document helps AI agent
 - **Run dev server:** `yarn dev`
 - **Install dependencies:** `yarn install` or `yarn`
 - **Build:** `yarn build`
-- **Run tests:** `yarn test` (if configured)
+- **Lint:** `yarn lint`
 
-**DO NOT use npm commands** - the project has `yarn.lock`, not `package-lock.json`
+**DO NOT use npm commands** — the project has `yarn.lock`, not `package-lock.json`
+
+## Architecture
+
+### Layout
+- `MirrorPlayground` — Root layout: sidebar + viewport
+- Desktop (non-touch ≥768px): persistent left sidebar
+- Mobile / touch devices: hamburger menu → left drawer
+- Detection via CSS `pointer: fine` media query, not just breakpoints
+
+### Sidebar (`MirrorSidebar`)
+Two groups:
+- **Halls** — Displacement, Movement, Copies (each has variant list + controls)
+- **Mixer** — Symphony, Archive (standalone views, no variant picker)
+
+### Viewport (`MirrorViewport`)
+- No hall selected → responsive sample photo (srcset: 400–2560px)
+- Hall + variant selected → single variant rendered full-bleed
+- Symphony/Archive → their own scrollable content
+
+### State (`useMirrorState` hook)
+Single hook manages: active hall, active variant, image uploads, animation controls for all hall types.
+
+### Variant Data (`src/data/mirrorVariants.js`)
+Preset values for all variants extracted into a single data file.
 
 ## Directory Structure
 
 ```
-kol-system/
-├── design-system/
-│   └── typography/
-│       └── mono/
-│           ├── kol-typography-mono.css    # Main CSS file
-│           └── kol-typography-mono.md     # Documentation
+kol-mirrors/
 ├── src/
+│   ├── App.jsx                          # Renders MirrorPlayground
+│   ├── index.css                        # Tailwind + theme + component CSS imports
+│   ├── styles/                          # Design tokens & component CSS
+│   │   ├── theme.css                    # Imports color + typography + defines tokens
+│   │   ├── kol-color-simple.css         # Color tokens
+│   │   ├── kol-typography-mono.css      # Typography classes
+│   │   └── components.css               # Button, slider, toggle, dropdown styles
+│   ├── data/
+│   │   └── mirrorVariants.js            # Variant presets + responsive image helper
+│   ├── hooks/
+│   │   └── useMirrorState.js            # Unified state for all halls
 │   └── components/
-│       └── styleguide/
-│           └── Typography.jsx             # Interactive demo
-├── fonts/
-│   └── jetbrains-mono/                    # Font files (.woff2)
+│       ├── mirror/                      # Unified view components
+│       │   ├── MirrorPlayground.jsx     # Root layout (sidebar + viewport)
+│       │   ├── MirrorSidebar.jsx        # Navigation, variants, controls
+│       │   ├── MirrorViewport.jsx       # Renders active variant full-bleed
+│       │   ├── SymphonyViewport.jsx     # Symphony canvas + mixer
+│       │   ├── ArchiveViewport.jsx      # Archive grid
+│       │   ├── MobileHeader.jsx         # Hamburger bar (touch/mobile)
+│       │   └── MobileDrawer.jsx         # Left drawer (touch/mobile)
+│       ├── hall-of-mirrors/             # Filter variant components
+│       │   ├── MirrorVariant.jsx        # SVG displacement (supports fullBleed prop)
+│       │   ├── MovementVariant.jsx      # GSAP transforms (extracted)
+│       │   ├── Pixi*.jsx               # PixiJS WebGL variants (5 types)
+│       │   ├── PixiImageFilterCanvas.jsx # Image grading (ColorMatrix + Noise)
+│       │   ├── DistortionControlsPanel.jsx
+│       │   ├── MovementControlsPanel.jsx
+│       │   ├── SymphonyMixer.jsx
+│       │   └── RotaryDial.jsx
+│       ├── atoms/                       # Primitives (Slider, Checkbox, etc.)
+│       ├── molecules/                   # Composed components (Dropdown, ThemeToggleButton, etc.)
+│       └── icons/                       # Icon component + 226 SVGs
+├── public/images/                       # stack-hero-{400,800,1200,1600,2560}.jpg
 ├── docs/
-│   └── llm-context/                       # AI agent context
-│       ├── AGENT-CONTEXT.md               # Current state
-│       ├── README.md                      # This directory
-│       └── session-log/                   # Session history
-└── LLM_RULES.md                           # This file
+│   ├── llm-context/                     # AI agent context
+│   │   ├── AGENT-CONTEXT.md
+│   │   ├── CLAUDE.md
+│   │   └── session-log/
+│   └── documentation/                   # Design system docs
+└── LLM_RULES.md                         # This file
 ```
 
 ## LLM Context Protocol
@@ -96,53 +140,18 @@ Sort by date to find the most recent.
 When you complete significant work:
 1. Create a new session log in `/docs/llm-context/session-log/`
 2. Use the format: `YYYY-MM-DD-brief-description.md`
-3. Include:
-   - Session metadata (date, agent, summary)
-   - Changes made (files, features, fixes)
-   - Current state (what works now)
-   - Next steps (recommended follow-up)
+3. Include: session metadata, changes made, current state, next steps
 4. Update `AGENT-CONTEXT.md` if needed
-
-### Session Log Template
-
-```markdown
-# Session: [Brief Description]
-
-**Date:** YYYY-MM-DD
-**Agent:** [Your identifier]
-**Summary:** [One-line description of work done]
-
-## Changes Made
-
-### Files Modified
-- path/to/file.ext - [what changed]
-
-### Features Added/Removed
-- [Feature description]
-
-## Current State
-
-### Working
-- [What's functional now]
-
-### Known Issues
-- [Any problems discovered]
-
-## Next Steps
-
-1. [Recommended next task]
-2. [Follow-up work]
-```
 
 ## Working Conventions
 
 ### Code Style
 
-- **No over-engineering** - Make only requested changes
-- **Remove unused code** - Delete completely, no backwards-compat hacks
-- **Edit over create** - Prefer modifying existing files
-- **Document intentionally** - Update docs when structure changes
-- **Use existing patterns** - Follow established naming and structure
+- **No over-engineering** — Make only requested changes
+- **Remove unused code** — Delete completely, no backwards-compat hacks
+- **Edit over create** — Prefer modifying existing files
+- **Use existing patterns** — Follow established naming and structure
+- **Apply exact values** — When user specifies a concrete number, use it
 
 ### Typography System
 
@@ -159,56 +168,16 @@ When you complete significant work:
 
 **Size Scale:** xl, lg, md, sm, xs, xxs, xxxs
 
-### CSS Rules
+### CSS
 
-- Use `clamp()` for responsive sizing
-- Font-family via CSS variable: `var(--kol-font-family-mono)`
-- No duplicate classes - use Tailwind utilities for variants
-- Line heights: 100% (display), 110-125% (headings), 150-160% (text)
+- Design tokens in `src/styles/theme.css`
+- Component CSS in `src/styles/components.css`
+- Color tokens: `text-fg-{96,64,32,08}`, `bg-surface-{primary,secondary}`, `accent-primary`
+- Z-index via CSS variables: `--kol-z-nav`, `--kol-z-overlay`, etc.
+- Mobile detection: `@media (min-width: 768px) and (pointer: fine)` for desktop
 
 ### Git Workflow
 
 - Only commit when explicitly asked
 - Write clear, concise commit messages
-- Follow existing commit message style
 - Never force push or use destructive commands without permission
-
-## Common Tasks
-
-### Adding a Typography Class
-
-1. Read `design-system/typography/mono/kol-typography-mono.css`
-2. Add class in appropriate section (Display/Heading/Text/Helper)
-3. Follow existing patterns (clamp, font-family variable, etc.)
-4. Update `kol-typography-mono.md` documentation
-5. Add to `src/components/styleguide/Typography.jsx` if needed
-
-### Removing a Class
-
-1. Search codebase for usage (use Grep tool)
-2. Remove from CSS
-3. Remove from documentation
-4. Remove from styleguide config
-5. Document removal in session log
-
-### Updating Documentation
-
-1. Keep CSS and markdown in sync
-2. Update version number if structure changes
-3. Provide usage examples
-4. Document breaking changes
-
-## Questions?
-
-If unclear about:
-- **Project conventions** - Check `AGENT-CONTEXT.md`
-- **Recent work** - Read latest session log
-- **Technical decisions** - Ask the user before proceeding
-
-## Remember
-
-- Read context before making changes
-- Follow established patterns
-- Document significant work
-- Keep CSS and docs synchronized
-- Ask when uncertain
