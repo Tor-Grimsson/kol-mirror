@@ -5,7 +5,7 @@ import PixiGlitchSliceVariant from '../hall-of-mirrors/PixiGlitchSliceVariant'
 import PixiMorphVariant from '../hall-of-mirrors/PixiMorphVariant'
 import PixiRadialVariant from '../hall-of-mirrors/PixiRadialVariant'
 import PixiKaleidoscopeVariant from '../hall-of-mirrors/PixiKaleidoscopeVariant'
-import { isDisplacementVariant, isMovementVariant, isPixiVariant, scaleParamsByIntensity, findVariant } from '../../data/mirrorVariants'
+import { isDisplacementVariant, isMovementVariant, isPixiVariant, scaleParamsByIntensity, findVariant, buildChannelFxStyle } from '../../data/mirrorVariants'
 
 const PIXI_COMPONENTS = {
   'pixi-slices': PixiSliceVariant,
@@ -20,13 +20,15 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
 
   const effectSrc = rasterSrc || imageSrc
   const hasCustomImage = imageSrc && !imageSrc.startsWith('data:image/svg+xml')
+  const fxStyle = buildChannelFxStyle(channel.fx)
+  const blendStyle = channel.blendMode && channel.blendMode !== 'normal' ? { mixBlendMode: channel.blendMode } : {}
 
   // Enabled but no effect — show the source as it was (SVG or uploaded image)
   if (!channel.variantId) {
     const src = hasCustomImage ? imageSrc : defaultSvgSrc
     if (!src) return null
     return (
-      <div className="absolute inset-0 flex items-center justify-center" style={{ opacity: channel.opacity / 100, pointerEvents: 'none' }}>
+      <div className="absolute inset-0 flex items-center justify-center" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
         <img
           src={src}
           alt="Channel source"
@@ -69,7 +71,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   // Displacement — renders MirrorVariant with its own SVG filter
   if (isDisplacementVariant(channel.variantId)) {
     return (
-      <div className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none' }}>
+      <div className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
         <MirrorVariant
           title={`${channel.variantId}-ch-${channelIndex}`}
           baseFrequency={scaledParams.baseFrequency}
@@ -102,7 +104,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   // Movement — renders MovementVariant with GSAP transforms
   if (isMovementVariant(channel.variantId)) {
     return (
-      <div className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none' }}>
+      <div className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
         <MovementVariant
           title={`${channel.variantId}-ch-${channelIndex}`}
           imageSrc={effectSrc}
@@ -128,7 +130,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     const effectiveBgSpeed = (scaledParams.bgSpeed || 0.5) * speedMultiplier
 
     return (
-      <div className="absolute inset-0 pixi-fullbleed" style={{ opacity: channel.opacity / 100, pointerEvents: 'none' }}>
+      <div className="absolute inset-0 pixi-fullbleed" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
         <Component
           title={`${channel.variantId}-ch-${channelIndex}`}
           imageSrc={effectSrc}

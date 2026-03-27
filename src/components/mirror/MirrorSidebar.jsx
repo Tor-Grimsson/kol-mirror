@@ -340,38 +340,13 @@ export default function MirrorSidebar({ state, onClose }) {
         </div>
       )}
 
-      {/* Spacer when no variant list is shown */}
+      {/* Spacer to push symphony controls to bottom */}
       {state.activeHall === 'symphony' && <div className="flex-1" />}
 
-      {/* Symphony controls — same position as VariantControls */}
+      {/* Symphony global controls */}
       {state.activeHall === 'symphony' && (
         <div className="p-4 overflow-visible border-t border-fg-08">
           <div className="flex flex-col" style={{ gap: '4px' }}>
-            <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
-              <span
-                className="text-fg-32 hover:text-fg-96 cursor-pointer select-none"
-                onClick={() => {
-                  const empty = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
-                  state.setSymphonyChannels([{ ...empty, enabled: true }, { ...empty }, { ...empty }])
-                }}
-              >[RESET]</span>
-              <div className="flex items-center gap-2">
-                {state.symphonyChannels.map((ch, i) => (
-                  <span
-                    key={i}
-                    className={`cursor-pointer select-none ${ch.variantId ? 'text-fg-96' : 'text-fg-32'} hover:text-fg-96`}
-                    onClick={() => {
-                      const empty = { variantId: null, params: {}, slotIndex: null, enabled: i === 0, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
-                      state.setSymphonyChannels(prev => {
-                        const next = [...prev]
-                        next[i] = empty
-                        return next
-                      })
-                    }}
-                  >[{i + 1}]</span>
-                ))}
-              </div>
-            </div>
             <div
               className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
               style={{ height: '24px' }}
@@ -379,26 +354,6 @@ export default function MirrorSidebar({ state, onClose }) {
             >
               <span>Animate</span>
               <span>[{state.symphonyAnimating ? 'ON' : 'OFF'}]</span>
-            </div>
-            <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
-              <span className="kol-helper-xs text-fg-96 shrink-0">Load Mode</span>
-              <Dropdown
-                options={[
-                  { value: 'effect', label: 'Effect Only' },
-                  { value: 'source', label: 'Effect + Source' },
-                ]}
-                value={state.symphonyLoadMode}
-                onChange={(v) => {
-                  state.setSymphonyLoadMode(v)
-                  state.setSymphonyChannels([
-                    { ...state.symphonyChannels[0], variantId: null, params: {}, name: null },
-                    { ...state.symphonyChannels[1], variantId: null, params: {}, name: null },
-                    { ...state.symphonyChannels[2], variantId: null, params: {}, name: null },
-                  ])
-                }}
-                variant="minimal"
-                size="md"
-              />
             </div>
             <Divider className="my-2" />
             <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
@@ -438,8 +393,6 @@ export default function MirrorSidebar({ state, onClose }) {
                 </div>
               </div>
             )}
-
-            {/* Image fit */}
             <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
               <span className="kol-helper-xs text-fg-96 shrink-0">Image Fit</span>
               <Dropdown
@@ -467,38 +420,6 @@ export default function MirrorSidebar({ state, onClose }) {
                 className="w-full"
               />
             )}
-
-            {/* Raster theme + vector + background color */}
-            <Divider className="my-2" />
-            <div
-              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
-              style={{ height: '24px' }}
-              onClick={() => state.setSymphonyRasterTheme(state.symphonyRasterTheme === 'dark' ? 'light' : 'dark')}
-            >
-              <span>Raster</span>
-              <span className="flex gap-2">
-                <span>[{state.symphonyRasterTheme === 'dark' ? 'LIGHT' : 'DARK'}]</span>
-                <span
-                  className="text-fg-32 hover:text-fg-96 cursor-pointer"
-                  onClick={(e) => { e.stopPropagation(); state.setRasterRecalcCounter(c => c + 1) }}
-                >[RECALC]</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
-              <span className="kol-helper-xs text-fg-96 shrink-0">Vector Color</span>
-              <ColorPicker
-                color={state.canvasVectorColor}
-                onChange={(c) => state.setCanvasVectorColor(c)}
-              />
-            </div>
-            <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
-              <span className="kol-helper-xs text-fg-96 shrink-0">Background</span>
-              <ColorPicker
-                color={state.canvasBackgroundColor}
-                onChange={(c) => state.setCanvasBackgroundColor(c)}
-              />
-            </div>
-
             <Divider className="my-2" />
             <div
               className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
@@ -511,6 +432,7 @@ export default function MirrorSidebar({ state, onClose }) {
           </div>
         </div>
       )}
+
 
       {/* Footer — upload + theme toggle */}
       <div className="mt-auto p-4 border-t border-fg-08 flex items-center justify-between">

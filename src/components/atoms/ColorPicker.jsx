@@ -90,8 +90,8 @@ export default function ColorPicker({ color, onChange, className = '' }) {
           setOpen(!open)
         }}
         style={{
-          width: '24px',
-          height: '24px',
+          width: '16px',
+          height: '16px',
           borderRadius: '4px',
           border: '1px solid var(--kol-border-default)',
           backgroundColor: swatchBg,

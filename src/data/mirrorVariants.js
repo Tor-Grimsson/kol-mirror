@@ -226,7 +226,7 @@ export function filterControlsByTab(controls, params) {
 
 // Raster tier selection — pick resolution based on visual density
 // Only mid (3x) and high (6x) — never use 1x
-export const RASTER_TIER_SCALES = { mid: 3, high: 6 }
+export const RASTER_TIER_SCALES = { mid: 6, high: 12 }
 
 export function getRasterTier(variantId, params) {
   if (!variantId || !params) return 'mid'
@@ -318,3 +318,52 @@ export function getResponsiveImage() {
 }
 
 export const DEFAULT_IMAGE = '/images/stack-hero-800.jpg'
+
+// --- Channel Post-Processing FX ---
+
+export const CHANNEL_FX_DEFS = [
+  { id: 'blur', label: 'Blur', params: { amount: { default: 0, min: 0, max: 20, step: 0.5, unit: 'px' } } },
+  { id: 'brightness', label: 'Bright', params: { amount: { default: 1, min: 0, max: 3, step: 0.05 } } },
+  { id: 'contrast', label: 'Contrast', params: { amount: { default: 1, min: 0, max: 3, step: 0.05 } } },
+  { id: 'saturate', label: 'Saturate', params: { amount: { default: 1, min: 0, max: 3, step: 0.05 } } },
+  { id: 'hue-rotate', label: 'Hue', params: { angle: { default: 0, min: 0, max: 360, step: 1, unit: '°' } } },
+  { id: 'invert', label: 'Invert', params: { amount: { default: 0, min: 0, max: 1, step: 0.05 } } },
+  { id: 'scale', label: 'Scale', params: { x: { default: 1, min: 0.1, max: 3, step: 0.05 }, y: { default: 1, min: 0.1, max: 3, step: 0.05 } } },
+  { id: 'rotate', label: 'Rotate', params: { angle: { default: 0, min: 0, max: 360, step: 1, unit: '°' } } },
+]
+
+export const MAX_CHANNEL_FX = 8
+
+export function getDefaultFxParams(fxId) {
+  const def = CHANNEL_FX_DEFS.find(d => d.id === fxId)
+  if (!def) return {}
+  const params = {}
+  for (const [key, spec] of Object.entries(def.params)) {
+    params[key] = spec.default
+  }
+  return params
+}
+
+export function buildChannelFxStyle(fxArray) {
+  if (!fxArray || fxArray.length === 0) return {}
+  const filters = []
+  const transforms = []
+  for (const fx of fxArray) {
+    if (!fx.enabled) continue
+    const p = fx.params
+    switch (fx.type) {
+      case 'blur': filters.push(`blur(${p.amount}px)`); break
+      case 'brightness': filters.push(`brightness(${p.amount})`); break
+      case 'contrast': filters.push(`contrast(${p.amount})`); break
+      case 'saturate': filters.push(`saturate(${p.amount})`); break
+      case 'hue-rotate': filters.push(`hue-rotate(${p.angle}deg)`); break
+      case 'invert': filters.push(`invert(${p.amount})`); break
+      case 'scale': transforms.push(`scale(${p.x}, ${p.y})`); break
+      case 'rotate': transforms.push(`rotate(${p.angle}deg)`); break
+    }
+  }
+  const style = {}
+  if (filters.length) style.filter = filters.join(' ')
+  if (transforms.length) style.transform = transforms.join(' ')
+  return style
+}

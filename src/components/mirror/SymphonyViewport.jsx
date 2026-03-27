@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS } from '../../data/mirrorVariants'
+import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, buildChannelFxStyle } from '../../data/mirrorVariants'
 import useImageTiers from '../../hooks/useImageTiers'
+import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import ChannelLayer from './ChannelLayer'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
@@ -28,7 +29,7 @@ export default function SymphonyViewport({ state }) {
   // Tiered rasters — for default SVG (themed) or custom uploads
   const svgFillColor = state.symphonyRasterTheme === 'light' ? '#000000' : '#ffffff'
   const rasterSource = canvasRaster || DEFAULT_SVG_DATA_URL
-  const { tiers: rasterTiers, ready: rastersReady } = useImageTiers(rasterSource, { svgFillColor })
+  const { tiers: rasterTiers, ready: rastersReady } = useImageTiers(rasterSource, { svgFillColor, recalcKey: state.rasterRecalcCounter })
 
   // Image sources for channels
   const svgImageSrc = canvasImage || DEFAULT_SVG_DATA_URL
@@ -195,37 +196,56 @@ export default function SymphonyViewport({ state }) {
               backgroundColor: state.canvasBackgroundColor === 'transparent' ? 'var(--kol-surface-absolute-split)' : state.canvasBackgroundColor,
             }}
           >
-            {/* Channel layers — each fully independent, no base layer */}
-            {channels.map((ch, i) => {
-              // Resolve slot params live — not a copy
-              // Slot channels resolve params live — first from hall edits (variantParams), then from saved slot
-              const resolvedChannel = ch.slotIndex != null && state.archiveSlots[ch.slotIndex]
-                ? { ...ch, variantId: state.archiveSlots[ch.slotIndex].variantId, params: state.getVariantParams(state.archiveSlots[ch.slotIndex].variantId) }
-                : ch
-              const isSlotRef = ch.slotIndex != null
-              const tier = getRasterTier(resolvedChannel.variantId, resolvedChannel.params)
-              const rasterForChannel = sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null)
-              return (
-              <ChannelLayer
-                key={i}
-                channel={resolvedChannel}
-                channelIndex={i}
-                imageSrc={svgImageSrc}
-                rasterSrc={rasterForChannel}
-                defaultSvgSrc={hasCustomImage ? canvasImage : defaultSvgColored}
-                isAnimating={isAnimating}
-                imageFitMode={state.imageFitMode}
-                imageScale={state.imageScale}
-                onParamChange={(key, value) => {
-                  if (isSlotRef && state.archiveSlots[ch.slotIndex]) {
-                    state.setVariantParam(state.archiveSlots[ch.slotIndex].variantId, key, value)
-                  } else {
-                    updateChannel(i, { params: { ...ch.params, [key]: value } })
-                  }
-                }}
-              />
-              )
-            })}
+            {/* Master output wrapper — applies global FX to combined output */}
+            <div
+              className="absolute inset-0"
+              style={{
+                ...buildChannelFxStyle(state.symphonyMaster.fx),
+                opacity: state.symphonyMaster.opacity / 100,
+                ...(state.symphonyMaster.blendMode && state.symphonyMaster.blendMode !== 'normal' ? { mixBlendMode: state.symphonyMaster.blendMode } : {}),
+              }}
+            >
+              {/* Channel layers — each fully independent, no base layer */}
+              {channels.map((ch, i) => {
+                // Resolve slot params live — not a copy
+                // Slot channels resolve params live — first from hall edits (variantParams), then from saved slot
+                const resolvedChannel = ch.slotIndex != null && state.archiveSlots[ch.slotIndex]
+                  ? { ...ch, variantId: state.archiveSlots[ch.slotIndex].variantId, params: state.getVariantParams(state.archiveSlots[ch.slotIndex].variantId) }
+                  : ch
+                const isSlotRef = ch.slotIndex != null
+                const hasCustomMedia = !!ch.customRasterSrc
+                const tier = ch.rasterTierOverride || getRasterTier(resolvedChannel.variantId, resolvedChannel.params)
+                const rasterForChannel = hasCustomMedia
+                  ? ch.customRasterSrc
+                  : (sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null))
+                const channelImageSrc = hasCustomMedia ? (ch.customImageSrc || ch.customRasterSrc) : svgImageSrc
+                const channelDefaultSrc = hasCustomMedia ? ch.customImageSrc : (hasCustomImage ? canvasImage : defaultSvgColored)
+                return (
+                <ChannelLayer
+                  key={i}
+                  channel={resolvedChannel}
+                  channelIndex={i}
+                  imageSrc={channelImageSrc}
+                  rasterSrc={rasterForChannel}
+                  defaultSvgSrc={channelDefaultSrc}
+                  isAnimating={isAnimating}
+                  imageFitMode={state.imageFitMode}
+                  imageScale={state.imageScale}
+                  onParamChange={(key, value) => {
+                    if (isSlotRef && state.archiveSlots[ch.slotIndex]) {
+                      state.setVariantParam(state.archiveSlots[ch.slotIndex].variantId, key, value)
+                    } else {
+                      setChannels(prev => {
+                        const next = [...prev]
+                        if (next[i]) next[i] = { ...next[i], params: { ...next[i].params, [key]: value } }
+                        return next
+                      })
+                    }
+                  }}
+                />
+                )
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -246,7 +266,11 @@ export default function SymphonyViewport({ state }) {
             if (ch.slotIndex != null && state.archiveSlots[ch.slotIndex]) {
               state.setVariantParam(state.archiveSlots[ch.slotIndex].variantId, key, value)
             } else {
-              updateChannel(idx, { params: { ...ch.params, [key]: value } })
+              setChannels(prev => {
+                const next = [...prev]
+                if (next[idx]) next[idx] = { ...next[idx], params: { ...next[idx].params, [key]: value } }
+                return next
+              })
             }
           }}
           dropdownItems={dropdownItems}
@@ -263,8 +287,24 @@ export default function SymphonyViewport({ state }) {
             setChannels(prev => prev.filter((_, i) => i !== idx))
           }}
           onAddChannel={() => {
-            setChannels(prev => [...prev, { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null, baseIntensity: 100 }])
+            setChannels(prev => [...prev, { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, baseIntensity: 100, fx: [], blendMode: 'normal' }])
           }}
+          master={state.symphonyMaster}
+          onMasterChange={(updates) => state.setSymphonyMaster(prev => ({ ...prev, ...updates }))}
+          onRecalc={() => state.setRasterRecalcCounter(c => c + 1)}
+          onResetChannel={(idx, all) => {
+            if (all) {
+              setChannels(prev => prev.map((ch, i) => ({ ...EMPTY_CHANNEL, enabled: i === 0 })))
+              state.setSymphonyEditChannel(null)
+            } else {
+              setChannels(prev => {
+                const next = [...prev]
+                next[idx] = { ...EMPTY_CHANNEL, enabled: prev[idx]?.enabled ?? false }
+                return next
+              })
+            }
+          }}
+          globalImageThumb={canvasImage || null}
         />
       </div>
     </div>

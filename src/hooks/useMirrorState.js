@@ -9,7 +9,7 @@ const FIRST_VARIANT = {
 
 const EMPTY_ARCHIVE = Array.from({ length: 9 }, () => null)
 
-const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 100, boosted: false, speed: 100, opacity: 100, name: null }
+export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, loadMode: 'effect' }
 
 const DEV_SLOT_IDS = [
   'subtle-ripple', 'breathing-scale', 'pixi-slices',
@@ -257,6 +257,12 @@ export function useMirrorState() {
     { ...EMPTY_CHANNEL },
   ])
 
+  // Master output — global FX chain applied to combined output
+  const [symphonyMaster, setSymphonyMaster] = useState({ fx: [], blendMode: 'normal', opacity: 100 })
+
+  // Currently selected channel tab in sidebar (null = none)
+  const [symphonyEditChannel, setSymphonyEditChannel] = useState(null)
+
   return {
     activeHall,
     activeVariant,
@@ -320,6 +326,12 @@ export function useMirrorState() {
 
     symphonyChannels,
     setSymphonyChannels,
+
+    symphonyMaster,
+    setSymphonyMaster,
+
+    symphonyEditChannel,
+    setSymphonyEditChannel,
 
     rasterRecalcCounter,
     setRasterRecalcCounter,

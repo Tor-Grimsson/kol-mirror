@@ -15,7 +15,7 @@ const STATIC_PATH_RE = /^\/images\/stack-hero-\d+\.jpg$/
  * @param {string} [options.svgFillColor] - fill color for SVG currentColor replacement
  * @returns {{ tiers: { mid: string, high: string }, ready: boolean }}
  */
-export default function useImageTiers(imageSrc, { svgFillColor } = {}) {
+export default function useImageTiers(imageSrc, { svgFillColor, recalcKey = 0 } = {}) {
   const [tiers, setTiers] = useState({ mid: null, high: null })
   const [ready, setReady] = useState(false)
   const cacheRef = useRef(new Map())
@@ -27,8 +27,8 @@ export default function useImageTiers(imageSrc, { svgFillColor } = {}) {
       return
     }
 
-    // Check cache
-    const cacheKey = imageSrc + (svgFillColor || '')
+    // Check cache (recalcKey busts it)
+    const cacheKey = imageSrc + (svgFillColor || '') + ':' + recalcKey
     if (cacheRef.current.has(cacheKey)) {
       setTiers(cacheRef.current.get(cacheKey))
       setReady(true)
@@ -100,7 +100,7 @@ export default function useImageTiers(imageSrc, { svgFillColor } = {}) {
     }
 
     return () => { cancelled = true }
-  }, [imageSrc, svgFillColor])
+  }, [imageSrc, svgFillColor, recalcKey])
 
   return { tiers, ready }
 }
