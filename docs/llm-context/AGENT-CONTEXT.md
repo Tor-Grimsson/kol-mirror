@@ -3,6 +3,7 @@
 ## Current State
 
 ### Active Work
+- **Loop recording (blocked)**: Save-to-slot broken. Recording infra works (hook, capture, MediaRecorder, blob). UI renders. But persisting blob into channel `recSlots` state fails silently. Next: debug save handler data flow.
 - Symphony mixer: live slot routing, dial as multiplier with overdrive, channel settings shelf with paginated controls and pinned Comp A/B tabs
 - Kaleidoscope: Comp A/B tab system, grab-to-move wedge, fill/edge controls, background comp, edgeZoomScale slider
 - Archive/Memory: 9 slots, save/load/edit workflow, thumbnails, [EDIT] from symphony to hall
@@ -18,7 +19,20 @@
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure (different layout).
 - Old hall page components still exist (dead code)
 
-### Recent Changes (2026-03-26)
+### Recent Changes (2026-03-27)
+- **Loop recording (WIP)**: Per-channel REC tab in shelf. `useChannelRecorder` hook captures Pixi canvas via `captureStream` + `MediaRecorder` to WebM. Duration presets (10–160s), record dot toggle, progress bar with frame counter, mark in/out buttons. Slot-based library (4 slots default, max 8) with file info, trim, download, upload, load/remove. `ChannelVideo` component plays frozen `<video>` loop replacing live Pixi. `VariantControls` `disabledKeys` greys out frozen params. **Save-to-slot flow is broken** — recording completes but slot population fails due to closure/timing issues. Needs debugging.
+- **usePixiApp preserveDrawingBuffer**: New option for WebGL canvas recording. All 5 Pixi variants pass through prop. Key-based remount triggers context recreation.
+- **B Output stable height**: A Channels always rendered (visibility hidden), B Output overlays with absolute positioning.
+- **LoadButton portal**: Dropdown uses `createPortal(document.body)` to escape overflow clipping from channel row.
+- **Channel reset icon**: Yellow (`#DB8000`) circle replaces refresh icon, increased gap from active indicator
+- **Bottom shelf**: Opens by default, 124px fixed height, `overflow: hidden` outer + scrollable content, non-scrolling tab bar, `mx-2`, 4px top padding, `kol-helper-xs-2` (11px)
+- **Right shelf**: Draggable width (280–840px, double-click reset), full-width tab divider (`-mx-4 px-4`), `pt-3` top, `kol-helper-xs-2` (11px)
+- **Channel strip z-index**: `zIndex: 1` so it sits on top of shelf-right overlap
+- **Draggable sidebar**: `MirrorPlayground` sidebar resizable via right-edge drag handle (bottom 50%), up to 300%, double-click reset
+- **B Output grid**: 3-column equal-width grid (Master Output / Project Info / Export)
+- **Color tab**: "Vector Color" → "Vector", Vector + Background side by side with vertical Divider
+
+### Previous Changes (2026-03-26)
 - **usePixiApp hook**: Shared Pixi lifecycle — init, ResizeObserver resize, texture loading, cleanup. Used by all 5 Pixi variants.
 - **VariantFrame component**: Shared UI frame — title, toggles, canvas container, fallback image, info overlay, stats, upload. `interactive` prop for grab.
 - **useImageTiers hook**: Generates tiered images (mid 3x, high 6x) from any source (static path, raster, SVG). Caches results. Used by both MirrorViewport and SymphonyViewport.
@@ -46,6 +60,9 @@
 - Kaleidoscope: two-comp architecture (Comp A main + Comp B background), independent params/animation
 - Shared Pixi infrastructure: `usePixiApp` hook (init/resize/cleanup), `VariantFrame` (UI wrapper), `useImageTiers` (quality tiers)
 - Unified image pipeline: `getRasterTier` selects quality, `useImageTiers` generates mid/high versions, same logic in halls and symphony
+
+### New Key Files
+- `src/hooks/useChannelRecorder.js` — Canvas recording hook (captureStream + MediaRecorder → WebM blob)
 
 ### Key Files
 - `src/data/mirrorVariants.js` — Variant definitions, intensityKeys, controls with tabs/dividers/linkedDefaults, `getRasterTier`, `getActiveTab`, `filterControlsByTab`

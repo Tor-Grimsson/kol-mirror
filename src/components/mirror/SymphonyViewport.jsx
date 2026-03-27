@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, buildChannelFxStyle } from '../../data/mirrorVariants'
 import useImageTiers from '../../hooks/useImageTiers'
+import useChannelRecorder from '../../hooks/useChannelRecorder'
 import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import ChannelLayer from './ChannelLayer'
@@ -20,6 +21,135 @@ export default function SymphonyViewport({ state }) {
   const isAnimating = state.symphonyAnimating
   const setIsAnimating = state.setSymphonyAnimating
   const mixerLayout = state.symphonyLayout
+
+  // Canvas registry for recording — tracks Pixi canvas elements per channel index
+  const canvasRegistryRef = useRef(new Map())
+  const [recChannel, setRecChannel] = useState(null) // which channel index is recording
+  const recorder = useChannelRecorder()
+
+  const handleCanvasReady = useCallback((channelIndex, canvasEl) => {
+    canvasRegistryRef.current.set(channelIndex, canvasEl)
+    // If this channel is armed, start recording now that canvas is ready
+    if (channels[channelIndex]?.isArmedForRec && recorder.status === 'idle') {
+      const ch = channels[channelIndex]
+      const params = ch.params ? { ...ch.params } : {}
+      recorder.arm(canvasEl, recorder.loopLength, params)
+      setRecChannel(channelIndex)
+    }
+  }, [channels, recorder])
+
+  const handleArmRecording = useCallback((idx, loopLength) => {
+    recorder.loopLength = loopLength
+    setRecChannel(idx)
+    updateChannel(idx, { isArmedForRec: true })
+  }, [recorder])
+
+  const handleDisarmRecording = useCallback((idx) => {
+    recorder.disarm()
+    updateChannel(idx, { isArmedForRec: false })
+    setRecChannel(null)
+  }, [recorder])
+
+  const handleSetMark = useCallback((idx, markNum, value) => {
+    if (markNum === 1) recorder.setMark1(value)
+    else recorder.setMark2(value)
+  }, [recorder])
+
+  // Push recording data into first empty slot — data passed as arg, no closure dependency
+  const handleSaveRecToSlot = useCallback((idx, recData) => {
+    if (!recData?.blobUrl) return
+    setChannels(prev => {
+      const next = [...prev]
+      const ch = next[idx]
+      if (!ch) return prev
+      const slots = [...(ch.recSlots || [])]
+      const canvasEl = canvasRegistryRef.current.get(idx)
+      const res = canvasEl ? `${canvasEl.width}x${canvasEl.height}` : '—'
+      const newSlot = {
+        blobUrl: recData.blobUrl,
+        fileName: `loop-${Date.now()}.webm`,
+        size: recData.blobSize || 0,
+        codec: 'webm',
+        fps: 30,
+        resolution: res,
+        duration: recData.loopLength || 20,
+        mark1: recData.mark1 ?? null,
+        mark2: recData.mark2 ?? null,
+        frozenParams: recData.frozenParams || null,
+        source: 'recorded',
+      }
+      const emptyIdx = slots.findIndex(s => !s)
+      if (emptyIdx >= 0) slots[emptyIdx] = newSlot
+      else slots.push(newSlot)
+      next[idx] = { ...ch, recSlots: slots, isArmedForRec: false }
+      return next
+    })
+    setRecChannel(null)
+  }, [])
+
+  // No auto-save — user explicitly saves via [Save to Slot] in the REC tab
+
+  const handleSetActiveRecSlot = useCallback((chIdx, slotIdx) => {
+    updateChannel(chIdx, { activeRecSlot: slotIdx })
+  }, [])
+
+  const handleClearActiveRecSlot = useCallback((chIdx) => {
+    updateChannel(chIdx, { activeRecSlot: null })
+  }, [])
+
+  const handleRemoveRecSlot = useCallback((chIdx, slotIdx) => {
+    const ch = channels[chIdx]
+    const slots = [...(ch.recSlots || [])]
+    if (slots[slotIdx]?.blobUrl) URL.revokeObjectURL(slots[slotIdx].blobUrl)
+    slots.splice(slotIdx, 1)
+    const active = ch.activeRecSlot
+    const newActive = active === slotIdx ? null : (active != null && active > slotIdx ? active - 1 : active)
+    updateChannel(chIdx, { recSlots: slots, activeRecSlot: newActive })
+  }, [channels])
+
+  const handleAddRecSlot = useCallback((chIdx) => {
+    const ch = channels[chIdx]
+    if ((ch.recSlots || []).length >= 8) return
+    updateChannel(chIdx, { recSlots: [...(ch.recSlots || []), null] })
+  }, [channels])
+
+  const handleUploadRecSlot = useCallback((chIdx, slotIdx, file) => {
+    const url = URL.createObjectURL(file)
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    video.onloadedmetadata = () => {
+      const ch = channels[chIdx]
+      const slots = [...(ch.recSlots || [])]
+      slots[slotIdx] = {
+        blobUrl: url,
+        fileName: file.name,
+        size: file.size,
+        codec: file.type || 'video',
+        fps: 30,
+        resolution: `${video.videoWidth}x${video.videoHeight}`,
+        duration: video.duration,
+        mark1: null,
+        mark2: null,
+        frozenParams: null,
+        source: 'uploaded',
+      }
+      updateChannel(chIdx, { recSlots: slots })
+    }
+    video.src = url
+  }, [channels])
+
+  const handleUpdateRecSlotTrim = useCallback((chIdx, slotIdx, mark1, mark2) => {
+    const ch = channels[chIdx]
+    const slots = [...(ch.recSlots || [])]
+    if (!slots[slotIdx]) return
+    slots[slotIdx] = { ...slots[slotIdx], mark1, mark2 }
+    updateChannel(chIdx, { recSlots: slots })
+  }, [channels])
+
+  const handleClearRecorder = useCallback(() => {
+    recorder.clear()
+    setRecChannel(null)
+  }, [recorder])
 
   // Canvas source images
   const canvasImage = state.symphonyCanvasImage
@@ -231,6 +361,7 @@ export default function SymphonyViewport({ state }) {
                   isAnimating={isAnimating}
                   imageFitMode={state.imageFitMode}
                   imageScale={state.imageScale}
+                  onCanvasReady={handleCanvasReady}
                   onParamChange={(key, value) => {
                     if (isSlotRef && state.archiveSlots[ch.slotIndex]) {
                       state.setVariantParam(state.archiveSlots[ch.slotIndex].variantId, key, value)
@@ -305,6 +436,19 @@ export default function SymphonyViewport({ state }) {
             }
           }}
           globalImageThumb={canvasImage || null}
+          recChannel={recChannel}
+          recState={recorder}
+          onArmRecording={handleArmRecording}
+          onDisarmRecording={handleDisarmRecording}
+          onSetMark={handleSetMark}
+          onSaveRecToSlot={(idx, recData) => handleSaveRecToSlot(idx, recData)}
+          onClearRecorder={handleClearRecorder}
+          onSetActiveRecSlot={handleSetActiveRecSlot}
+          onClearActiveRecSlot={handleClearActiveRecSlot}
+          onRemoveRecSlot={handleRemoveRecSlot}
+          onAddRecSlot={handleAddRecSlot}
+          onUploadRecSlot={handleUploadRecSlot}
+          onUpdateRecSlotTrim={handleUpdateRecSlotTrim}
         />
       </div>
     </div>

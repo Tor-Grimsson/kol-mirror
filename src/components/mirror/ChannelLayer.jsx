@@ -1,3 +1,4 @@
+import { useEffect, useRef, useCallback } from 'react'
 import MirrorVariant from '../hall-of-mirrors/MirrorVariant'
 import MovementVariant from '../hall-of-mirrors/MovementVariant'
 import PixiSliceVariant from '../hall-of-mirrors/PixiSliceVariant'
@@ -7,6 +8,37 @@ import PixiRadialVariant from '../hall-of-mirrors/PixiRadialVariant'
 import PixiKaleidoscopeVariant from '../hall-of-mirrors/PixiKaleidoscopeVariant'
 import { isDisplacementVariant, isMovementVariant, isPixiVariant, scaleParamsByIntensity, findVariant, buildChannelFxStyle } from '../../data/mirrorVariants'
 
+function ChannelVideo({ blobUrl, mark1, mark2 }) {
+  const videoRef = useRef(null)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    const inPoint = mark1 ?? 0
+    const outPoint = mark2 ?? Infinity
+
+    video.currentTime = inPoint
+
+    const onTimeUpdate = () => {
+      if (video.currentTime >= outPoint) video.currentTime = inPoint
+    }
+    video.addEventListener('timeupdate', onTimeUpdate)
+    return () => video.removeEventListener('timeupdate', onTimeUpdate)
+  }, [blobUrl, mark1, mark2])
+
+  return (
+    <video
+      ref={videoRef}
+      src={blobUrl}
+      autoPlay
+      muted
+      loop={mark1 == null && mark2 == null}
+      className="w-full h-full object-cover"
+      style={{ pointerEvents: 'none' }}
+    />
+  )
+}
+
 const PIXI_COMPONENTS = {
   'pixi-slices': PixiSliceVariant,
   'pixi-glitch': PixiGlitchSliceVariant,
@@ -15,13 +47,23 @@ const PIXI_COMPONENTS = {
   'pixi-kaleidoscope': PixiKaleidoscopeVariant,
 }
 
-export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, imageFitMode, imageScale, rawParams = false, onParamChange }) {
+export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, imageFitMode, imageScale, rawParams = false, onParamChange, onCanvasReady }) {
   if (!channel.enabled) return null
 
   const effectSrc = rasterSrc || imageSrc
   const hasCustomImage = imageSrc && !imageSrc.startsWith('data:image/svg+xml')
   const fxStyle = buildChannelFxStyle(channel.fx)
   const blendStyle = channel.blendMode && channel.blendMode !== 'normal' ? { mixBlendMode: channel.blendMode } : {}
+
+  // Frozen recording — render video loop instead of live effect
+  const activeSlot = channel.activeRecSlot != null ? channel.recSlots?.[channel.activeRecSlot] : null
+  if (activeSlot?.blobUrl) {
+    return (
+      <div className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
+        <ChannelVideo blobUrl={activeSlot.blobUrl} mark1={activeSlot.mark1} mark2={activeSlot.mark2} />
+      </div>
+    )
+  }
 
   // Enabled but no effect — show the source as it was (SVG or uploaded image)
   if (!channel.variantId) {
@@ -129,9 +171,22 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     const effectiveSpeed = (scaledParams.speed || 1) * speedMultiplier
     const effectiveBgSpeed = (scaledParams.bgSpeed || 0.5) * speedMultiplier
 
+    const pixiWrapperRef = (el) => {
+      if (el && onCanvasReady) {
+        // usePixiApp has a 100ms init delay — poll until canvas appears
+        const check = () => {
+          const canvas = el.querySelector('canvas')
+          if (canvas) onCanvasReady(channelIndex, canvas)
+          else setTimeout(check, 50)
+        }
+        setTimeout(check, 120)
+      }
+    }
+
     return (
-      <div className="absolute inset-0 pixi-fullbleed" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
+      <div ref={pixiWrapperRef} className="absolute inset-0 pixi-fullbleed" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
         <Component
+          key={`${channel.variantId}-ch-${channelIndex}-${channel.isArmedForRec ? 'rec' : 'live'}`}
           title={`${channel.variantId}-ch-${channelIndex}`}
           imageSrc={effectSrc}
           isEnabled={true}
@@ -146,6 +201,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
           bgSpeed={effectiveBgSpeed}
           animate={isAnimating}
           bgAnimate={isAnimating}
+          preserveDrawingBuffer={!!channel.isArmedForRec}
         />
       </div>
     )

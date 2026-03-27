@@ -22,9 +22,10 @@ export default function PixiSliceVariant({
   wrapMode = 'clamp-to-edge',
   imageFitMode = 'contain',
   onParamChange,
+  preserveDrawingBuffer = false,
 }) {
   const canvasRef = useRef(null)
-  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc)
+  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc, { preserveDrawingBuffer })
   const tilingRef = useRef(null)
   const outlineRef = useRef(null)
   const grabDragRef = useRef(null)

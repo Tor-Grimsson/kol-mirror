@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Slider from '../atoms/Slider'
 import { Icon } from '../icons'
 import Divider from '../atoms/Divider'
@@ -42,7 +43,7 @@ function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
       >
         <Icon name="save" size={16} />
       </div>
-      {isOpen && (
+      {isOpen && createPortal(
         <>
           <div
             className="fixed inset-0 z-40"
@@ -70,7 +71,8 @@ function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
               </div>
             ))}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   )
@@ -120,22 +122,76 @@ function Channel({
   loadMode = 'effect',
   onMediaChange,
   globalImageThumb = null,
+  recState = null,
+  isRecording = false,
+  onArmRecording,
+  onDisarmRecording,
+  onSetMark,
+  onSaveRecToSlot,
+  onClearRecorder,
+  onSetActiveRecSlot,
+  onClearActiveRecSlot,
+  onRemoveRecSlot,
+  onAddRecSlot,
+  onUploadRecSlot,
+  onUpdateRecSlotTrim,
+  recSlots = [],
+  activeRecSlot = null,
 }) {
   const [showRemove, setShowRemove] = useState(false)
   const [shelfOpen, setShelfOpen] = useState(false)
   const [shelfPage, setShelfPage] = useState(0)
-  const [shelfTab, setShelfTab] = useState('params') // 'params' | 'src'
-  const [fxOpen, setFxOpen] = useState(false)
+  const [shelfTab, setShelfTab] = useState('params') // 'params' | 'src' | 'rec'
+  const [recLoopLength, setRecLoopLength] = useState(20)
+  const [fxOpen, setFxOpen] = useState(true)
+  const [shelfWidth, setShelfWidth] = useState(280)
+  const shelfDragging = useRef(false)
+  const shelfStartX = useRef(0)
+  const shelfStartW = useRef(0)
   const mediaFileRef = useRef(null)
 
   useEffect(() => {
     if (fxOpenAllTick && fxOpenAllTick.tick > 0) setFxOpen(fxOpenAllTick.open)
   }, [fxOpenAllTick?.tick])
   const [fxTab, setFxTab] = useState('fx') // 'fx' | 'blend' | 'color' | 'res'
+
+  const onShelfDragStart = useCallback((e) => {
+    e.preventDefault()
+    shelfDragging.current = true
+    shelfStartX.current = e.clientX
+    shelfStartW.current = shelfWidth
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [shelfWidth])
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!shelfDragging.current) return
+      const delta = e.clientX - shelfStartX.current
+      const next = Math.max(280, Math.min(280 * 3, shelfStartW.current + delta))
+      setShelfWidth(next)
+    }
+    const onUp = () => {
+      if (!shelfDragging.current) return
+      shelfDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [])
+
   return (
     <div className="flex flex-col shrink-0" style={{ overflow: 'visible' }}>
       <div className="flex items-center justify-between kol-helper-xs mb-2" style={{ minHeight: '16px', width: '320px' }}>
-        <span className="text-fg-48 truncate">{loadedName || '\u00A0'}</span>
+        <span className="text-fg-48 truncate">
+          {loadedName || '\u00A0'}
+          {activeRecSlot != null && <span className="text-fg-32 ml-1">[REC]</span>}
+        </span>
         {onEdit && loadedName && (
           <span className="text-fg-32 hover:text-fg-96 cursor-pointer select-none shrink-0" onClick={onEdit}>[EDIT]</span>
         )}
@@ -148,10 +204,11 @@ function Channel({
           overflow: 'visible',
           width: '320px',
           minHeight: '264px',
+          zIndex: 1,
         }}
       >
       <div className="w-full flex items-start justify-between">
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-4">
           <div
             className="cursor-pointer select-none flex items-center justify-center relative"
             onClick={() => { setShowRemove(false); onEnabledChange(!enabled) }}
@@ -186,7 +243,7 @@ function Channel({
               onClick={(e) => onReset(e.altKey)}
               title="Reset channel (Alt+click: reset all)"
             >
-              <Icon name="refresh" size={12} />
+              <span className="block rounded-full" style={{ width: 8, height: 8, backgroundColor: '#DB8000' }} />
             </div>
           )}
         </div>
@@ -267,18 +324,19 @@ function Channel({
     {/* Shelf — expands to the right */}
     {shelfOpen && (
       <div
-        className="flex flex-col px-4 py-4 my-4 shrink-0 border border-fg-08 kol-helper-xs-2"
-        style={{ borderRadius: '0 4px 4px 0', backgroundColor: '#0e0e11', width: '280px', marginLeft: '-8px', paddingLeft: '24px' }}
+        className="flex flex-col px-4 pt-3 pb-4 my-4 shrink-0 border border-fg-08 kol-helper-xs-2 relative"
+        style={{ borderRadius: '0 4px 4px 0', backgroundColor: '#0e0e11', width: `${shelfWidth}px`, marginLeft: '-8px', paddingLeft: '24px' }}
       >
         {/* Shelf tab bar */}
-        <div className="flex items-center gap-3 pb-2 mb-2 border-b border-fg-08">
+        <div className="flex items-center gap-3 pb-2 mb-2 -mx-4 px-4 border-b border-fg-08">
           {[
             { key: 'params', label: 'PARAMS' },
             { key: 'src', label: 'SRC' },
+            { key: 'rec', label: 'REC' },
           ].map(tab => (
             <span
               key={tab.key}
-              className={`cursor-pointer select-none uppercase kol-helper-xs ${
+              className={`cursor-pointer select-none uppercase ${
                 shelfTab === tab.key ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'
               }`}
               onClick={() => setShelfTab(tab.key)}
@@ -319,6 +377,7 @@ function Channel({
                   params={params}
                   onParamChange={onParamChange}
                   rowHeight={20}
+                  disabledKeys={activeRecSlot != null && recSlots[activeRecSlot]?.frozenParams ? Object.keys(recSlots[activeRecSlot].frozenParams) : null}
                 />
               </div>
               {pages.length > 1 && (
@@ -370,17 +429,178 @@ function Channel({
             )}
           </div>
         )}
+
+        {shelfTab === 'rec' && (
+          <div className="flex flex-col gap-3">
+            {/* Record controls */}
+            <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+              <span className="text-fg-48">Duration</span>
+              <select
+                className="bg-transparent text-fg-96 border-none outline-none kol-helper-xs cursor-pointer"
+                style={{ fontSize: '11px' }}
+                value={recLoopLength}
+                onChange={(e) => setRecLoopLength(Number(e.target.value))}
+                disabled={recState?.status === 'recording'}
+              >
+                {[10, 20, 40, 80, 160].map(s => (
+                  <option key={s} value={s}>{s}s</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+              <span className="text-fg-48">Record</span>
+              <span
+                className="cursor-pointer select-none"
+                onClick={() => {
+                  if (recState?.status === 'recording') onDisarmRecording && onDisarmRecording()
+                  else onArmRecording && onArmRecording(recLoopLength)
+                }}
+              >
+                <span className="block rounded-full transition-all" style={{ width: 8, height: 8, backgroundColor: recState?.status === 'recording' ? '#e74c3c' : '#6b2828' }} />
+              </span>
+            </div>
+
+            {/* Recording progress */}
+            {recState?.status === 'recording' && (
+              <div className="flex flex-col gap-1">
+                <div className="w-full h-1 bg-fg-08 overflow-hidden" style={{ borderRadius: '1px' }}>
+                  <div className="h-full bg-[#e74c3c]" style={{ width: `${(recState.elapsed / recLoopLength) * 100}%`, transition: 'width 100ms' }} />
+                </div>
+                <div className="flex items-center justify-between kol-helper-xs text-fg-32">
+                  <span className="text-[#e74c3c]">Frame {Math.floor(recState.elapsed * 30)}</span>
+                  <span>{recState.elapsed.toFixed(1)}s / {recLoopLength}s</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <div
+                    className={`flex-1 text-center py-1 cursor-pointer select-none border kol-helper-xs ${recState.mark1 != null ? 'text-fg-96 border-accent-primary' : 'border-fg-16 text-fg-32 hover:text-fg-64'}`}
+                    style={{ borderRadius: '3px' }}
+                    onClick={() => onSetMark && onSetMark(1)}
+                  >
+                    In{recState.mark1 != null ? ` ${recState.mark1.toFixed(1)}s` : ''}
+                  </div>
+                  <div
+                    className={`flex-1 text-center py-1 cursor-pointer select-none border kol-helper-xs ${recState.mark2 != null ? 'text-fg-96 border-accent-primary' : 'border-fg-16 text-fg-32 hover:text-fg-64'}`}
+                    style={{ borderRadius: '3px' }}
+                    onClick={() => onSetMark && onSetMark(2)}
+                  >
+                    Out{recState.mark2 != null ? ` ${recState.mark2.toFixed(1)}s` : ''}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recording complete — save or discard */}
+            {recState?.status === 'done' && recState?.blobUrl && (
+              <div className="flex flex-col gap-1 py-1 border border-fg-16 px-2" style={{ borderRadius: '3px' }}>
+                <div className="kol-helper-xs text-fg-64">
+                  Recording complete · {recState.blobSize ? (recState.blobSize / (1024 * 1024)).toFixed(2) + ' MB' : ''} · {recLoopLength}s
+                </div>
+                <div className="flex items-center gap-3 kol-helper-xs">
+                  <span className="text-fg-48 hover:text-fg-96 cursor-pointer select-none" onClick={() => onSaveRecToSlot && onSaveRecToSlot({
+                    blobUrl: recState.blobUrl,
+                    blobSize: recState.blobSize,
+                    loopLength: recLoopLength,
+                    mark1: recState.mark1,
+                    mark2: recState.mark2,
+                    frozenParams: recState.frozenParams,
+                  })}>[Save to Slot]</span>
+                  <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => onClearRecorder && onClearRecorder()}>[Discard]</span>
+                </div>
+              </div>
+            )}
+
+            {/* Slots */}
+            <Divider className="my-1" />
+            <div className="flex flex-col gap-2" style={{ overflow: 'auto', flex: '1 1 0', minHeight: 0 }}>
+              {recSlots.map((slot, si) => {
+                const isActive = activeRecSlot === si
+                if (!slot) {
+                  return (
+                    <div key={si} className="flex items-center justify-between kol-helper-xs py-1" style={{ opacity: 0.5 }}>
+                      <span className="text-fg-32">{si + 1}. empty</span>
+                      <div className="flex items-center gap-2">
+                        <label className="text-fg-32 hover:text-fg-64 cursor-pointer select-none">
+                          [Upload]
+                          <input type="file" accept="video/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadRecSlot(si, f); e.target.value = '' }} />
+                        </label>
+                        <span className="text-fg-24 hover:text-fg-64 cursor-pointer select-none" onClick={() => onRemoveRecSlot(si)}>×</span>
+                      </div>
+                    </div>
+                  )
+                }
+                const sizeMB = slot.size ? (slot.size / (1024 * 1024)).toFixed(2) : '—'
+                return (
+                  <div key={si} className={`flex flex-col gap-1 py-1 ${isActive ? 'border-l-2 border-accent-primary pl-2' : ''}`}>
+                    <div className="flex items-center justify-between kol-helper-xs">
+                      <span className={isActive ? 'text-fg-96' : 'text-fg-64'}>{si + 1}. {slot.fileName}</span>
+                      {isActive && <span className="text-[#e74c3c]">ACTIVE</span>}
+                    </div>
+                    <div className="kol-helper-xs text-fg-32">
+                      {slot.codec} · {sizeMB}MB · {slot.duration?.toFixed(1)}s
+                    </div>
+                    <div className="kol-helper-xs text-fg-32">
+                      {slot.resolution} · {slot.fps}fps
+                    </div>
+                    {/* Trim */}
+                    <div className="flex items-center gap-2 kol-helper-xs text-fg-32">
+                      <span>In {(slot.mark1 ?? 0).toFixed(1)}s</span>
+                      <input
+                        type="range" min={0} max={slot.duration || recLoopLength} step={0.1}
+                        value={slot.mark1 ?? 0}
+                        onChange={(e) => onUpdateRecSlotTrim(si, Number(e.target.value), slot.mark2)}
+                        className="flex-1" style={{ height: '10px', accentColor: 'var(--kol-accent-primary)' }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 kol-helper-xs text-fg-32">
+                      <span>Out {(slot.mark2 ?? slot.duration ?? recLoopLength).toFixed(1)}s</span>
+                      <input
+                        type="range" min={0} max={slot.duration || recLoopLength} step={0.1}
+                        value={slot.mark2 ?? slot.duration ?? recLoopLength}
+                        onChange={(e) => onUpdateRecSlotTrim(si, slot.mark1, Number(e.target.value))}
+                        className="flex-1" style={{ height: '10px', accentColor: 'var(--kol-accent-primary)' }}
+                      />
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 kol-helper-xs">
+                      <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => {
+                        const a = document.createElement('a'); a.href = slot.blobUrl; a.download = slot.fileName; a.click()
+                      }}>[Download]</span>
+                      {isActive ? (
+                        <span className="text-fg-48 hover:text-fg-96 cursor-pointer select-none" onClick={() => onClearActiveRecSlot()}>[Remove]</span>
+                      ) : (
+                        <span className="text-fg-48 hover:text-fg-96 cursor-pointer select-none" onClick={() => onSetActiveRecSlot(si)}>[Load]</span>
+                      )}
+                      <span className="text-fg-24 hover:text-fg-64 cursor-pointer select-none" onClick={() => onRemoveRecSlot(si)}>×</span>
+                    </div>
+                  </div>
+                )
+              })}
+              {recSlots.length < 8 && (
+                <div className="kol-helper-xs text-fg-32 hover:text-fg-64 cursor-pointer select-none py-1" onClick={() => onAddRecSlot()}>
+                  [+ Add Slot]
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {/* Drag handle */}
+        <div
+          className="absolute top-0 right-0 h-full cursor-col-resize"
+          style={{ width: '5px' }}
+          onPointerDown={onShelfDragStart}
+          onDoubleClick={() => setShelfWidth(280)}
+        />
       </div>
     )}
     </div>{/* close flex-row */}
     {/* Shelf-bottom — FX rack below the channel strip */}
     {fxOpen && (
       <div
-        className="flex flex-col gap-1 mx-4 px-4 py-3 border border-fg-08 border-t-0 kol-helper-xs"
-        style={{ borderRadius: '0 0 4px 4px', backgroundColor: '#0e0e11', width: `${320 - 32}px` }}
+        className="flex flex-col mx-2 border border-fg-08 border-t-0 kol-helper-xs-2"
+        style={{ borderRadius: '0 0 4px 4px', backgroundColor: '#0e0e11', height: '124px', overflow: 'hidden', width: `${320 - 16}px`, paddingTop: '4px' }}
       >
         {/* Tab bar */}
-        <div className="flex items-center gap-3 pb-2 mb-1 border-b border-fg-08">
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-fg-08 shrink-0" style={{ backgroundColor: '#0e0e11' }}>
           {['fx', 'blend', 'color', 'res'].map(tab => (
             <span
               key={tab}
@@ -392,6 +612,7 @@ function Channel({
           ))}
         </div>
 
+        <div className="flex flex-col gap-1 px-4 py-3" style={{ overflow: 'auto', flex: '1 1 0', minHeight: 0 }}>
         {fxTab === 'fx' && (
           <>
             {fx.map((fxItem, fi) => {
@@ -510,13 +731,16 @@ function Channel({
 
         {fxTab === 'color' && (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between" style={{ height: '24px' }}>
-              <span className="text-fg-64">Vector Color</span>
-              <ColorPicker color={vectorColor} onChange={onVectorColorChange} />
-            </div>
-            <div className="flex items-center justify-between" style={{ height: '24px' }}>
-              <span className="text-fg-64">Background</span>
-              <ColorPicker color={backgroundColor} onChange={onBackgroundColorChange} />
+            <div className="flex items-center gap-4" style={{ height: '24px' }}>
+              <div className="flex items-center justify-between flex-1">
+                <span className="text-fg-64">Vector</span>
+                <ColorPicker color={vectorColor} onChange={onVectorColorChange} />
+              </div>
+              <Divider variant="vertical" className="px-4" />
+              <div className="flex items-center justify-between flex-1">
+                <span className="text-fg-64">Background</span>
+                <ColorPicker color={backgroundColor} onChange={onBackgroundColorChange} />
+              </div>
             </div>
             <div className="flex items-center justify-between" style={{ height: '24px' }}>
               <span className="text-fg-64">Context Color</span>
@@ -557,6 +781,7 @@ function Channel({
             </div>
           </div>
         )}
+        </div>
       </div>
     )}
     </div>
@@ -582,6 +807,19 @@ export default function SymphonyMixer({
   master = { fx: [], blendMode: 'normal', opacity: 100 },
   onMasterChange,
   globalImageThumb = null,
+  recChannel = null,
+  recState = null,
+  onArmRecording,
+  onDisarmRecording,
+  onSetMark,
+  onSaveRecToSlot,
+  onClearRecorder,
+  onSetActiveRecSlot,
+  onClearActiveRecSlot,
+  onRemoveRecSlot,
+  onAddRecSlot,
+  onUploadRecSlot,
+  onUpdateRecSlotTrim,
 }) {
   const [masterFxOpen, setMasterFxOpen] = useState(false)
   const [fxOpenAll, setFxOpenAll] = useState({ open: false, tick: 0 })
@@ -606,10 +844,11 @@ export default function SymphonyMixer({
           </span>
         ))}
       </div>
-      {mixerTab === 'channels' && (
+      <div style={{ position: 'relative' }}>
+      {/* A Channels — always rendered to hold height */}
       <div
         className={`flex ${layout === 'row' ? 'flex-row' : 'flex-col'} gap-4`}
-        style={{ overflowX: layout === 'row' ? 'auto' : 'visible' }}
+        style={{ overflowX: layout === 'row' ? 'auto' : 'visible', visibility: mixerTab === 'channels' ? 'visible' : 'hidden' }}
       >
         {channels.map((ch, i) => (
           <Channel
@@ -657,6 +896,21 @@ export default function SymphonyMixer({
             loadMode={ch.loadMode || 'effect'}
             onMediaChange={(updates) => onChannelUpdate(i, updates)}
             globalImageThumb={globalImageThumb}
+            recState={recChannel === i ? recState : (ch.recording ? { status: 'done', ...ch.recording } : null)}
+            isRecording={recChannel === i && recState?.status === 'recording'}
+            onArmRecording={(len) => onArmRecording && onArmRecording(i, len)}
+            onDisarmRecording={() => onDisarmRecording && onDisarmRecording(i)}
+            onSetMark={(n, v) => onSetMark && onSetMark(i, n, v)}
+            onSaveRecToSlot={(recData) => onSaveRecToSlot && onSaveRecToSlot(i, recData)}
+            onClearRecorder={() => onClearRecorder && onClearRecorder(i)}
+            onSetActiveRecSlot={(si) => onSetActiveRecSlot && onSetActiveRecSlot(i, si)}
+            onClearActiveRecSlot={() => onClearActiveRecSlot && onClearActiveRecSlot(i)}
+            onRemoveRecSlot={(si) => onRemoveRecSlot && onRemoveRecSlot(i, si)}
+            onAddRecSlot={() => onAddRecSlot && onAddRecSlot(i)}
+            onUploadRecSlot={(si, file) => onUploadRecSlot && onUploadRecSlot(i, si, file)}
+            onUpdateRecSlotTrim={(si, m1, m2) => onUpdateRecSlotTrim && onUpdateRecSlotTrim(i, si, m1, m2)}
+            recSlots={ch.recSlots || []}
+            activeRecSlot={ch.activeRecSlot}
           />
         ))}
 
@@ -672,10 +926,10 @@ export default function SymphonyMixer({
         </div>
 
       </div>
-      )}
 
+      {/* B Output — overlays on top when active */}
       {mixerTab === 'output' && (
-      <div className="flex flex-col gap-6" style={{ maxWidth: '480px' }}>
+      <div className="grid grid-cols-3 gap-4 pr-8" style={{ position: 'absolute', top: 0, left: 0, right: 0, width: '100%' }}>
         {/* Master Output */}
         <div className="flex flex-col gap-2">
           <div className="kol-helper-xs text-fg-48 uppercase">Master Output</div>
@@ -835,6 +1089,7 @@ export default function SymphonyMixer({
         </div>
       </div>
       )}
+      </div>{/* close relative wrapper */}
 
     </div>
   )

@@ -24,9 +24,10 @@ export default function PixiGlitchSliceVariant({
   wrapMode = 'clamp-to-edge',
   imageFitMode = 'contain',
   onParamChange,
+  preserveDrawingBuffer = false,
 }) {
   const canvasRef = useRef(null)
-  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc)
+  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc, { preserveDrawingBuffer })
   const slicesRef = useRef([])
   const outlineRef = useRef(null)
   const grabDragRef = useRef(null)
