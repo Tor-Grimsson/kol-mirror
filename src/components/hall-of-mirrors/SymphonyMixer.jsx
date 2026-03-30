@@ -10,6 +10,9 @@ import ColorPicker from '../atoms/ColorPicker'
 import ChannelWireDiagram from './ChannelWireDiagram'
 import Dropdown from '../molecules/Dropdown'
 import processImageUpload from '../../utils/processImageUpload'
+import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
+
+const DEFAULT_SVG_SRC = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
 
 const CSS_BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity']
 
@@ -94,6 +97,7 @@ function Channel({
   onSelectItem,
   onCloseDropdown,
   loadedName = null,
+  defaultName = null,
   opacity = 100,
   onOpacityChange,
   onEdit,
@@ -119,6 +123,7 @@ function Channel({
   onReset,
   customImageSrc = null,
   customRasterSrc = null,
+  customImageName = null,
   loadMode = 'effect',
   vectorPadding = 0,
   onMediaChange,
@@ -223,13 +228,18 @@ function Channel({
 
   return (
     <div className="flex flex-col shrink-0" style={{ overflow: 'visible' }}>
-      <div className="flex items-center justify-between kol-helper-xs mb-2" style={{ minHeight: '16px', width: '320px' }}>
-        <span className="text-fg-48 truncate">
-          {loadedName || '\u00A0'}
+      <div className="flex items-center justify-between kol-helper-xs mx-2 px-4 py-2 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', width: `${320 - 16}px` }}>
+        <span className={`${enabled ? 'text-fg-96' : 'text-fg-32'} truncate group`}>
+          {loadedName ? (
+            <>
+              <span className="group-hover:hidden">{loadedName.split(':')[0] + ':'}</span>
+              <span className="hidden group-hover:inline">{loadedName.split(':').slice(1).join(':').trim()}</span>
+            </>
+          ) : (defaultName || '\u00A0')}
           {activeRecSlot != null && <span className="text-fg-32 ml-1">[REC]</span>}
         </span>
         {onEdit && loadedName && (
-          <span className="text-fg-32 hover:text-fg-96 cursor-pointer select-none shrink-0" onClick={onEdit}>[EDIT]</span>
+          <span className="flex items-center gap-1 text-fg-96 cursor-pointer select-none shrink-0" onClick={onEdit}>Edit<Icon name="edit" size={12} /></span>
         )}
       </div>
       <div className="flex flex-row items-stretch" style={{ overflow: 'visible' }}>
@@ -351,9 +361,9 @@ function Channel({
     {fxOpen && (
       <div
         className="flex flex-col mx-2 border border-fg-08 border-t-0 kol-helper-xs"
-        style={{ borderRadius: '0 0 4px 4px', backgroundColor: '#0e0e11', height: '124px', overflow: 'hidden', width: `${320 - 16}px`, paddingTop: '4px' }}
+        style={{ borderRadius: '0 0 4px 4px', backgroundColor: 'var(--kol-surface-tertiary)', height: '124px', overflow: 'hidden', width: `${320 - 16}px`, paddingTop: '4px' }}
       >
-        <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 shrink-0" style={{ backgroundColor: '#0e0e11' }}>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 shrink-0" style={{ backgroundColor: 'var(--kol-surface-tertiary)' }}>
           <div className="flex items-center gap-3">
             {['color', 'blend', 'fx'].map(tab => (
               <span
@@ -513,7 +523,7 @@ function Channel({
     {shelfOpen && (
       <div
         className="flex flex-col px-4 pt-3 pb-4 mt-4 shrink-0 border border-fg-08 kol-helper-xs relative"
-        style={{ borderRadius: '0 4px 4px 0', backgroundColor: '#0e0e11', width: `${shelfWidth}px`, marginLeft: '-12px', paddingLeft: '28px' }}
+        style={{ borderRadius: '0 4px 4px 0', backgroundColor: 'var(--kol-surface-tertiary)', width: `${shelfWidth}px`, marginLeft: '-12px', paddingLeft: '28px' }}
       >
         {/* Shelf tab bar */}
         <div className="flex items-center gap-3 pb-2 mb-2 -mx-4 px-4 border-b border-fg-08">
@@ -596,14 +606,23 @@ function Channel({
               <span className="text-fg-96">Normal</span>
               <span className="text-fg-96 cursor-pointer select-none flex items-center gap-1" onClick={() => mediaFileRef.current?.click()}>Upload <Icon name="upload" size={16} /></span>
             </div>
+            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+              <span className="text-fg-96">Default</span>
+              <span className="text-fg-96 cursor-pointer select-none flex items-center gap-1" onClick={() => onMediaChange({ customImageSrc: DEFAULT_SVG_SRC, customRasterSrc: null, customImageName: 'default-canvas.svg' })}>Load <Icon name="refresh" size={16} /></span>
+            </div>
             <Divider className="pt-1 pb-2" />
-            <div className="w-full border border-fg-08 bg-fg-04 flex items-center justify-center overflow-hidden relative group" style={{ aspectRatio: '5/3', borderRadius: '3px' }}>
-              <img src={customImageSrc || globalImageThumb || defaultSvgSrc} alt="Source" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-              {customImageSrc && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => onMediaChange({ customImageSrc: null, customRasterSrc: null })}>
-                  <span className="text-fg-96 kol-helper-xs">[Clear]</span>
-                </div>
-              )}
+            <div className="flex flex-col gap-2">
+              <div className={`w-full border border-fg-08 bg-fg-04 flex items-center justify-center overflow-hidden relative${customImageSrc ? ' group cursor-pointer' : ''}`} style={{ aspectRatio: '5/3', borderRadius: '4px' }} onClick={customImageSrc ? () => onMediaChange({ customImageSrc: null, customRasterSrc: null, customImageName: null }) : undefined}>
+                {customImageSrc && <img src={customImageSrc.startsWith('data:image/svg+xml') ? customImageSrc.replace(/currentColor/g, encodeURIComponent(vectorColor === 'currentColor' ? (document.documentElement.dataset.theme === 'light' ? '#000000' : '#ffffff') : vectorColor)) : customImageSrc} alt="Source" className="transition-opacity group-hover:opacity-30" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />}
+                {customImageSrc && (
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-fg-96 kol-helper-xs">[Clear]</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-end kol-helper-xs-2" style={{ fontSize: '10px' }}>
+                <span className="text-fg-48 truncate">{customImageName || ''}</span>
+              </div>
             </div>
             <Divider className="pt-2 pb-1" />
             <Slider
@@ -633,8 +652,8 @@ function Channel({
                 size="md"
               />
             </div>
-            <input ref={mediaFileRef} type="file" accept="image/*,.svg" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const r = await processImageUpload(file); onMediaChange({ customImageSrc: r.imageSrc, customRasterSrc: r.rasterSrc }) } catch (_) {} e.target.value = '' }} />
-            <input ref={mediaRecolorRef} type="file" accept="image/svg+xml,.svg" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const r = await processImageUpload(file, { recolor: true }); onMediaChange({ customImageSrc: r.imageSrc, customRasterSrc: r.rasterSrc }) } catch (_) {} e.target.value = '' }} />
+            <input ref={mediaFileRef} type="file" accept="image/*,.svg" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const r = await processImageUpload(file); onMediaChange({ customImageSrc: r.imageSrc, customRasterSrc: r.rasterSrc, customImageName: file.name }) } catch (_) {} e.target.value = '' }} />
+            <input ref={mediaRecolorRef} type="file" accept="image/svg+xml,.svg" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const r = await processImageUpload(file, { recolor: true }); onMediaChange({ customImageSrc: r.imageSrc, customRasterSrc: r.rasterSrc, customImageName: file.name }) } catch (_) {} e.target.value = '' }} />
           </div>
         )}
 
@@ -929,6 +948,7 @@ export default function SymphonyMixer({
             onSelectItem={(id) => onSelectVariant(i, id)}
             onCloseDropdown={onCloseDropdown}
             loadedName={ch.name}
+            defaultName={`Channel ${i + 1}`}
             onEdit={() => onEditChannel && onEditChannel(i)}
             onRemove={channels.length > 1 ? () => onRemoveChannel && onRemoveChannel(i) : null}
             opacity={ch.opacity}
@@ -954,6 +974,7 @@ export default function SymphonyMixer({
             onReset={(all) => onResetChannel && onResetChannel(i, all)}
             customImageSrc={ch.customImageSrc || null}
             customRasterSrc={ch.customRasterSrc || null}
+            customImageName={ch.customImageName || null}
             loadMode={ch.loadMode || 'effect'}
             vectorPadding={ch.vectorPadding || 0}
             onMediaChange={(updates) => onChannelUpdate(i, updates)}
@@ -1042,7 +1063,7 @@ export default function SymphonyMixer({
           {masterFxOpen && (
             <div
               className="flex flex-col gap-1 px-3 py-3 border border-fg-08 kol-helper-xs"
-              style={{ borderRadius: '4px', backgroundColor: '#0e0e11' }}
+              style={{ borderRadius: '4px', backgroundColor: 'var(--kol-surface-tertiary)' }}
             >
               {(master.fx || []).map((fxItem, fi) => {
                 const def = CHANNEL_FX_DEFS.find(d => d.id === fxItem.type)

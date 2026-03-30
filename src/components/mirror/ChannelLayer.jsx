@@ -121,6 +121,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   const hasCustomImage = imageSrc && !imageSrc.startsWith('data:image/svg+xml')
   const fxStyle = buildChannelFxStyle(channel.fx)
   const blendStyle = channel.blendMode && channel.blendMode !== 'normal' ? { mixBlendMode: channel.blendMode } : {}
+  const hasBg = channel.backgroundColor && channel.backgroundColor !== 'transparent'
 
   // Frozen recording — render video loop instead of live effect
   const activeSlot = channel.activeRecSlot != null ? channel.recSlots?.[channel.activeRecSlot] : null
@@ -135,10 +136,10 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   // Enabled but no effect — show the source as it was (SVG or uploaded image)
   if (!channel.variantId) {
     const src = hasCustomImage ? imageSrc : defaultSvgSrc
-    if (!src) return null
+    if (!src && !hasBg) return null
     return (
-      <div className="absolute inset-0 flex items-center justify-center" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, backgroundColor: channel.backgroundColor && channel.backgroundColor !== 'transparent' ? channel.backgroundColor : undefined }}>
-        <img
+      <div className="absolute inset-0 flex items-center justify-center" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, backgroundColor: hasBg ? channel.backgroundColor : undefined }}>
+        {src && <img
           src={src}
           alt="Channel source"
           style={{
@@ -151,7 +152,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
             ...(imageFitMode === 'fit-height' ? { height: '100%', width: 'auto' } : {}),
             ...(imageFitMode === 'manual' ? { width: 'auto', height: 'auto' } : {}),
           }}
-        />
+        />}
       </div>
     )
   }
@@ -175,7 +176,14 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     }
   }
   const timeScale = channel.speed / 100
-  if (!effectSrc) return null
+
+  // No image source — just render background if set
+  if (!effectSrc) {
+    if (!hasBg) return null
+    return (
+      <div className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', backgroundColor: channel.backgroundColor, ...fxStyle, ...blendStyle }} />
+    )
+  }
 
   // Displacement — renders MirrorVariant with its own SVG filter
   if (isDisplacementVariant(channel.variantId)) {

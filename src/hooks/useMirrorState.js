@@ -9,7 +9,7 @@ const FIRST_VARIANT = {
 
 const EMPTY_ARCHIVE = Array.from({ length: 9 }, () => null)
 
-export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, loadMode: 'effect', vectorPadding: 0, recSlots: [null, null, null, null], activeRecSlot: null, isArmedForRec: false }
+export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, customImageName: null, loadMode: 'effect', vectorPadding: 0, recSlots: [null, null, null, null], activeRecSlot: null, isArmedForRec: false }
 
 const DEV_SLOT_IDS = [
   'subtle-ripple', 'breathing-scale', 'pixi-slices',

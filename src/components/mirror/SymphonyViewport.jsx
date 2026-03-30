@@ -357,22 +357,17 @@ export default function SymphonyViewport({ state }) {
                   ? { ...ch, variantId: state.archiveSlots[ch.slotIndex].variantId, params: state.getVariantParams(state.archiveSlots[ch.slotIndex].variantId) }
                   : ch
                 const isSlotRef = ch.slotIndex != null
-                const hasCustomMedia = !!ch.customRasterSrc
+                const hasMedia = !!(ch.customImageSrc || ch.customRasterSrc)
                 const tier = ch.rasterTierOverride || getRasterTier(resolvedChannel.variantId, resolvedChannel.params)
-                const rasterForChannel = hasCustomMedia
-                  ? ch.customRasterSrc
-                  : (sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null))
+                const rasterForChannel = hasMedia ? ch.customRasterSrc : null
                 const chVectorColor = ch.vectorColor && ch.vectorColor !== 'currentColor'
                   ? ch.vectorColor
                   : vectorColor
-                const chSvgColored = chVectorColor !== vectorColor
-                  ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg.replace(/currentColor/g, chVectorColor))
-                  : defaultSvgColored
-                const customSvgColored = hasCustomMedia && ch.customImageSrc?.startsWith('data:image/svg+xml')
+                const customSvgColored = hasMedia && ch.customImageSrc?.startsWith('data:image/svg+xml')
                   ? ch.customImageSrc.replace(/currentColor/g, encodeURIComponent(chVectorColor))
                   : ch.customImageSrc
-                const channelImageSrc = hasCustomMedia ? (customSvgColored || ch.customRasterSrc) : (hasCustomImage ? canvasImage : chSvgColored)
-                const channelDefaultSrc = hasCustomMedia ? customSvgColored : (hasCustomImage ? canvasImage : chSvgColored)
+                const channelImageSrc = hasMedia ? (customSvgColored || ch.customRasterSrc) : null
+                const channelDefaultSrc = hasMedia ? customSvgColored : null
                 return (
                 <ChannelLayer
                   key={i}
