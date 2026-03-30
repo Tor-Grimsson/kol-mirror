@@ -138,6 +138,7 @@ export const ICONS = {
     'camera-off',
     'control-pause',
     'control-play',
+    'control-stop',
     'fast-forward',
     'image',
     'mic',

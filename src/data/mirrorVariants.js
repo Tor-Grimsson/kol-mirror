@@ -226,7 +226,7 @@ export function filterControlsByTab(controls, params) {
 
 // Raster tier selection — pick resolution based on visual density
 // Only mid (3x) and high (6x) — never use 1x
-export const RASTER_TIER_SCALES = { mid: 6, high: 12 }
+export const RASTER_TIER_SCALES = { low: 1, mid: 6, high: 12 }
 
 export function getRasterTier(variantId, params) {
   if (!variantId || !params) return 'mid'

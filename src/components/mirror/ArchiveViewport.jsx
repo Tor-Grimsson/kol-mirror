@@ -17,7 +17,7 @@ export default function ArchiveViewport({ state }) {
             <div key={index} className={`flex flex-col gap-4 ${slot ? '' : 'opacity-40'}`}>
               <div className="flex items-center justify-between">
                 <div className="kol-helper-s text-fg-32">
-                  Slot {index + 1}
+                  [M{index + 1}]{slot && (() => { const hall = getHallForVariant(slot.variantId); const v = findVariant(slot.variantId); return hall ? ` ${hall.charAt(0).toUpperCase() + hall.slice(1)}: ${v?.title || slot.variantId} [USR]` : '' })()}
                 </div>
                 {slot ? (
                   <button
@@ -52,22 +52,22 @@ export default function ArchiveViewport({ state }) {
               </div>
 
               {slot ? (
-                <div className="flex items-center justify-between">
-                  <div className="kol-helper-xs text-fg-64 font-mono">
-                    {getHallForVariant(slot.variantId)?.charAt(0).toUpperCase() + getHallForVariant(slot.variantId)?.slice(1)}
-                  </div>
+                <div className="flex items-center justify-end gap-2">
                   <button
                     className="kol-helper-xs text-fg-48 hover:text-fg-96 transition-colors cursor-pointer"
                     onClick={() => state.loadSlotToHall(index)}
                   >
-                    [EDIT]
+                    [LOAD]
+                  </button>
+                  <button
+                    className="kol-helper-xs text-fg-32 hover:text-fg-64 transition-colors cursor-pointer"
+                    onClick={() => state.loadSlotToHall(index)}
+                  >
+                    [RELOAD]
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center justify-between">
-                  <div className="kol-helper-xs text-fg-32 font-mono">&mdash;</div>
-                  <div className="kol-helper-xs text-fg-32 font-mono">&mdash;</div>
-                </div>
+                <div className="kol-helper-xs text-fg-32 text-right">&mdash;</div>
               )}
             </div>
           ))}

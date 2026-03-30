@@ -26,59 +26,72 @@ export default function SymphonyViewport({ state }) {
   const canvasRegistryRef = useRef(new Map())
   const [recChannel, setRecChannel] = useState(null) // which channel index is recording
   const recorder = useChannelRecorder()
+  const recConfigRef = useRef({ loopLength: 20, fps: 30 }) // stable config for arm — survives re-renders
+  const armedChannelRef = useRef(null) // which channel is armed — ref avoids stale closure in polling callbacks
+  const [playheads, setPlayheads] = useState({}) // channelIndex → currentTime
+  const [seekTargets, setSeekTargets] = useState({}) // channelIndex → target time
+  const [renderCosts, setRenderCosts] = useState({}) // channelIndex → cost %
 
   const handleCanvasReady = useCallback((channelIndex, canvasEl) => {
     canvasRegistryRef.current.set(channelIndex, canvasEl)
-    // If this channel is armed, start recording now that canvas is ready
-    if (channels[channelIndex]?.isArmedForRec && recorder.status === 'idle') {
+    // If this channel is armed, set up the recorder in standby
+    if (armedChannelRef.current === channelIndex && recorder.status === 'idle') {
       const ch = channels[channelIndex]
-      const params = ch.params ? { ...ch.params } : {}
-      recorder.arm(canvasEl, recorder.loopLength, params)
+      const params = ch?.params ? { ...ch.params } : {}
+      const { loopLength, fps } = recConfigRef.current
+      recorder.arm(canvasEl, loopLength, params, fps)
       setRecChannel(channelIndex)
     }
   }, [channels, recorder])
 
-  const handleArmRecording = useCallback((idx, loopLength) => {
-    recorder.loopLength = loopLength
+  const handleArmRecording = useCallback((idx, loopLength, fps) => {
+    recConfigRef.current = { loopLength, fps }
+    armedChannelRef.current = idx
     setRecChannel(idx)
     updateChannel(idx, { isArmedForRec: true })
+  }, [])
+
+  const handleStartRecording = useCallback(() => {
+    recorder.start()
+  }, [recorder])
+
+  const handleStopRecording = useCallback(() => {
+    recorder.stop()
   }, [recorder])
 
   const handleDisarmRecording = useCallback((idx) => {
+    armedChannelRef.current = null
     recorder.disarm()
     updateChannel(idx, { isArmedForRec: false })
     setRecChannel(null)
   }, [recorder])
 
-  const handleSetMark = useCallback((idx, markNum, value) => {
-    if (markNum === 1) recorder.setMark1(value)
-    else recorder.setMark2(value)
-  }, [recorder])
-
   // Push recording data into first empty slot — data passed as arg, no closure dependency
   const handleSaveRecToSlot = useCallback((idx, recData) => {
     if (!recData?.blobUrl) return
+    armedChannelRef.current = null // prevent stale polling from re-arming
     setChannels(prev => {
       const next = [...prev]
       const ch = next[idx]
       if (!ch) return prev
       const slots = [...(ch.recSlots || [])]
+      const emptyIdx = slots.findIndex(s => !s)
+      const slotNum = (emptyIdx >= 0 ? emptyIdx : slots.length) + 1
       const canvasEl = canvasRegistryRef.current.get(idx)
       const res = canvasEl ? `${canvasEl.width}x${canvasEl.height}` : '—'
       const newSlot = {
         blobUrl: recData.blobUrl,
-        fileName: `loop-${Date.now()}.webm`,
+        fileName: `rec-${String(slotNum).padStart(2, '0')}.webm`,
         size: recData.blobSize || 0,
         codec: 'webm',
-        fps: 30,
+        fps: recData.fps || 30,
         resolution: res,
         duration: recData.loopLength || 20,
-        mark1: recData.mark1 ?? null,
-        mark2: recData.mark2 ?? null,
+        mark1: null,
+        mark2: null,
         frozenParams: recData.frozenParams || null,
         source: 'recorded',
       }
-      const emptyIdx = slots.findIndex(s => !s)
       if (emptyIdx >= 0) slots[emptyIdx] = newSlot
       else slots.push(newSlot)
       next[idx] = { ...ch, recSlots: slots, isArmedForRec: false }
@@ -146,8 +159,10 @@ export default function SymphonyViewport({ state }) {
     updateChannel(chIdx, { recSlots: slots })
   }, [channels])
 
-  const handleClearRecorder = useCallback(() => {
+  const handleClearRecorder = useCallback((idx) => {
+    armedChannelRef.current = null
     recorder.clear()
+    if (idx != null) updateChannel(idx, { isArmedForRec: false })
     setRecChannel(null)
   }, [recorder])
 
@@ -219,13 +234,15 @@ export default function SymphonyViewport({ state }) {
   ]
 
   const dropdownItems = [
-    ...state.archiveSlots.map((slot, i) => ({
-      id: `slot:${i}`,
-      name: slot ? `Slot ${i + 1}` : `${i + 1} — empty`,
-      empty: !slot,
-      type: 'slot',
-      slotIndex: i,
-    })),
+    ...state.archiveSlots.map((slot, i) => {
+      let name = `${i + 1} — empty`
+      if (slot) {
+        const v = findVariant(slot.variantId)
+        const hall = HALL_PRESETS.find(h => h.variants.some(hv => hv.id === slot.variantId))
+        name = `[M${i + 1}] ${hall?.hall || '?'}: ${v?.title || slot.variantId} [USR]`
+      }
+      return { id: `slot:${i}`, name, empty: !slot, type: 'slot', slotIndex: i }
+    }),
     { id: 'sep', name: '—', empty: true, type: 'separator' },
     ...HALL_PRESETS.flatMap(({ hall, variants }) =>
       variants.map(v => ({
@@ -267,7 +284,6 @@ export default function SymphonyViewport({ state }) {
       const slot = state.archiveSlots[item.slotIndex]
       if (!slot) return
       const baseIntensity = getIntensityDialValue(slot.variantId)
-      // Load slot params into global variantParams so getVariantParams resolves them
       state.setAllVariantParams(slot.variantId, slot.params)
       updateChannel(channel, {
         variantId: slot.variantId,
@@ -276,7 +292,6 @@ export default function SymphonyViewport({ state }) {
         enabled: true,
         intensity: baseIntensity,
         baseIntensity,
-        speed: 100,
         name: item.name,
       })
     } else {
@@ -290,7 +305,6 @@ export default function SymphonyViewport({ state }) {
         enabled: true,
         intensity: presetBase,
         baseIntensity: presetBase,
-        speed: 100,
         name: item.name,
       })
     }
@@ -348,8 +362,17 @@ export default function SymphonyViewport({ state }) {
                 const rasterForChannel = hasCustomMedia
                   ? ch.customRasterSrc
                   : (sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null))
-                const channelImageSrc = hasCustomMedia ? (ch.customImageSrc || ch.customRasterSrc) : svgImageSrc
-                const channelDefaultSrc = hasCustomMedia ? ch.customImageSrc : (hasCustomImage ? canvasImage : defaultSvgColored)
+                const chVectorColor = ch.vectorColor && ch.vectorColor !== 'currentColor'
+                  ? ch.vectorColor
+                  : vectorColor
+                const chSvgColored = chVectorColor !== vectorColor
+                  ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg.replace(/currentColor/g, chVectorColor))
+                  : defaultSvgColored
+                const customSvgColored = hasCustomMedia && ch.customImageSrc?.startsWith('data:image/svg+xml')
+                  ? ch.customImageSrc.replace(/currentColor/g, encodeURIComponent(chVectorColor))
+                  : ch.customImageSrc
+                const channelImageSrc = hasCustomMedia ? (customSvgColored || ch.customRasterSrc) : (hasCustomImage ? canvasImage : chSvgColored)
+                const channelDefaultSrc = hasCustomMedia ? customSvgColored : (hasCustomImage ? canvasImage : chSvgColored)
                 return (
                 <ChannelLayer
                   key={i}
@@ -362,6 +385,9 @@ export default function SymphonyViewport({ state }) {
                   imageFitMode={state.imageFitMode}
                   imageScale={state.imageScale}
                   onCanvasReady={handleCanvasReady}
+                  onPlayheadUpdate={(t) => setPlayheads(prev => prev[i] === t ? prev : { ...prev, [i]: t })}
+                  seekTo={seekTargets[i]}
+                  onRenderCost={(cost) => setRenderCosts(prev => prev[i] === cost ? prev : { ...prev, [i]: cost })}
                   onParamChange={(key, value) => {
                     if (isSlotRef && state.archiveSlots[ch.slotIndex]) {
                       state.setVariantParam(state.archiveSlots[ch.slotIndex].variantId, key, value)
@@ -412,6 +438,14 @@ export default function SymphonyViewport({ state }) {
             const ch = channels[idx]
             if (ch.slotIndex != null) {
               state.loadSlotToHall(ch.slotIndex)
+            } else if (ch.variantId) {
+              const hall = isDisplacementVariant(ch.variantId) ? 'displacement'
+                : isMovementVariant(ch.variantId) ? 'movement'
+                : isPixiVariant(ch.variantId) ? 'copies' : null
+              if (hall) {
+                state.selectHall(hall)
+                state.selectVariant(ch.variantId)
+              }
             }
           }}
           onRemoveChannel={(idx) => {
@@ -435,12 +469,16 @@ export default function SymphonyViewport({ state }) {
               })
             }
           }}
-          globalImageThumb={canvasImage || null}
+          globalImageThumb={canvasImage || defaultSvgColored}
           recChannel={recChannel}
+          playheads={playheads}
+          onSeek={(idx, time) => setSeekTargets(prev => ({ ...prev, [idx]: time }))}
+          renderCosts={renderCosts}
           recState={recorder}
           onArmRecording={handleArmRecording}
+          onStartRecording={handleStartRecording}
+          onStopRecording={handleStopRecording}
           onDisarmRecording={handleDisarmRecording}
-          onSetMark={handleSetMark}
           onSaveRecToSlot={(idx, recData) => handleSaveRecToSlot(idx, recData)}
           onClearRecorder={handleClearRecorder}
           onSetActiveRecSlot={handleSetActiveRecSlot}

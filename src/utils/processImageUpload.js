@@ -6,7 +6,7 @@ const RASTER_SCALE = 4
  * @param {File} file
  * @returns {Promise<{ imageSrc: string, rasterSrc: string, isSvg: boolean }>}
  */
-export default function processImageUpload(file) {
+export default function processImageUpload(file, { recolor = false } = {}) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith('image/')) {
       reject(new Error('Not an image file'))
@@ -18,18 +18,15 @@ export default function processImageUpload(file) {
     if (isSvg) {
       const reader = new FileReader()
       reader.onload = (event) => {
-        const svgText = event.target.result
+        const rawText = event.target.result
+        const svgText = recolor
+          ? rawText.replace(/fill="(?!none)[^"]*"/gi, 'fill="currentColor"')
+          : rawText
         const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' })
         const svgUrl = URL.createObjectURL(blob)
 
         // Read as data URL for storage
-        const svgReader = new FileReader()
-        let imageSrc = null
-
-        svgReader.onload = (ev) => {
-          imageSrc = ev.target.result
-        }
-        svgReader.readAsDataURL(file)
+        const imageSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText)
 
         // Rasterize
         const img = new Image()

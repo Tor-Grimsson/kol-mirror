@@ -60,7 +60,7 @@ const MirrorVariant = ({
 
   if (fullBleed) {
     return (
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden" data-filter-id={filterId}>
         <svg style={{ position: 'absolute', width: 0, height: 0 }}>
           <filter id={filterId} ref={filterRef}>
             <feTurbulence

@@ -14,14 +14,13 @@ function getSupportedMime() {
 }
 
 export default function useChannelRecorder() {
-  const [status, setStatus] = useState('idle') // 'idle' | 'recording' | 'done'
+  const [status, setStatus] = useState('idle') // 'idle' | 'armed' | 'recording' | 'done'
   const [elapsed, setElapsed] = useState(0)
-  const [mark1, setMark1State] = useState(null)
-  const [mark2, setMark2State] = useState(null)
   const [blobUrl, setBlobUrl] = useState(null)
   const [blobSize, setBlobSize] = useState(0)
   const [frozenParams, setFrozenParams] = useState(null)
   const [loopLength, setLoopLength] = useState(20)
+  const [fps, setFpsState] = useState(30)
 
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -29,38 +28,44 @@ export default function useChannelRecorder() {
   const stopTimeoutRef = useRef(null)
   const startTimeRef = useRef(0)
   const blobUrlRef = useRef(null)
+  const mimeRef = useRef('video/webm')
 
-  const cleanup = useCallback(() => {
+  const cleanupTimers = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
     if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null }
+  }, [])
+
+  const cleanupAll = useCallback(() => {
+    cleanupTimers()
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       try { recorderRef.current.stop() } catch (_) {}
     }
     recorderRef.current = null
     chunksRef.current = []
-  }, [])
+  }, [cleanupTimers])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      cleanup()
+      cleanupAll()
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
     }
-  }, [cleanup])
+  }, [cleanupAll])
 
-  const arm = useCallback((canvasEl, duration, currentParams) => {
-    cleanup()
+  // Arm — standby: sets up stream + MediaRecorder but does not start capture
+  const arm = useCallback((canvasEl, duration, currentParams, capturesFps = 30) => {
+    cleanupAll()
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null }
 
     setFrozenParams({ ...currentParams })
     setLoopLength(duration)
-    setMark1State(null)
-    setMark2State(null)
+    setFpsState(capturesFps)
     setBlobUrl(null)
+    setBlobSize(0)
     setElapsed(0)
 
-    const stream = canvasEl.captureStream(30)
+    const stream = canvasEl.captureStream(capturesFps)
     const mime = getSupportedMime()
+    mimeRef.current = mime
     const recorder = new MediaRecorder(stream, { mimeType: mime })
     recorderRef.current = recorder
     chunksRef.current = []
@@ -70,72 +75,63 @@ export default function useChannelRecorder() {
     }
 
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: mime })
+      const blob = new Blob(chunksRef.current, { type: mimeRef.current })
       const url = URL.createObjectURL(blob)
       blobUrlRef.current = url
       setBlobUrl(url)
       setBlobSize(blob.size)
       setStatus('done')
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+      cleanupTimers()
     }
 
-    recorder.start(100) // collect data every 100ms
+    setStatus('armed')
+  }, [cleanupAll, cleanupTimers])
+
+  // Start — begin recording from armed state
+  const start = useCallback((duration) => {
+    if (!recorderRef.current || recorderRef.current.state !== 'inactive') return
+
+    const dur = duration ?? loopLength
+    recorderRef.current.start(100)
     startTimeRef.current = performance.now()
+    setElapsed(0)
     setStatus('recording')
 
-    // Elapsed timer
     timerRef.current = setInterval(() => {
       setElapsed((performance.now() - startTimeRef.current) / 1000)
     }, 100)
 
-    // Auto-stop
     stopTimeoutRef.current = setTimeout(() => {
       if (recorderRef.current && recorderRef.current.state !== 'inactive') {
         recorderRef.current.stop()
       }
-    }, duration * 1000)
-  }, [cleanup])
+    }, dur * 1000)
+  }, [loopLength])
 
+  // Stop — finalize recording early (triggers onstop → 'done')
+  const stop = useCallback(() => {
+    cleanupTimers()
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop()
+    }
+  }, [cleanupTimers])
+
+  // Disarm — cancel everything, back to idle
   const disarm = useCallback(() => {
-    cleanup()
+    cleanupAll()
     setStatus('idle')
     setElapsed(0)
-    setMark1State(null)
-    setMark2State(null)
     setFrozenParams(null)
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null }
     setBlobUrl(null)
-  }, [cleanup])
+    setBlobSize(0)
+  }, [cleanupAll])
 
-  const setMark1 = useCallback((value) => {
-    if (typeof value === 'number') {
-      setMark1State(value)
-    } else if (status === 'recording') {
-      setMark1State((performance.now() - startTimeRef.current) / 1000)
-    }
-  }, [status])
-
-  const setMark2 = useCallback((value) => {
-    if (typeof value === 'number') {
-      setMark2State(value)
-    } else if (status === 'recording') {
-      setMark2State((performance.now() - startTimeRef.current) / 1000)
-    }
-  }, [status])
-
-  const clear = useCallback(() => {
-    cleanup()
-    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null }
-    setBlobUrl(null)
-    setStatus('idle')
-    setElapsed(0)
-    setMark1State(null)
-    setMark2State(null)
-    setFrozenParams(null)
-  }, [cleanup])
+  // Clear — same as disarm (alias for post-save cleanup)
+  const clear = disarm
 
   return {
-    status, elapsed, mark1, mark2, blobUrl, blobSize, frozenParams, loopLength,
-    arm, disarm, setMark1, setMark2, clear,
+    status, elapsed, blobUrl, blobSize, frozenParams, loopLength, fps,
+    arm, start, stop, disarm, clear,
   }
 }

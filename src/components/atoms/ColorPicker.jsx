@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { RgbaColorPicker } from 'react-colorful'
 
 function hexToRgba(hex) {
@@ -56,12 +57,12 @@ export default function ColorPicker({ color, onChange, className = '' }) {
   const resolvedHex = useMemo(() => {
     if (isNone) return '#000000'
     if (color && color.startsWith('#')) return color
-    if (color === 'currentColor') return theme === 'dark' ? '#ffffff' : '#000000'
+    if (color === 'currentColor') return theme !== 'light' ? '#ffffff' : '#000000'
     if (swatchRef.current) {
       const computed = getComputedStyle(swatchRef.current)
       return rgbStringToHex(computed.color)
     }
-    return theme === 'dark' ? '#ffffff' : '#000000'
+    return theme !== 'light' ? '#ffffff' : '#000000'
   }, [color, open, isNone, theme])
 
   const rgbaColor = useMemo(() => hexToRgba(resolvedHex), [resolvedHex])
@@ -112,16 +113,15 @@ export default function ColorPicker({ color, onChange, className = '' }) {
           }} />
         )}
       </div>
-      {open && (
+      {open && createPortal(
         <div
           ref={popoverRef}
           style={{
-            position: 'absolute',
-            right: 0,
+            position: 'fixed',
             ...(openDirection === 'down'
-              ? { top: '100%', marginTop: '4px' }
-              : { bottom: '100%', marginBottom: '4px' }),
-            zIndex: 'var(--kol-z-tooltip)',
+              ? { top: (swatchRef.current?.getBoundingClientRect().bottom ?? 0) + 4, right: window.innerWidth - (swatchRef.current?.getBoundingClientRect().right ?? 0) }
+              : { bottom: window.innerHeight - (swatchRef.current?.getBoundingClientRect().top ?? 0) + 4, right: window.innerWidth - (swatchRef.current?.getBoundingClientRect().right ?? 0) }),
+            zIndex: 9999,
           }}
         >
           <style>{`
@@ -154,7 +154,8 @@ export default function ColorPicker({ color, onChange, className = '' }) {
               }}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

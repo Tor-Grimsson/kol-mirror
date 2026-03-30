@@ -24,9 +24,11 @@ export default function PixiMorphVariant({
   imageFitMode = 'contain',
   onParamChange,
   preserveDrawingBuffer = false,
+  onRenderCost,
 }) {
   const canvasRef = useRef(null)
-  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc, { preserveDrawingBuffer })
+  const { appRef, textureRef, size, textureVersion, renderCost } = usePixiApp(canvasRef, imageSrc, { preserveDrawingBuffer })
+  useEffect(() => { if (onRenderCost) onRenderCost(renderCost) }, [renderCost])
   const tilingRef = useRef(null)
   const outlineRef = useRef(null)
   const grabDragRef = useRef(null)
@@ -128,7 +130,7 @@ export default function PixiMorphVariant({
     app.ticker.add(tickerFn)
 
     return () => { app.ticker?.remove(tickerFn) }
-  }, [size.width, size.height, wrapMode, imageFitMode, grab, imageOffsetX, imageOffsetY])
+  }, [size.width, size.height, wrapMode, imageFitMode, grab, imageOffsetX, imageOffsetY, textureVersion])
 
   useEffect(() => {
     if (tilingRef.current && !animateRef.current) {

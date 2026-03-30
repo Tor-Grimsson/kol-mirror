@@ -313,9 +313,11 @@ export default function PixiKaleidoscopeVariant({
   fillMode = 'none',
   onParamChange,
   preserveDrawingBuffer = false,
+  onRenderCost,
 }) {
   const canvasRef = useRef(null)
-  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc, { preserveDrawingBuffer })
+  const { appRef, textureRef, size, textureVersion, renderCost } = usePixiApp(canvasRef, imageSrc, { preserveDrawingBuffer })
+  useEffect(() => { if (onRenderCost) onRenderCost(renderCost) }, [renderCost])
   const containerRef = useRef(null)
   const outlineRef = useRef(null)
   const grabDragRef = useRef(null)
@@ -415,7 +417,7 @@ export default function PixiKaleidoscopeVariant({
     app.ticker.add(tickerFn)
 
     return () => { app.ticker?.remove(tickerFn) }
-  }, [size.width, size.height, segments, zoom, mirrorMode, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, edgeZoomScale, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, mainEnabled, blendMode, showBackground, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgMirrorMode, bgBlendMode, bgEdgeZoomScale, bgWrapMode, bgFillMode])
+  }, [size.width, size.height, segments, zoom, mirrorMode, sourceOffsetX, sourceOffsetY, cutOffset, segmentGap, evenOffset, edgeZoomScale, wrapMode, fillMode, wedgeOffsetX, wedgeOffsetY, grabSegment, mainEnabled, blendMode, showBackground, bgSegments, bgZoom, bgSourceOffsetX, bgSourceOffsetY, bgCutOffset, bgSegmentGap, bgEvenOffset, bgMirrorMode, bgBlendMode, bgEdgeZoomScale, bgWrapMode, bgFillMode, textureVersion])
 
   return (
     <VariantFrame

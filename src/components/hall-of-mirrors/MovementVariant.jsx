@@ -12,7 +12,8 @@ const MovementVariant = ({
   type = 'scale',
   transformOrigin = 'center center',
   timeScale = 1,
-  className = ''
+  className = '',
+  externalImgRef,
 }) => {
   const imgRef = useRef(null)
   const timelineRef = useRef(null)
@@ -75,7 +76,7 @@ const MovementVariant = ({
   return (
     <div className={`absolute inset-0 overflow-hidden ${className}`}>
       <img
-        ref={imgRef}
+        ref={(el) => { imgRef.current = el; if (externalImgRef) externalImgRef.current = el }}
         src={imageSrc}
         alt={title}
         className="w-full h-full object-cover"

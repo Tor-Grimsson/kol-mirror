@@ -10,6 +10,7 @@ const Dropdown = ({
   options = [],
   value,
   onChange,
+  onOptionHover,
   size,
   variant = 'default',
   className = '',
@@ -59,7 +60,7 @@ const Dropdown = ({
       if (typeof window === 'undefined') return
 
       if (variant === 'minimal') {
-        setDropdownWidth(window.innerWidth >= 768 ? '140px' : '100px')
+        setDropdownWidth('96px')
       } else if (variant === 'default') {
         if (window.innerWidth >= 1024) {
           setDropdownWidth('180px')
@@ -288,11 +289,13 @@ const Dropdown = ({
                   aria-selected={isActive}
                   onMouseEnter={(event) => {
                     event.currentTarget.style.opacity = '1'
+                    if (onOptionHover) onOptionHover(option.value)
                   }}
                   onMouseLeave={(event) => {
                     if (!isActive) {
                       event.currentTarget.style.opacity = '0.4'
                     }
+                    if (onOptionHover) onOptionHover(null)
                   }}
                 >
                   {isActive && (

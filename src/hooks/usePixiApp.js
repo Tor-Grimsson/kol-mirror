@@ -16,6 +16,10 @@ export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x1a
   const containerRef = useRef(null)
   const textureRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
+  const [textureVersion, setTextureVersion] = useState(0)
+  const [renderCost, setRenderCost] = useState(0) // percentage of 16.6ms frame budget
+  const frameTimesRef = useRef([])
+  const costTickerRef = useRef(null)
 
   // Init Pixi app + ResizeObserver
   useEffect(() => {
@@ -23,6 +27,7 @@ export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x1a
 
     let destroyed = false
     let observer = null
+    let costInterval = null
 
     const init = async () => {
       try {
@@ -60,6 +65,28 @@ export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x1a
 
         if (!destroyed) setSize({ width, height })
 
+        // Measure render cost per frame
+        const measureFn = () => {
+          const t0 = performance.now()
+          app.renderer.render(app.stage)
+          const dt = performance.now() - t0
+          const times = frameTimesRef.current
+          times.push(dt)
+          if (times.length > 30) times.shift()
+        }
+        measureFn._priority = -1000 // run after all other ticker callbacks
+        app.ticker.add(measureFn)
+        costTickerRef.current = measureFn
+
+        // Update cost display every 500ms
+        costInterval = setInterval(() => {
+          const times = frameTimesRef.current
+          if (times.length === 0) return
+          const avg = times.reduce((a, b) => a + b, 0) / times.length
+          const pct = Math.round((avg / 16.67) * 100)
+          setRenderCost(prev => prev === pct ? prev : pct)
+        }, 500)
+
         // Observe parent for resize
         observer = new ResizeObserver(() => {
           if (!appRef.current || destroyed) return
@@ -81,13 +108,16 @@ export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x1a
     return () => {
       destroyed = true
       clearTimeout(timer)
+      if (costInterval) clearInterval(costInterval)
       if (observer) observer.disconnect()
       if (appRef.current) {
+        if (costTickerRef.current) appRef.current.ticker.remove(costTickerRef.current)
         appRef.current.destroy(true, { children: true, texture: true, baseTexture: true })
         appRef.current = null
         containerRef.current = null
         textureRef.current = null
       }
+      frameTimesRef.current = []
     }
   }, [])
 
@@ -98,7 +128,7 @@ export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x1a
     ;(async () => {
       try {
         const texture = await Assets.load(imageSrc)
-        if (!cancelled) textureRef.current = texture
+        if (!cancelled) { textureRef.current = texture; setTextureVersion(v => v + 1) }
       } catch (error) {
         console.error('usePixiApp texture reload error:', error)
       }
@@ -106,7 +136,7 @@ export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x1a
     return () => { cancelled = true }
   }, [imageSrc])
 
-  return { appRef, containerRef, textureRef, size }
+  return { appRef, containerRef, textureRef, size, textureVersion, renderCost }
 }
 
 /**

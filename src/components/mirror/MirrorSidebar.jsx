@@ -178,7 +178,7 @@ export default function MirrorSidebar({ state, onClose }) {
                     }
                   }}
                 >
-                  [{state.devPresetsLoaded ? 'reload' : 'load'}]
+                  [{state.devPresetsLoaded ? 'RELOAD' : 'LOAD'}]
                 </span>
               )}
             </div>

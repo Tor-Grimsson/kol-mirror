@@ -25,9 +25,11 @@ export default function PixiGlitchSliceVariant({
   imageFitMode = 'contain',
   onParamChange,
   preserveDrawingBuffer = false,
+  onRenderCost,
 }) {
   const canvasRef = useRef(null)
-  const { appRef, textureRef, size } = usePixiApp(canvasRef, imageSrc, { preserveDrawingBuffer })
+  const { appRef, textureRef, size, textureVersion, renderCost } = usePixiApp(canvasRef, imageSrc, { preserveDrawingBuffer })
+  useEffect(() => { if (onRenderCost) onRenderCost(renderCost) }, [renderCost])
   const slicesRef = useRef([])
   const outlineRef = useRef(null)
   const grabDragRef = useRef(null)
@@ -160,7 +162,7 @@ export default function PixiGlitchSliceVariant({
     app.ticker.add(tickerFn)
 
     return () => { app.ticker?.remove(tickerFn) }
-  }, [size.width, size.height, sliceCount, maxOffset, direction, wrapMode, imageFitMode, grab, imageOffsetX, imageOffsetY])
+  }, [size.width, size.height, sliceCount, maxOffset, direction, wrapMode, imageFitMode, grab, imageOffsetX, imageOffsetY, textureVersion])
 
   return (
     <VariantFrame

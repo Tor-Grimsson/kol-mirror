@@ -58,8 +58,8 @@ export default function ChannelWireDiagram({ channels = [], master }) {
   const maxFx = Math.max(...activeChannels.map(ch => (ch.fx || []).length), 0)
   const masterFxItems = master?.fx || []
   const fxStartX = 24
-  const defaultMstX = fxStartX + (maxFx > 0 ? maxFx * (NODE_W + 6) : 0) + 54
-  const defaultOutX = defaultMstX + MASTER_W + (masterFxItems.length > 0 ? masterFxItems.length * (NODE_W + 6) + 20 : 16)
+  const defaultMstX = Math.max(fxStartX + (maxFx > 0 ? maxFx * (NODE_W + 6) : 0) + 54, 300)
+  const defaultOutX = Math.max(defaultMstX + MASTER_W + (masterFxItems.length > 0 ? masterFxItems.length * (NODE_W + 6) + 20 : 16), 600)
 
   return (
     <DiagramCanvas

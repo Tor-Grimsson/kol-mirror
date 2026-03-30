@@ -10,7 +10,7 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
   const activeTab = getActiveTab(controls, params)
 
   return (
-    <div className="flex flex-col" style={{ gap: '4px' }}>
+    <div className="flex flex-col gap-2">
       {controls.map((ctrl, idx) => {
         if (ctrl.tab && activeTab && ctrl.tab !== activeTab) return null
         const isFrozen = disabledKeys && ctrl.key && disabledKeys.includes(ctrl.key)
