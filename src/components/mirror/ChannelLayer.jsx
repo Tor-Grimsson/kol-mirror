@@ -176,6 +176,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     }
   }
   const timeScale = channel.speed / 100
+  const channelAnimate = scaledParams.animate ?? isAnimating
 
   // No image source — just render background if set
   if (!effectSrc) {
@@ -188,7 +189,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   // Displacement — renders MirrorVariant with its own SVG filter
   if (isDisplacementVariant(channel.variantId)) {
     return (
-      <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
+      <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, ...(hasBg ? { backgroundColor: channel.backgroundColor } : {}) }}>
         <MirrorVariant
           title={`${channel.variantId}-ch-${channelIndex}`}
           baseFrequency={scaledParams.baseFrequency}
@@ -198,7 +199,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
           turbulenceType={scaledParams.turbulenceType}
           xChannelSelector={scaledParams.xChannelSelector}
           yChannelSelector={scaledParams.yChannelSelector}
-          animate={isAnimating}
+          animate={channelAnimate}
           speed={scaledParams.speed}
           timeScale={timeScale}
           isEnabled={true}
@@ -221,11 +222,11 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   // Movement — renders MovementVariant with GSAP transforms
   if (isMovementVariant(channel.variantId)) {
     return (
-      <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
+      <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, ...(hasBg ? { backgroundColor: channel.backgroundColor } : {}) }}>
         <MovementVariant
           title={`${channel.variantId}-ch-${channelIndex}`}
           imageSrc={effectSrc}
-          isEnabled={isAnimating}
+          isEnabled={channelAnimate}
           speed={scaledParams.speed}
           amount={scaledParams.amount}
           easing={scaledParams.easing}
@@ -261,6 +262,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
 
     return (
       <div ref={pixiWrapperRef} className="absolute inset-0 pixi-fullbleed" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
+        {hasBg && <div className="absolute inset-0" style={{ backgroundColor: channel.backgroundColor }} />}
         <Component
           key={`${channel.variantId}-ch-${channelIndex}-${channel.isArmedForRec ? 'rec' : 'live'}`}
           title={`${channel.variantId}-ch-${channelIndex}`}
@@ -275,8 +277,8 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
           imageFitMode={imageFitMode}
           speed={effectiveSpeed}
           bgSpeed={effectiveBgSpeed}
-          animate={isAnimating}
-          bgAnimate={isAnimating}
+          animate={channelAnimate}
+          bgAnimate={channelAnimate}
           preserveDrawingBuffer={!!channel.isArmedForRec}
           onRenderCost={onRenderCost}
         />

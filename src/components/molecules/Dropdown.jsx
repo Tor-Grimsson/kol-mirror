@@ -15,6 +15,9 @@ const Dropdown = ({
   variant = 'default',
   className = '',
   rowHeight,
+  keepOpen = false,
+  renderOption,
+  placeholder,
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
@@ -161,10 +164,10 @@ const Dropdown = ({
 
   const handleSelect = (option) => {
     onChange?.(option.value)
-    setIsOpen(false)
+    if (!keepOpen) setIsOpen(false)
   }
 
-  const currentOption = options.find((opt) => opt.value === value) || options[0]
+  const currentOption = options.find((opt) => opt.value === value) || (placeholder ? { label: placeholder, value: '' } : options[0])
 
   const panelBorderRadius = variant === 'minimal'
     ? '4px'
@@ -298,21 +301,7 @@ const Dropdown = ({
                     if (onOptionHover) onOptionHover(null)
                   }}
                 >
-                  {isActive && (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        left: '4px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: '4px',
-                        height: '4px',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--kol-surface-on-primary)'
-                      }}
-                    />
-                  )}
-                  <span>{option.label}</span>
+                  {renderOption ? renderOption(option, isActive) : option.label}
                 </button>
               )
             })}

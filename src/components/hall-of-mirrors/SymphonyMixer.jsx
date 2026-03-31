@@ -14,7 +14,43 @@ import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
 
 const DEFAULT_SVG_SRC = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
 
-const CSS_BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity']
+export const CSS_BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity']
+
+const VECTOR_SHAPES = [
+  { value: 'shape-01', label: 'S-01' },
+  { value: 'shape-01-1', label: 'S-01.1' },
+  { value: 'shape-01-2', label: 'S-01.2' },
+  { value: 'shape-01-3', label: 'S-01.3' },
+  { value: 'shape-01-4', label: 'S-01.4' },
+  { value: 'shape-01-5', label: 'S-01.5' },
+]
+const VECTOR_FORMS = [
+  { value: 'form-01', label: 'F-01' },
+  { value: 'form-02', label: 'F-02' },
+  { value: 'form-03', label: 'F-03' },
+  { value: 'form-04', label: 'F-04' },
+  { value: 'form-05', label: 'F-05' },
+  { value: 'form-06', label: 'F-06' },
+  { value: 'form-07', label: 'F-07' },
+  { value: 'form-08', label: 'F-08' },
+  { value: 'form-09', label: 'F-09' },
+  { value: 'form-10', label: 'F-10' },
+  { value: 'form-11', label: 'F-11' },
+  { value: 'form-12', label: 'F-12' },
+  { value: 'form-13', label: 'F-13' },
+]
+const VECTOR_LOGOS = [
+  { value: 'shape-00', label: 'L-01' },
+]
+export const ALL_VECTORS = [...VECTOR_SHAPES, ...VECTOR_FORMS, ...VECTOR_LOGOS]
+
+export async function loadVectorSvg(name, onMediaChange) {
+  const res = await fetch(`/kol-vector/${name}.svg`)
+  const raw = await res.text()
+  const recolored = raw.replace(/fill="(?!none)[^"]*"/gi, 'fill="currentColor"')
+  const src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(recolored)
+  onMediaChange({ customImageSrc: src, customRasterSrc: null, customImageName: `${name}.svg` })
+}
 
 function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
   const btnRef = useRef(null)
@@ -121,6 +157,10 @@ function Channel({
   onFxToggleAll,
   fxOpenAllTick,
   onReset,
+  onReloaded,
+  channelCount = 3,
+  channelEnabled = [],
+  onToggleChannel,
   customImageSrc = null,
   customRasterSrc = null,
   customImageName = null,
@@ -174,11 +214,37 @@ function Channel({
     return () => window.removeEventListener('keydown', onKey)
   }, [activeRecSlot, recSlots, onUpdateRecSlotTrim])
 
+  // Helper: read an FX param value from the fx array
+  const getFxValue = (fxId, paramKey) => {
+    const item = fx.find(f => f.type === fxId)
+    if (!item) {
+      const def = CHANNEL_FX_DEFS.find(d => d.id === fxId)
+      return def?.params[paramKey]?.default ?? 0
+    }
+    return item.params[paramKey] ?? 0
+  }
+  // Helper: set an FX param, creating the FX entry if needed
+  const setFxValue = (fxId, paramKey, val) => {
+    const idx = fx.findIndex(f => f.type === fxId)
+    if (idx >= 0) {
+      const next = [...fx]
+      next[idx] = { ...next[idx], params: { ...next[idx].params, [paramKey]: val } }
+      onFxChange(next)
+    } else {
+      const defaults = getDefaultFxParams(fxId)
+      onFxChange([...fx, { type: fxId, enabled: true, params: { ...defaults, [paramKey]: val } }])
+    }
+  }
+
   const blendPreviewRef = useRef(null)
   const [showRemove, setShowRemove] = useState(false)
   const [shelfOpen, setShelfOpen] = useState(false)
   const [shelfPage, setShelfPage] = useState(0)
-  const [shelfTab, setShelfTab] = useState('params') // 'params' | 'res' | 'rec' | 'src'
+  const [shelfTab, setShelfTab] = useState('params') // 'src' | 'res' | 'load' | 'params' | 'rec'
+  const [randomized, setRandomized] = useState(() => {
+    const rdm = () => `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}`
+    return { color: rdm(), blend: rdm(), blur: rdm(), brightness: rdm(), vector: rdm(), scale: rdm() }
+  })
   const [recLoopLength, setRecLoopLength] = useState(10)
   const [recFps, setRecFps] = useState(60)
   const [recRealTime, setRecRealTime] = useState(true)
@@ -227,7 +293,8 @@ function Channel({
   }, [])
 
   return (
-    <div className="flex flex-col shrink-0" style={{ overflow: 'visible' }}>
+    <div className="flex flex-row items-stretch shrink-0" style={{ overflow: 'visible' }}>
+      <div className="flex flex-col shrink-0">
       <div className="flex items-center justify-between kol-helper-xs mx-2 px-4 py-2 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', width: `${320 - 16}px` }}>
         <span className={`${enabled ? 'text-fg-96' : 'text-fg-32'} truncate group`}>
           {loadedName ? (
@@ -242,22 +309,19 @@ function Channel({
           <span className="flex items-center gap-1 text-fg-96 cursor-pointer select-none shrink-0" onClick={onEdit}>Edit<Icon name="edit" size={12} /></span>
         )}
       </div>
-      <div className="flex flex-row items-stretch" style={{ overflow: 'visible' }}>
-      <div className="flex flex-col shrink-0">
       <div
-        className="flex flex-col items-center gap-6 p-4 bg-surface-secondary border border-fg-08 relative"
+        className="flex flex-col items-center gap-4 p-4 bg-surface-secondary border border-fg-08 relative"
         style={{
           borderRadius: '4px',
           overflow: 'visible',
           width: '320px',
-          minHeight: '264px',
           zIndex: 1,
         }}
       >
-      <div className="w-full flex items-start justify-between">
-        <div className="flex flex-col items-center gap-4">
+      <div className="w-full flex items-stretch gap-4">
+        <div className="flex flex-col flex-1 gap-2">
           <div
-            className="cursor-pointer select-none flex items-center justify-center relative"
+            className="cursor-pointer select-none flex items-center justify-center relative self-start"
             onClick={() => { setShowRemove(false); onEnabledChange(!enabled) }}
             onContextMenu={(e) => { e.preventDefault(); setShowRemove(!showRemove) }}
             title={enabled ? 'ON' : 'OFF'}
@@ -274,56 +338,38 @@ function Channel({
                 </div>
               </>
             )}
-            <div
-              className="w-6 h-6 rounded-full border-2 border-fg-48 flex items-center justify-center"
-            >
-              <div
-                className={`w-3 h-3 rounded-full transition-all ${
-                  enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'
-                }`}
-              />
+            <div className="w-6 h-6 rounded-full border-2 border-fg-48 flex items-center justify-center">
+              <div className={`w-3 h-3 rounded-full transition-all ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
             </div>
+          </div>
+          <div className="grid grid-cols-3 gap-x-2 gap-y-1 flex-1 w-full">
+            <RotaryDial label="INT" value={value} onChange={onChange} size={36} compact />
+            <RotaryDial label="HUE" value={Math.round(getFxValue('hue-rotate', 'angle') / 360 * 100)} onChange={(v) => setFxValue('hue-rotate', 'angle', Math.round(v / 100 * 360))} size={36} compact />
+            <RotaryDial label="SAT" value={Math.round(getFxValue('saturate', 'amount') / 3 * 100)} onChange={(v) => setFxValue('saturate', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+            <RotaryDial label="BRT" value={Math.round(getFxValue('brightness', 'amount') / 3 * 100)} onChange={(v) => setFxValue('brightness', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+            <RotaryDial label="CTR" value={Math.round(getFxValue('contrast', 'amount') / 3 * 100)} onChange={(v) => setFxValue('contrast', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+            <RotaryDial label="BLR" value={Math.round(getFxValue('blur', 'amount') / 20 * 100)} onChange={(v) => setFxValue('blur', 'amount', Math.round(v / 100 * 20 * 10) / 10)} size={36} compact />
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <LoadButton
-            isOpen={isDropdownOpen}
-            onToggle={onLoadFromNine}
-            onClose={onCloseDropdown}
-            items={items}
-            onSelect={onSelectItem}
-          />
-          <div
-            className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
-            style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-            onClick={() => setShelfOpen(!shelfOpen)}
-            title="Parameters"
-          >
-            <Icon name="frequency" size={16} />
-          </div>
-          <div
-            className="cursor-pointer select-none flex items-center justify-center border border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow transition-all"
-            style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-            onClick={(e) => {
-              if (e.altKey && onFxToggleAll) {
-                onFxToggleAll(!fxOpen)
-              }
-              setFxOpen(!fxOpen)
-            }}
-            title="Effects (Alt+click: toggle all)"
-          >
-            <Icon name="atomic-molecule" size={16} />
-          </div>
+          {[
+            { key: 'src', icon: 'library', title: 'Source' },
+            { key: 'res', icon: 'foundation', title: 'Resolution' },
+            { key: 'load', icon: 'save', title: 'Load' },
+            { key: 'params', icon: 'frequency', title: 'Parameters', iconSize: 18 },
+            { key: 'rec', icon: 'video', title: 'Record' },
+          ].map(btn => (
+            <div
+              key={btn.key}
+              className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+              style={{ borderRadius: '4px', width: '28px', height: '28px' }}
+              onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
+              title={btn.title}
+            >
+              <Icon name={btn.icon} size={btn.iconSize || 16} />
+            </div>
+          ))}
         </div>
-      </div>
-
-      <div className="flex items-center justify-center" style={{ marginTop: '-32px' }}>
-        <RotaryDial
-          label=""
-          value={value}
-          onChange={onChange}
-          size={120}
-        />
       </div>
 
       <div className="w-full flex flex-col" style={{ gap: '4px' }}>
@@ -522,16 +568,17 @@ function Channel({
     {/* Shelf — expands to the right */}
     {shelfOpen && (
       <div
-        className="flex flex-col px-4 pt-3 pb-4 mt-4 shrink-0 border border-fg-08 kol-helper-xs relative"
+        className="flex flex-col px-4 pt-3 pb-4 border border-fg-08 kol-helper-xs relative self-stretch"
         style={{ borderRadius: '0 4px 4px 0', backgroundColor: 'var(--kol-surface-tertiary)', width: `${shelfWidth}px`, marginLeft: '-12px', paddingLeft: '28px' }}
       >
         {/* Shelf tab bar */}
         <div className="flex items-center gap-3 pb-2 mb-2 -mx-4 px-4 border-b border-fg-08">
           {[
-            { key: 'params', label: 'PARAMS' },
-            { key: 'res', label: 'RES' },
-            { key: 'rec', label: 'REC' },
             { key: 'src', label: 'SRC' },
+            { key: 'res', label: 'RES' },
+            { key: 'load', label: 'LOAD' },
+            { key: 'params', label: 'PARAMS' },
+            { key: 'rec', label: 'REC' },
           ].map(tab => (
             <span
               key={tab.key}
@@ -544,6 +591,172 @@ function Channel({
             </span>
           ))}
         </div>
+        <div style={{ overflow: 'auto', flex: '1 1 0', minHeight: 0, scrollbarWidth: 'none' }}>
+
+        {shelfTab === 'load' && (() => {
+          const memoryItems = items?.filter(i => i.type === 'slot' && !i.empty) || []
+          const dispItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Displacement')) || []
+          const moveItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Movement')) || []
+          const copyItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Copies')) || []
+          const loadGroups = [
+            { key: 'memory', label: 'Memory', items: memoryItems },
+            { key: 'displacement', label: 'Displacement', items: dispItems },
+            { key: 'movement', label: 'Movement', items: moveItems },
+            { key: 'copies', label: 'Copies', items: copyItems },
+          ]
+          return (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+                <span className="text-fg-96">Loaded</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => {
+                    const all = items?.filter(i => !i.empty && i.type !== 'separator') || []
+                    if (all.length) onSelectItem(all[Math.floor(Math.random() * all.length)].id)
+                  }}><Icon name="refresh" size={12} /></span>
+                  <Dropdown
+                    options={[
+                      ...(loadedName ? [{ value: 'current', label: loadedName.split(': ').map((part, i) => i === 0 ? part[0] : part.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1, 3)).join(' ')).join(':') }] : []),
+                      { value: 'random', label: 'Random' },
+                      { value: 'clear', label: 'Clear' },
+                    ]}
+                    value={loadedName ? 'current' : ''}
+                    onChange={(v) => {
+                      if (v === 'random') {
+                        const all = items?.filter(i => !i.empty && i.type !== 'separator') || []
+                        if (all.length) onSelectItem(all[Math.floor(Math.random() * all.length)].id)
+                      } else if (v === 'clear') {
+                        onMediaChange({ variantId: null, params: {}, slotIndex: null, name: null, customImageSrc: null, customRasterSrc: null, customImageName: null })
+                      }
+                    }}
+                    variant="minimal"
+                    size="md"
+                    placeholder="Random"
+                    keepOpen
+                  />
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+                <span className="text-fg-96">Reloaded</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => onReloaded && onReloaded(null)}><Icon name="refresh" size={12} /></span>
+                  <Dropdown
+                    options={[
+                      { value: 'all', label: 'All' },
+                      ...Array.from({ length: channelCount }, (_, ci) => ({ value: `ch-${ci}`, label: `Ch ${ci + 1}`, enabled: channelEnabled[ci] })),
+                    ]}
+                    value=""
+                    onChange={(v) => {
+                      if (v === 'all') { onReloaded && onReloaded(null) }
+                      else { onReloaded && onReloaded(parseInt(v.replace('ch-', ''))) }
+                    }}
+                    renderOption={(option) => (
+                      <span className="flex items-center justify-between w-full">
+                        <span>{option.label}</span>
+                        {option.enabled !== undefined && (
+                          <span className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onToggleChannel && onToggleChannel(parseInt(option.value.replace('ch-', ''))) }}>
+                            <Icon name={option.enabled ? 'eye-on' : 'eye-off'} size={12} />
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    variant="minimal"
+                    size="md"
+                    placeholder="Random"
+                    keepOpen
+                  />
+                </span>
+              </div>
+              <Divider className="my-1" />
+              {loadGroups.map(group => (
+                <div key={group.key} className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+                  <span className="text-fg-96">{group.label}</span>
+                  <Dropdown
+                    options={group.items.map(i => {
+                      if (i.type === 'slot') {
+                        const m = i.name.match(/^\[M(\d+)\]\s*(\w)\w*:\s*(.+?)(?:\s*\[USR\])?$/)
+                        if (m) {
+                          const initials = m[3].split(/[\s-]+/).map(w => w[0]?.toUpperCase()).join('')
+                          return { value: i.id, label: `[M${m[1]}] ${m[2]}:${initials}` }
+                        }
+                        return { value: i.id, label: i.name }
+                      }
+                      const full = i.name?.split(': ').slice(1).join(': ') || i.name
+                      return { value: i.id, label: full.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1, 3)).join(' ') }
+                    })}
+                    value=""
+                    onChange={(v) => onSelectItem(v)}
+                    variant="minimal"
+                    size="md"
+                    placeholder="—"
+                    keepOpen
+                  />
+                </div>
+              ))}
+              <Divider className="my-1" />
+              {[
+                { key: 'color', label: 'Color', onRandom: () => { const r = () => Math.floor(Math.random() * 256); onVectorColorChange(`rgba(${r()},${r()},${r()},1)`); onBackgroundColorChange(`rgba(${r()},${r()},${r()},1)`); setRandomized(p => ({ ...p, color: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onVectorColorChange('currentColor'); onBackgroundColorChange('transparent'); setRandomized(p => ({ ...p, color: null })) } },
+                { key: 'blend', label: 'Blend', onRandom: () => { onBlendModeChange(CSS_BLEND_MODES[Math.floor(Math.random() * CSS_BLEND_MODES.length)]); setRandomized(p => ({ ...p, blend: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onBlendModeChange('normal'); setRandomized(p => ({ ...p, blend: null })) } },
+                { key: 'blur', label: 'Blur', onRandom: () => { const amt = +(Math.random() * 5).toFixed(1); onFxChange([...fx.filter(f => f.type !== 'blur'), { type: 'blur', enabled: true, params: { amount: amt } }]); setRandomized(p => ({ ...p, blur: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onFxChange(fx.filter(f => f.type !== 'blur')); setRandomized(p => ({ ...p, blur: null })) } },
+                { key: 'brightness', label: 'Brightness', onRandom: () => { const b = +(0.5 + Math.random() * 2).toFixed(2); const c = +(0.5 + Math.random() * 2).toFixed(2); onFxChange([...fx.filter(f => f.type !== 'brightness' && f.type !== 'contrast'), { type: 'brightness', enabled: true, params: { amount: b } }, { type: 'contrast', enabled: true, params: { amount: c } }]); setRandomized(p => ({ ...p, brightness: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onFxChange(fx.filter(f => f.type !== 'brightness' && f.type !== 'contrast')); setRandomized(p => ({ ...p, brightness: null })) } },
+              ].map(row => (
+                <div key={row.key} className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+                  <span className="text-fg-96">{row.label}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => row.onRandom()}><Icon name="refresh" size={12} /></span>
+                    <Dropdown options={[{ value: 'random', label: 'Random' }, ...(row.extraOptions || []), { value: 'clear', label: 'Clear' }]} value="" onChange={(v) => { if (v === 'random') { row.onRandom(); } else if (v === 'clear') { row.onClear() } else if (row.onExtra) { row.onExtra(v) } }} variant="minimal" size="md" placeholder={randomized[row.key] || 'Random'} keepOpen />
+                  </span>
+                </div>
+              ))}
+              <Divider className="my-1" />
+              {[
+                { key: 'vector', label: 'Vector', onRandom: () => { const v = ALL_VECTORS[Math.floor(Math.random() * ALL_VECTORS.length)]; loadVectorSvg(v.value, onMediaChange); setRandomized(p => ({ ...p, vector: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onMediaChange({ customImageSrc: null, customRasterSrc: null, customImageName: null }); setRandomized(p => ({ ...p, vector: null })) }, extraOptions: [{ value: 'shapes', label: '[Shapes]' }, { value: 'forms', label: '[Forms]' }], onExtra: (v) => { const pool = v === 'shapes' ? VECTOR_SHAPES : VECTOR_FORMS; const pick = pool[Math.floor(Math.random() * pool.length)]; loadVectorSvg(pick.value, onMediaChange); setRandomized(p => ({ ...p, vector: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) } },
+                { key: 'scale', label: 'Scale', onRandom: () => { onMediaChange({ vectorPadding: Math.floor(Math.random() * 41) }); setRandomized(p => ({ ...p, scale: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onMediaChange({ vectorPadding: 0 }); setRandomized(p => ({ ...p, scale: null })) } },
+              ].map(row => (
+                <div key={row.key} className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+                  <span className="text-fg-96">{row.label}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => row.onRandom()}><Icon name="refresh" size={12} /></span>
+                    <Dropdown options={[{ value: 'random', label: 'Random' }, ...(row.extraOptions || []), { value: 'clear', label: 'Clear' }]} value="" onChange={(v) => { if (v === 'random') { row.onRandom(); } else if (v === 'clear') { row.onClear() } else if (row.onExtra) { row.onExtra(v) } }} variant="minimal" size="md" placeholder={randomized[row.key] || 'Random'} keepOpen />
+                  </span>
+                </div>
+              ))}
+              <Divider className="my-1" />
+              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+                <span className="text-fg-96">Shapes</span>
+                <Dropdown
+                  options={VECTOR_SHAPES}
+                  value={randomized.selectedShape || ''}
+                  onChange={(v) => { loadVectorSvg(v, onMediaChange); setRandomized(p => ({ ...p, selectedShape: v, selectedForm: '', selectedLogo: '' })) }}
+                  variant="minimal"
+                  size="md"
+                  placeholder="—"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+                <span className="text-fg-96">Forms</span>
+                <Dropdown
+                  options={VECTOR_FORMS}
+                  value={randomized.selectedForm || ''}
+                  onChange={(v) => { loadVectorSvg(v, onMediaChange); setRandomized(p => ({ ...p, selectedForm: v, selectedShape: '', selectedLogo: '' })) }}
+                  variant="minimal"
+                  size="md"
+                  placeholder="—"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
+                <span className="text-fg-96">Logos</span>
+                <Dropdown
+                  options={VECTOR_LOGOS}
+                  value={randomized.selectedLogo || ''}
+                  onChange={(v) => { loadVectorSvg(v, onMediaChange); setRandomized(p => ({ ...p, selectedLogo: v, selectedShape: '', selectedForm: '' })) }}
+                  variant="minimal"
+                  size="md"
+                  placeholder="—"
+                />
+              </div>
+            </div>
+          )
+        })()}
 
         {shelfTab === 'params' && controls && params && (() => {
           const ROWS_PER_COL = 7
@@ -847,6 +1060,7 @@ function Channel({
             </div>
           </div>
         )}
+        </div>{/* close scroll wrapper */}
         {/* Drag handle */}
         <div
           className="absolute top-0 right-0 h-full cursor-col-resize"
@@ -856,7 +1070,6 @@ function Channel({
         />
       </div>
     )}
-    </div>{/* close flex-row */}
     </div>
   )
 }
@@ -877,6 +1090,7 @@ export default function SymphonyMixer({
   onRemoveChannel,
   onRecalc,
   onResetChannel,
+  onReloaded: onReloadedProp,
   master = { fx: [], blendMode: 'normal', opacity: 100 },
   onMasterChange,
   globalImageThumb = null,
@@ -902,6 +1116,35 @@ export default function SymphonyMixer({
   const [fxOpenAll, setFxOpenAll] = useState({ open: false, tick: 0 })
   const [masterFxTab, setMasterFxTab] = useState('fx')
   const [mixerTab, setMixerTab] = useState('channels')
+  const channelRowRef = useRef(null)
+  const touchStartRef = useRef(null)
+  useEffect(() => {
+    const el = channelRowRef.current
+    if (!el) return
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        touchStartRef.current = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, scrollLeft: el.scrollLeft }
+      } else {
+        touchStartRef.current = null
+      }
+    }
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && touchStartRef.current) {
+        const x = (e.touches[0].clientX + e.touches[1].clientX) / 2
+        el.scrollLeft = touchStartRef.current.scrollLeft - (x - touchStartRef.current.x)
+        e.preventDefault()
+      }
+    }
+    const onTouchEnd = () => { touchStartRef.current = null }
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
   return (
     <div className="flex flex-col gap-6">
       <div style={{ height: '80px', overflow: 'hidden' }}>
@@ -927,6 +1170,7 @@ export default function SymphonyMixer({
       <div style={{ position: 'relative' }}>
       {/* A Channels — always rendered to hold height */}
       <div
+        ref={channelRowRef}
         className={`flex ${layout === 'row' ? 'flex-row' : 'flex-col'} gap-4`}
         style={{ overflowX: layout === 'row' ? 'auto' : 'visible', scrollbarWidth: 'none', visibility: mixerTab === 'channels' ? 'visible' : 'hidden' }}
       >
@@ -972,6 +1216,10 @@ export default function SymphonyMixer({
             onFxToggleAll={(open) => setFxOpenAll(prev => ({ open, tick: prev.tick + 1 }))}
             fxOpenAllTick={fxOpenAll}
             onReset={(all) => onResetChannel && onResetChannel(i, all)}
+            channelCount={channels.length}
+            channelEnabled={channels.map(c => c.enabled)}
+            onToggleChannel={(ci) => onChannelUpdate(ci, { enabled: !channels[ci]?.enabled })}
+            onReloaded={onReloadedProp}
             customImageSrc={ch.customImageSrc || null}
             customRasterSrc={ch.customRasterSrc || null}
             customImageName={ch.customImageName || null}

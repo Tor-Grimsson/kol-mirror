@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { getResponsiveImage, getDefaultParams, findVariant, DISPLACEMENT_VARIANTS, COPIES_VARIANTS, MOVEMENT_VARIANTS } from '../data/mirrorVariants'
 
 const FIRST_VARIANT = {
@@ -257,6 +257,32 @@ export function useMirrorState() {
     { ...EMPTY_CHANNEL },
   ])
 
+  // Undo/redo history for channels
+  const channelHistoryRef = useRef([])
+  const channelFutureRef = useRef([])
+  const setSymphonyChannelsWithHistory = useCallback((updater) => {
+    setSymphonyChannels(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      channelHistoryRef.current = [...channelHistoryRef.current.slice(-30), JSON.parse(JSON.stringify(prev))]
+      channelFutureRef.current = []
+      return next
+    })
+  }, [])
+  const symphonyUndo = useCallback(() => {
+    if (!channelHistoryRef.current.length) return
+    setSymphonyChannels(prev => {
+      channelFutureRef.current = [...channelFutureRef.current, JSON.parse(JSON.stringify(prev))]
+      return channelHistoryRef.current.pop()
+    })
+  }, [])
+  const symphonyRedo = useCallback(() => {
+    if (!channelFutureRef.current.length) return
+    setSymphonyChannels(prev => {
+      channelHistoryRef.current = [...channelHistoryRef.current, JSON.parse(JSON.stringify(prev))]
+      return channelFutureRef.current.pop()
+    })
+  }, [])
+
   // Master output — global FX chain applied to combined output
   const [symphonyMaster, setSymphonyMaster] = useState({ fx: [], blendMode: 'normal', opacity: 100 })
 
@@ -325,7 +351,9 @@ export function useMirrorState() {
     setSymphonyCustomHeight,
 
     symphonyChannels,
-    setSymphonyChannels,
+    setSymphonyChannels: setSymphonyChannelsWithHistory,
+    symphonyUndo,
+    symphonyRedo,
 
     symphonyMaster,
     setSymphonyMaster,

@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react'
 
-export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100 }) {
+export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false }) {
   const dragRef = useRef(null)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -28,8 +28,11 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
     window.addEventListener('pointerup', handleUp)
   }, [value, size, min, max, range])
 
+  const tickPadding = (64 - size) / 2
   const outerRadius = size / 2
   const innerRadius = (size * 0.7) / 2
+  const fullSize = size + tickPadding * 2
+  const offset = tickPadding
   const strokeWidth = 2
 
   const arcRadius = outerRadius - strokeWidth
@@ -38,10 +41,13 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
   const sweepEnd = 45
   const sweepTotal = 270
 
-  const arcStartX = outerRadius + arcRadius * Math.cos((sweepStart * Math.PI) / 180)
-  const arcStartY = outerRadius + arcRadius * Math.sin((sweepStart * Math.PI) / 180)
-  const arcEndX = outerRadius + arcRadius * Math.cos((sweepEnd * Math.PI) / 180)
-  const arcEndY = outerRadius + arcRadius * Math.sin((sweepEnd * Math.PI) / 180)
+  const cx = outerRadius + offset
+  const cy = outerRadius + offset
+
+  const arcStartX = cx + arcRadius * Math.cos((sweepStart * Math.PI) / 180)
+  const arcStartY = cy + arcRadius * Math.sin((sweepStart * Math.PI) / 180)
+  const arcEndX = cx + arcRadius * Math.cos((sweepEnd * Math.PI) / 180)
+  const arcEndY = cy + arcRadius * Math.sin((sweepEnd * Math.PI) / 180)
 
   // Tick marks: 11 major (0,10,...100), 4 minor between each = 51 total
   const ticks = []
@@ -53,30 +59,28 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
     const isMajor = i % 5 === 0
     const outerR = tickInnerR + (isMajor ? 8 : 4)
     ticks.push({
-      x1: outerRadius + tickInnerR * Math.cos(rad),
-      y1: outerRadius + tickInnerR * Math.sin(rad),
-      x2: outerRadius + outerR * Math.cos(rad),
-      y2: outerRadius + outerR * Math.sin(rad),
+      x1: cx + tickInnerR * Math.cos(rad),
+      y1: cy + tickInnerR * Math.sin(rad),
+      x2: cx + outerR * Math.cos(rad),
+      y2: cy + outerR * Math.sin(rad),
       major: isMajor,
     })
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center">
       <div
-        className="relative cursor-pointer select-none"
+        className="relative cursor-pointer select-none flex items-center justify-center"
         style={{
-          width: size,
-          height: size,
           touchAction: 'none',
         }}
         onPointerDown={handlePointerDown}
       >
         <svg
-          width={size}
-          height={size}
-          viewBox={`0 0 ${size} ${size}`}
-          style={{ overflow: 'visible' }}
+          width={fullSize}
+          height={fullSize}
+          viewBox={`0 0 ${fullSize} ${fullSize}`}
+          style={{ position: 'relative', top: '6px' }}
         >
           {/* Tick marks */}
           {ticks.map((t, i) => (
@@ -86,19 +90,19 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
             />
           ))}
           {/* Rotating knob + indicator */}
-          <g style={{ transformOrigin: `${outerRadius}px ${outerRadius}px`, transform: `rotate(${angle}deg)` }}>
+          <g style={{ transformOrigin: `${cx}px ${cy}px`, transform: `rotate(${angle}deg)` }}>
             <circle
-              cx={outerRadius}
-              cy={outerRadius}
+              cx={cx}
+              cy={cy}
               r={innerRadius}
               fill="currentColor"
               className="text-fg-96"
             />
             <line
-              x1={outerRadius}
-              y1={outerRadius}
-              x2={outerRadius}
-              y2={outerRadius - innerRadius + 4}
+              x1={cx}
+              y1={cy}
+              x2={cx}
+              y2={cy - innerRadius + 4}
               stroke="var(--kol-surface-primary)"
               strokeWidth={2}
               strokeLinecap="round"
@@ -106,8 +110,10 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
           </g>
         </svg>
       </div>
-      {label && <div className="kol-helper-xs text-fg-64 uppercase">{label}</div>}
-      {label && <div className="kol-helper-xs text-fg-96">{Math.round(value)}%</div>}
+      {label && <div className="flex items-center justify-between w-full px-2" style={{ fontSize: '10px' }}>
+        <span className="text-fg-64 uppercase">{label}</span>
+        <span className="text-fg-96">{Math.round(value)}%</span>
+      </div>}
     </div>
   )
 }

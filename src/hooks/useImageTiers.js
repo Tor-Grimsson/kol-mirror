@@ -59,13 +59,26 @@ export default function useImageTiers(imageSrc, { svgFillColor, recalcKey = 0 } 
       const img = new Image()
       img.onload = () => {
         if (cancelled) return
+        const baseW = img.naturalWidth || 1024
+        const baseH = img.naturalHeight || 1024
+        const highScale = RASTER_TIER_SCALES.high || 12
+        const fullW = baseW * highScale
+        const fullH = baseH * highScale
         const result = {}
         for (const [tier, scale] of Object.entries(RASTER_TIER_SCALES)) {
           const canvas = document.createElement('canvas')
-          canvas.width = (img.naturalWidth || 1024) * scale
-          canvas.height = (img.naturalHeight || 1024) * scale
+          canvas.width = fullW
+          canvas.height = fullH
           const ctx = canvas.getContext('2d')
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          ctx.imageSmoothingEnabled = false
+          const srcW = baseW * scale
+          const srcH = baseH * scale
+          const tmpCanvas = document.createElement('canvas')
+          tmpCanvas.width = srcW
+          tmpCanvas.height = srcH
+          const tmpCtx = tmpCanvas.getContext('2d')
+          tmpCtx.drawImage(img, 0, 0, srcW, srcH)
+          ctx.drawImage(tmpCanvas, 0, 0, fullW, fullH)
           result[tier] = canvas.toDataURL('image/png')
         }
         cacheRef.current.set(cacheKey, result)

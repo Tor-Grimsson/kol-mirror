@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, buildChannelFxStyle } from '../../data/mirrorVariants'
+import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, buildChannelFxStyle, CHANNEL_FX_DEFS, getDefaultFxParams } from '../../data/mirrorVariants'
+import { CSS_BLEND_MODES, ALL_VECTORS, loadVectorSvg } from '../hall-of-mirrors/SymphonyMixer'
 import useImageTiers from '../../hooks/useImageTiers'
 import useChannelRecorder from '../../hooks/useChannelRecorder'
 import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
@@ -8,6 +9,28 @@ import ChannelLayer from './ChannelLayer'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
 
 const DEFAULT_SVG_DATA_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
+
+const RASTER_SCALE = 4
+
+function rasterizeSvgDataUrl(svgDataUrl) {
+  return new Promise((resolve, reject) => {
+    const raw = decodeURIComponent(svgDataUrl.replace('data:image/svg+xml;charset=utf-8,', ''))
+    const blob = new Blob([raw], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = (img.naturalWidth || 1024) * RASTER_SCALE
+      canvas.height = (img.naturalHeight || 1024) * RASTER_SCALE
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to rasterize SVG')) }
+    img.src = url
+  })
+}
 
 export default function SymphonyViewport({ state }) {
   const canvasContainerRef = useRef(null)
@@ -20,6 +43,14 @@ export default function SymphonyViewport({ state }) {
 
   const isAnimating = state.symphonyAnimating
   const setIsAnimating = state.setSymphonyAnimating
+  const [mixerVisible, setMixerVisible] = useState(true)
+  const prevAnimatingRef = useRef(isAnimating)
+  useEffect(() => {
+    if (prevAnimatingRef.current !== isAnimating) {
+      prevAnimatingRef.current = isAnimating
+      setChannels(prev => prev.map(ch => ch.enabled ? { ...ch, params: { ...ch.params, animate: isAnimating } } : ch))
+    }
+  }, [isAnimating])
   const mixerLayout = state.symphonyLayout
 
   // Canvas registry for recording — tracks Pixi canvas elements per channel index
@@ -269,6 +300,57 @@ export default function SymphonyViewport({ state }) {
     })
   }
 
+  // Rasterize channel SVGs only when vector color differs from global
+  const rasterCacheRef = useRef({})
+  const [channelRasters, setChannelRasters] = useState({})
+  useEffect(() => {
+    const newRasters = {}
+    channels.forEach((ch, i) => {
+      if (!ch.customImageSrc?.startsWith('data:image/svg+xml')) return
+      const chColor = ch.vectorColor && ch.vectorColor !== 'currentColor' ? ch.vectorColor : vectorColor
+      if (chColor === vectorColor) return // tier pipeline handles this
+      const coloredSvg = ch.customImageSrc.replace(/currentColor/g, encodeURIComponent(chColor))
+      const key = `${i}:${coloredSvg}`
+      if (rasterCacheRef.current[key]) { newRasters[i] = channelRasters[i]; return }
+      rasterCacheRef.current[key] = true
+      rasterizeSvgDataUrl(coloredSvg).then(raster => {
+        setChannelRasters(prev => ({ ...prev, [i]: raster }))
+      }).catch(() => {})
+    })
+    setChannelRasters(prev => {
+      const cleaned = {}
+      for (const k of Object.keys(prev)) {
+        if (newRasters[k] !== undefined) cleaned[k] = prev[k]
+      }
+      return Object.keys(cleaned).length === Object.keys(prev).length ? prev : cleaned
+    })
+  }, [channels.map(ch => `${ch.customImageSrc}|${ch.vectorColor}`).join(','), vectorColor])
+
+  const handleReloaded = useCallback((targetCh) => {
+    const all = dropdownItems.filter(d => !d.empty && d.type !== 'separator')
+    const pick = () => all.length ? all[Math.floor(Math.random() * all.length)] : null
+    const r = () => Math.floor(Math.random() * 256)
+    const targets = targetCh != null ? [targetCh] : channels.map((_, ci) => ci).filter(ci => ci < 3)
+    // Sync updates first
+    targets.forEach(idx => {
+      const item = pick()
+      if (item) handleSelectVariant(idx, item.id)
+      updateChannel(idx, {
+        enabled: true,
+        vectorColor: `rgba(${r()},${r()},${r()},1)`,
+        backgroundColor: `rgba(${r()},${r()},${r()},1)`,
+        blendMode: CSS_BLEND_MODES[Math.floor(Math.random() * CSS_BLEND_MODES.length)],
+        fx: [{ type: 'blur', enabled: true, params: { amount: +(Math.random() * 5).toFixed(1) } }, { type: 'brightness', enabled: true, params: { amount: +(0.5 + Math.random() * 2).toFixed(2) } }],
+      })
+    })
+    // Async vector loads after
+    targets.forEach(idx => {
+      const v = ALL_VECTORS[Math.floor(Math.random() * ALL_VECTORS.length)]
+      loadVectorSvg(v.value, (updates) => updateChannel(idx, updates))
+    })
+  }, [dropdownItems, channels])
+  state.symphonyReloaded = handleReloaded
+
   const handleLoadPreset = ({ channel, source }) => {
     if (source === 'nine') setOpenNineDropdown(channel)
   }
@@ -315,7 +397,6 @@ export default function SymphonyViewport({ state }) {
       state.setSymphonyCanvasIsSvg(false)
     }
 
-    setIsAnimating(true)
     setOpenNineDropdown(null)
   }
 
@@ -324,12 +405,16 @@ export default function SymphonyViewport({ state }) {
     : state.symphonyRatio
 
   return (
-    <div className="absolute inset-0 bg-surface-primary flex flex-col p-4">
-      <div className="flex items-center justify-between shrink-0 mb-4">
+    <div className="absolute inset-0 bg-surface-primary symphony-viewport-root">
+      {/* Mixer toggle — mobile only */}
+      <div className="symphony-mobile-toggle">
+        <span className="kol-helper-xs text-fg-64 cursor-pointer select-none" onClick={() => setMixerVisible(v => !v)}>[{mixerVisible ? 'Hide' : 'Show'}]</span>
+      </div>
+      <div className="symphony-viewport-header">
         <div className="kol-helper-s text-fg-64">Symphony Canvas</div>
         <div className="kol-helper-xs text-fg-32">[{ratioLabel}]</div>
       </div>
-      <div ref={canvasContainerRef} className="flex-1 flex items-start justify-start min-h-0">
+      <div ref={canvasContainerRef} className="symphony-canvas-container">
         {canvasSize.width > 0 && canvasSize.height > 0 && (
           <div
             className="relative overflow-hidden border border-fg-08"
@@ -359,10 +444,13 @@ export default function SymphonyViewport({ state }) {
                 const isSlotRef = ch.slotIndex != null
                 const hasMedia = !!(ch.customImageSrc || ch.customRasterSrc)
                 const tier = ch.rasterTierOverride || getRasterTier(resolvedChannel.variantId, resolvedChannel.params)
-                const rasterForChannel = hasMedia ? ch.customRasterSrc : null
                 const chVectorColor = ch.vectorColor && ch.vectorColor !== 'currentColor'
                   ? ch.vectorColor
                   : vectorColor
+                const hasCustomColor = chVectorColor !== vectorColor
+                const rasterForChannel = hasCustomColor
+                  ? (ch.customRasterSrc || channelRasters[i] || null)
+                  : (sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null))
                 const customSvgColored = hasMedia && ch.customImageSrc?.startsWith('data:image/svg+xml')
                   ? ch.customImageSrc.replace(/currentColor/g, encodeURIComponent(chVectorColor))
                   : ch.customImageSrc
@@ -401,7 +489,7 @@ export default function SymphonyViewport({ state }) {
           </div>
         )}
       </div>
-      <div className="shrink-0 mt-auto pt-6" style={{ marginRight: '-16px' }}>
+      <div className="symphony-mixer-container" style={{ display: mixerVisible ? 'block' : 'none' }}>
         <SymphonyMixer
           channels={channels}
           onChannelUpdate={updateChannel}
@@ -452,6 +540,7 @@ export default function SymphonyViewport({ state }) {
           master={state.symphonyMaster}
           onMasterChange={(updates) => state.setSymphonyMaster(prev => ({ ...prev, ...updates }))}
           onRecalc={() => state.setRasterRecalcCounter(c => c + 1)}
+          onReloaded={handleReloaded}
           onResetChannel={(idx, all) => {
             if (all) {
               setChannels(prev => prev.map((ch, i) => ({ ...EMPTY_CHANNEL, enabled: i === 0 })))

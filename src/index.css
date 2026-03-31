@@ -22,6 +22,25 @@
   .mirror-viewport { padding-top: 0; }
 }
 
+/*
+ * Symphony viewport layout.
+ * Desktop: flex-col with header, canvas area, mixer at bottom.
+ * Mobile: canvas full-bleed, mixer overlays at bottom with toggle.
+ */
+.symphony-viewport-root { display: flex; flex-direction: column; padding: 16px; }
+.symphony-viewport-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; margin-bottom: 16px; }
+.symphony-canvas-container { flex: 1; display: flex; align-items: flex-start; justify-content: flex-start; min-height: 0; }
+.symphony-mixer-container { flex-shrink: 0; margin-top: auto; padding-top: 24px; margin-right: -16px; }
+.symphony-mobile-toggle { display: none; }
+
+@media not all and (min-width: 768px) and (pointer: fine) {
+  .symphony-viewport-root { padding: 0; position: relative; }
+  .symphony-viewport-header { display: none; }
+  .symphony-canvas-container { position: absolute; inset: 0; align-items: center; justify-content: center; }
+  .symphony-mixer-container { position: relative; z-index: 1; margin-top: auto; padding: 8px; margin-right: 0; }
+  .symphony-mobile-toggle { display: block; position: absolute; top: 8px; right: 8px; z-index: 2; }
+}
+
 /* Full-bleed wrapper for Pixi variants — hides card chrome, stretches canvas */
 .pixi-fullbleed {
   display: flex;

@@ -11,7 +11,7 @@ import { Application, Assets } from 'pixi.js'
  * @param {number} [options.backgroundColor=0x1a1a1a]
  * @returns {{ appRef, containerRef, textureRef, size: { width, height } }}
  */
-export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x1a1a1a, preserveDrawingBuffer = false } = {}) {
+export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x000000, backgroundAlpha = 0, preserveDrawingBuffer = false } = {}) {
   const appRef = useRef(null)
   const containerRef = useRef(null)
   const textureRef = useRef(null)
@@ -48,6 +48,7 @@ export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x1a
           width,
           height,
           backgroundColor,
+          backgroundAlpha,
           resolution: window.devicePixelRatio || 1,
           autoDensity: true,
           ...(preserveDrawingBuffer && { webgl: { preserveDrawingBuffer: true } }),

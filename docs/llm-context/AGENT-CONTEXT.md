@@ -3,53 +3,70 @@
 ## Current State
 
 ### Active Work
+- **Channel strip knobs (done)**: Flat CSS grid (`grid-cols-3`), no more nested flex. Knobs wired to FX: INT/HUE/SAT/BRT/CTR/BLR. getFxValue/setFxValue helpers auto-create FX entries.
 - **Loop recording (working)**: Universal recording for all 16 variants. 4-state flow (idle→armed→recording→done). Pixi via captureStream, Displacement/Movement via useDomCaptureCanvas. Framerate selector (30/60fps default 60). Dual-thumb trim slider with draggable playhead, click-to-seek. Keyboard shortcuts (i/o marks, arrows frame step, up/down jump to in/out). Per-channel render cost %. Media transport icons (play/pause/stop teal). Real-time toggle (placeholder for offline capture).
-- **Symphony mixer UI unified**: All text fg-96, all rows 24px, all gaps gap-2. All native selects replaced with Dropdown component. Blend mode hover preview. Right shelf extends full height (FX rack inside flex-row column). Bottom FX tabs: COLOR | BLEND | FX. Right shelf tabs: PARAMS | RES | REC | SRC.
-- **Per-channel colors**: Vector color applied to SVG sources (default + custom uploads). Background color on all render paths. SVG recolor upload (replaces fills with currentColor). Vector padding slider (-100% to +100%).
-- **Channel strip**: Rotary dial with tick grid (270° sweep, major/minor marks). RESET/REC-LOOP/BOOST row. Icons: frequency (Parameters), atomic-molecule (Effects), settings-01 (Channels), circle (Output). [EDIT] works for both M-slots and preset variants.
+- **Symphony mixer UI unified**: All text fg-96, all rows 24px, all gaps gap-2. All native selects replaced with Dropdown component. Blend mode hover preview. Right shelf extends full height (FX rack inside flex-row column). Bottom FX tabs: COLOR | BLEND | FX. Right shelf tabs: SRC | RES | LOAD | PARAMS | REC.
+- **LOAD tab**: Loaded/Reloaded rows with refresh icon + dropdown. Memory/Displacement/Movement/Copies variant dropdowns (abbreviated labels). Color/Blend/Blur/Brightness/Vector/Scale randomizers with RDM-XX feedback (random 01-99 on each roll, resets on clear). Shapes/Forms/Logos dropdowns (close on select, show selection). Logos category: L-01 (shape-00.svg).
+- **Per-channel colors**: Vector color applied to SVG sources (default + custom uploads). Background color on all render paths (displacement/movement/pixi). SVG recolor upload (replaces fills with currentColor). Vector padding slider (-100% to +100%).
+- **Per-channel animate**: Independent of global. `channelAnimate = scaledParams.animate ?? isAnimating`. Global is master toggle that syncs all channels. Displacement freezes at current frame on pause.
+- **SRC panel**: [Clear] empties channel image/canvas. Default [Load] loads default-canvas.svg. Recolor/Normal upload. Frame shows vector-color-resolved SVG.
+- **Channel strip**: 5 shelf tab icon buttons (library/foundation/save/frequency/video). 2x3 knob grid (INT/HUE/SAT/BRT/CTR/BLR) via CSS grid. RESET/REC-LOOP/BOOST row. Channel header always visible with "Channel N" default. Right shelf spans full channel height (header+body+FX).
+- **Undo/redo**: 30-deep channel state history. symphonyUndo/symphonyRedo exposed on state. Icons in sidebar.
+- **Reloaded**: Randomizes all 3 channels (variant, colors, blend, blur, brightness, vector). Available in sidebar and per-channel LOAD tab.
 - Kaleidoscope: Comp A/B tab system, grab-to-move wedge, fill/edge controls, background comp, edgeZoomScale slider
 - Archive/Memory: 9 slots, [M1] Hall: Variant [USR] labels, [LOAD]/[RELOAD]/[CLEAR] actions
-- Shared Pixi infrastructure: usePixiApp hook (renderCost + textureVersion), VariantFrame, useImageTiers (low/mid/high tiers)
+- Shared Pixi infrastructure: usePixiApp hook (renderCost + textureVersion, transparent background), VariantFrame, useImageTiers (low/mid/high tiers, same output dimensions)
 - Grab interaction: all 5 Pixi variants
 
 ### Known Issues
+- **RotaryDial compact prop**: Declared but unused, no implementation
+- **Tier recalc broken**: Switching raster tier + RECALC doesn't change resolution on Pixi variants
+- **Vector overwrite**: Loading a variant may prevent vector SVG swap via LOAD tab
 - **Displacement capture scale**: DOM capture canvas output cropped vs live — needs scale/transform fix
 - **Real-time OFF**: UI toggle exists but frame-perfect offline capture not implemented
-- **Variant default backgrounds**: Not defined per variant (in memory for future)
+- **FX categories**: Need separation into transform/spatial vs color/tone groups
 - **Feather keying**: Gradient donut can't convert to transparency. Pixi alpha mask failed.
 - **Blend modes**: Don't work on Pixi containers without render groups.
 - **bgGrabSegment**: Kaleidoscope Comp B grab not wired.
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
-- Native selects remain in FX item type dropdowns
 - Old hall page components still exist (dead code)
 
-### Recent Changes (2026-03-30, session 2)
+### Recent Changes (2026-03-31, session 2)
+- **Knob grid**: Flat CSS grid replaces nested flex. Knobs wired to FX (INT/HUE/SAT/BRT/CTR/BLR). getFxValue/setFxValue helpers.
+- **LOAD tab RDM-XX**: All randomizer dropdowns show RDM-XX (01-99) on roll, generated on mount, reset on clear.
+- **Shapes/Forms/Logos**: Dropdowns close on select, show selected value. Logos category added (L-01 = shape-00.svg).
+- **Right shelf full height**: Spans header to FX. Header moved inside left column, root is flex-row.
+- **Dropdown placeholder**: Component now supports placeholder prop when value is empty.
+- **RotaryDial**: px-2 on label/value row.
+- **Channel row scroll**: overflowX auto instead of hidden.
+
+### Recent Changes (2026-03-31, session 1)
+- **SRC panel**: [Clear] clears channel image/canvas, Default [Load] loads default-canvas.svg, frame shows color-resolved SVG
+- **LOAD tab**: Added to right shelf with variant/memory dropdowns, Color/Blend/Blur/Brightness/Vector/Scale randomizers, Reloaded all-channel randomizer
+- **Empty channels**: Channels start empty, no fallback to default SVG. SRC is entry point to canvas.
+- **Per-channel animate**: Independent of global, global syncs all on toggle, displacement freezes on pause
+- **Channel strip**: 5 icon buttons for shelf tabs, header always visible
+- **Undo/redo**: 30-deep history for channel state
+- **Pixi transparent**: backgroundAlpha=0, background color div behind canvas
+- **Background color**: Applied on all variant render paths (displacement/movement/pixi/no-variant)
+- **Tier rasters**: All tiers same pixel dimensions, low tier pixelated upscale
+- **Mobile**: Two-finger horizontal scroll on channel row, mixer hide/show toggle
+- **Dropdown**: keepOpen prop, renderOption prop
+- **Vector SVGs**: /kol-vector/ shapes and forms loadable with currentColor recoloring
+- **Global animate**: No longer auto-enabled on variant load
+
+### Previous Changes (2026-03-30, session 2)
 - **UI unification**: All text fg-96, rows 24px, gaps gap-2, native selects → Dropdown (minimal, md, 96px width), blend modes Sentence case
 - **Right shelf full height**: FX rack moved inside flex-row column wrapper, shelf stretches via items-stretch
 - **FX rack restructured**: Under channel strip with 4px border overlap, kol-helper-xs, channel strip always 4px radius
 - **Tab reorder**: Bottom FX: COLOR | BLEND | FX. Right shelf: PARAMS | RES | REC | SRC
 - **RES tab**: Moved from bottom shelf to right shelf (Tier dropdown, Raster Theme dropdown, [RECALC])
-- **Channel strip icons**: frequency (Parameters), atomic-molecule (Effects), 28x28. Channels/Output tabs with icons (settings-01/circle), sentence case, kol-helper-s
-- **RESET/REC-LOOP/BOOST**: Below Opacity with divider, accent flash on RESET, REC/LOOP toggles shelf open/close
-- **Record row**: Red dot right of Record (toggle arm/cancel), [Start]/[Cancel] ghosted fg-16 when idle, fg-96 when armed
-- **Render cost**: Moved to FX tab bar right-aligned
-- **SRC tab**: Recolor/Normal upload rows with icon, 5:3 image preview with hover [Clear], Padding slider, Source/Mode
+- **Channel strip icons**: frequency (Parameters), atomic-molecule (Effects), 28x28
 - **Per-channel colors**: Vector color applied to custom SVG uploads via currentColor replacement. Background color on all render paths.
 - **SVG recolor upload**: processImageUpload recolor option replaces all fills with currentColor
 - **Vector padding**: Bipolar slider, CSS scale transform on SVG
-- **[EDIT] for presets**: Navigates to hall+variant (not just M-slots)
-- **Variant loading non-destructive**: Doesn't reset speed/opacity/fx/colors
 - **Rotary dial**: Fixed outer arc with tick marks (11 major + 40 minor), 12px gap, 270° sweep
 - **Texture version**: textureVersion state in usePixiApp, all variants rebuild on tier switch
-- **ColorPicker**: Portal rendering, dark theme default fix (theme !== 'light')
-- **Dropdown**: onOptionHover for blend mode preview, minimal width 96px
-- **VariantControls**: gap-2 (was 4px)
-
-### Previous Changes (2026-03-30, session 1)
-- Universal recording for all 16 variants (useDomCaptureCanvas hook)
-- Recording flow rebuilt (4-state machine), save-to-slot fix
-- Slider dual variant, playhead, keyboard shortcuts
-- Render cost indicator, control-stop icon
 
 ## Project Overview
 
@@ -61,28 +78,33 @@
 - Controls render from descriptors with tab/divider support, `linkedDefaults` for auto-reset
 - Symphony: dynamic channels via ChannelLayer, slot channels reference live data, settings shelf with pagination + pinned tabs
 - Kaleidoscope: two-comp architecture (Comp A main + Comp B background), independent params/animation
-- Shared Pixi infrastructure: `usePixiApp` hook (init/resize/cleanup/renderCost/textureVersion), `VariantFrame` (UI wrapper), `useImageTiers` (quality tiers)
+- Shared Pixi infrastructure: `usePixiApp` hook (init/resize/cleanup/renderCost/textureVersion/transparent bg), `VariantFrame` (UI wrapper), `useImageTiers` (quality tiers, same output dimensions)
 - Unified image pipeline: `getRasterTier` selects quality, `useImageTiers` generates low/mid/high versions
 - Recording: `useChannelRecorder` (Pixi captureStream), `useDomCaptureCanvas` (DOM variants → hidden canvas)
 - Per-channel: vector color, background color, vector padding, custom image uploads with recolor option
+- Channel image pipeline: customImageSrc on channel is source of truth. No fallback to default SVG. Empty channel = null images.
+- Per-channel animate: `channelAnimate = scaledParams.animate ?? isAnimating`. Global syncs all channels on toggle.
+- Undo/redo: 30-deep history stack for channel state in useMirrorState
 
 ### Key Files
-- `src/data/mirrorVariants.js` — Variant definitions, controls, `getRasterTier`, `RASTER_TIER_SCALES` (low/mid/high)
-- `src/hooks/useMirrorState.js` — All state, EMPTY_CHANNEL (includes vectorPadding)
-- `src/hooks/usePixiApp.js` — Pixi lifecycle, renderCost, textureVersion
-- `src/hooks/useImageTiers.js` — Tiered image generation and caching
+- `src/data/mirrorVariants.js` — Variant definitions, controls, `getRasterTier`, `RASTER_TIER_SCALES`, `CHANNEL_FX_DEFS`, `getDefaultFxParams`
+- `src/hooks/useMirrorState.js` — All state, EMPTY_CHANNEL (includes vectorPadding, customImageName), undo/redo (symphonyUndo/symphonyRedo)
+- `src/hooks/usePixiApp.js` — Pixi lifecycle, renderCost, textureVersion, transparent background
+- `src/hooks/useImageTiers.js` — Tiered image generation and caching, same output dimensions
 - `src/hooks/useChannelRecorder.js` — Recording state machine (idle→armed→recording→done)
 - `src/hooks/useDomCaptureCanvas.js` — DOM capture canvas for Displacement/Movement recording
-- `src/components/mirror/ChannelLayer.jsx` — Render dispatcher, DOM capture, playhead/seek/renderCost, vectorPadding, backgroundColor
+- `src/components/mirror/ChannelLayer.jsx` — Render dispatcher, DOM capture, playhead/seek/renderCost, vectorPadding, backgroundColor on all paths, per-channel animate
 - `src/components/mirror/VariantControls.jsx` — Control renderer, gap-2
-- `src/components/mirror/SymphonyViewport.jsx` — Recording orchestration, per-channel colors, variant loading
+- `src/components/mirror/SymphonyViewport.jsx` — Recording orchestration, per-channel colors, variant loading, channel rasterization, handleReloaded, global animate sync, mobile layout
 - `src/components/mirror/ArchiveViewport.jsx` — Memory grid [M1] labels, [LOAD]/[RELOAD]
-- `src/components/mirror/MirrorSidebar.jsx` — Navigation, [LOAD]/[RELOAD]
-- `src/components/hall-of-mirrors/SymphonyMixer.jsx` — Channel mixer, REC/RES/SRC/PARAMS shelves, FX rack, rotary dial, media transport
-- `src/components/hall-of-mirrors/RotaryDial.jsx` — Tick marks, fixed outer arc, 270° sweep
+- `src/components/mirror/MirrorSidebar.jsx` — Navigation, Animate, Reloaded, History undo/redo, [LOAD]/[RELOAD]
+- `src/components/hall-of-mirrors/SymphonyMixer.jsx` — Channel mixer, LOAD/REC/RES/SRC/PARAMS shelves, FX rack, rotary dials, media transport, CSS_BLEND_MODES, ALL_VECTORS, loadVectorSvg exports
+- `src/components/hall-of-mirrors/RotaryDial.jsx` — Tick marks, fixed outer arc, 270° sweep, compact prop (WIP)
 - `src/components/hall-of-mirrors/ChannelWireDiagram.jsx` — SVG signal-flow (80px fixed, MST x=300, OUT x=600)
 - `src/components/atoms/Slider.jsx` — Dual variant, playhead, click-to-seek
 - `src/components/atoms/ColorPicker.jsx` — RGBA picker, portal rendering
-- `src/components/molecules/Dropdown.jsx` — Custom dropdown, onOptionHover, 96px minimal width
+- `src/components/molecules/Dropdown.jsx` — Custom dropdown, onOptionHover, 96px minimal width, keepOpen, renderOption
 - `src/utils/processImageUpload.js` — SVG/raster upload, recolor option
-- All 5 Pixi variants — onRenderCost, textureVersion deps
+- `src/index.css` — Symphony viewport mobile/desktop CSS classes
+- `public/kol-vector/` — Shape and form SVGs for vector loading
+- All 5 Pixi variants — onRenderCost, textureVersion deps, transparent background

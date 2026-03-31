@@ -7,6 +7,7 @@ import Slider from '../atoms/Slider'
 import QuantityInput from '../atoms/QuantityInput'
 import ColorPicker from '../atoms/ColorPicker'
 import Divider from '../atoms/Divider'
+import { Icon } from '../icons'
 import ThemeToggleButton from '../molecules/ThemeToggleButton'
 
 const HALLS = [
@@ -355,6 +356,14 @@ export default function MirrorSidebar({ state, onClose }) {
               <span>Animate</span>
               <span>[{state.symphonyAnimating ? 'ON' : 'OFF'}]</span>
             </div>
+            <div
+              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
+              style={{ height: '24px' }}
+              onClick={() => state.symphonyReloaded && state.symphonyReloaded(null)}
+            >
+              <span>Reloaded</span>
+              <span>[Random]</span>
+            </div>
             <Divider className="my-2" />
             <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
               <span className="kol-helper-xs text-fg-96 shrink-0">Canvas Ratio</span>
@@ -421,6 +430,13 @@ export default function MirrorSidebar({ state, onClose }) {
               />
             )}
             <Divider className="my-2" />
+            <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+              <span className="text-fg-96">History</span>
+              <div className="flex items-center gap-2">
+                <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => state.symphonyUndo()}><Icon name="undo" size={14} /></span>
+                <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => state.symphonyRedo()}><Icon name="redo" size={14} /></span>
+              </div>
+            </div>
             <div
               className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
               style={{ height: '24px' }}

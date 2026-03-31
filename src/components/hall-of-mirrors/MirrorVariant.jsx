@@ -34,9 +34,12 @@ const MirrorVariant = ({
     if (!turbulence) return
 
     if (!animate) {
-      gsap.killTweensOf(turbulence)
-      turbulence.setAttribute('baseFrequency', String(baseFrequency))
-      tweenRef.current = null
+      if (tweenRef.current) tweenRef.current.pause()
+      return
+    }
+
+    if (tweenRef.current) {
+      tweenRef.current.resume()
       return
     }
 
