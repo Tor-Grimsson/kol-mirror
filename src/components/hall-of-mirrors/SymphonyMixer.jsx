@@ -8,6 +8,7 @@ import { findVariant, filterControlsByTab, CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getD
 import RotaryDial from './RotaryDial'
 import ColorPicker from '../atoms/ColorPicker'
 import ChannelWireDiagram from './ChannelWireDiagram'
+import ExpressionReference from './ExpressionReference'
 import Dropdown from '../molecules/Dropdown'
 import processImageUpload from '../../utils/processImageUpload'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
@@ -1150,14 +1151,15 @@ export default function SymphonyMixer({
       <div style={{ height: '80px', overflow: 'hidden' }}>
         <ChannelWireDiagram channels={channels} master={master} />
       </div>
-      <div className="flex items-center gap-3 pb-2 mb-1 border-b border-fg-08">
+      <div className="flex items-center gap-6 pb-2 mb-1 border-b border-fg-08">
         {[
           { key: 'channels', label: 'Channels', icon: 'settings-01' },
           { key: 'output', label: 'Output', icon: 'circle' },
+          { key: 'expressions', label: 'Expressions', icon: 'wave' },
         ].map(tab => (
           <span
             key={tab.key}
-            className={`cursor-pointer select-none kol-helper-s flex items-center gap-1 ${
+            className={`cursor-pointer select-none kol-helper-s flex items-center gap-2 ${
               mixerTab === tab.key ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'
             }`}
             onClick={() => setMixerTab(tab.key)}
@@ -1423,6 +1425,7 @@ export default function SymphonyMixer({
         </div>
       </div>
       )}
+      {mixerTab === 'expressions' && <ExpressionReference />}
       </div>{/* close relative wrapper */}
 
     </div>

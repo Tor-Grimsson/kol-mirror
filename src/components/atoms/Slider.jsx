@@ -144,9 +144,9 @@ const Slider = ({
         onChange={handleChange}
         className="slider-black flex-1 w-full cursor-pointer"
       />
-      <span className="kol-helper-xs text-right shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
+      {displayValue != null && <span className="kol-helper-xs text-right shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
         {displayValue}
-      </span>
+      </span>}
     </div>
   )
 }

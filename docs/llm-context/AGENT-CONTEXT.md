@@ -3,6 +3,9 @@
 ## Current State
 
 ### Active Work
+- **Expression engine**: `useExpressionValue` hook (rAF loop, `new Function` compile). Helpers: wave/saw/tri/pulse(PWM)/rand/ease(curve)/bell/exp/log/step + sin/cos/abs/floor/ceil/round/sqrt/pow/PI/PHI. Variables: t (seconds), f (frame count), min, max. Click knob value to type expression, alt+click to cancel.
+- **Oscilloscope**: Live canvas preview in Expressions tab. Zoom X/Y/Scale sliders, Min/Max/Sec/Ofs inputs, Fit/Expand/Reset. Grab-to-pan. Red dashed 0-100 reference. ResizeObserver for sharp rendering. 2-column default.
+- **Expressions tab**: Third mixer tab (Channels | Output | Expressions). ExpressionReference component with 5 scrollable 320px columns. Cmd+click code spans to append to oscilloscope.
 - **Channel strip knobs (done)**: Flat CSS grid (`grid-cols-3`), no more nested flex. Knobs wired to FX: INT/HUE/SAT/BRT/CTR/BLR. getFxValue/setFxValue helpers auto-create FX entries.
 - **Loop recording (working)**: Universal recording for all 16 variants. 4-state flow (idle→armed→recording→done). Pixi via captureStream, Displacement/Movement via useDomCaptureCanvas. Framerate selector (30/60fps default 60). Dual-thumb trim slider with draggable playhead, click-to-seek. Keyboard shortcuts (i/o marks, arrows frame step, up/down jump to in/out). Per-channel render cost %. Media transport icons (play/pause/stop teal). Real-time toggle (placeholder for offline capture).
 - **Symphony mixer UI unified**: All text fg-96, all rows 24px, all gaps gap-2. All native selects replaced with Dropdown component. Blend mode hover preview. Right shelf extends full height (FX rack inside flex-row column). Bottom FX tabs: COLOR | BLEND | FX. Right shelf tabs: SRC | RES | LOAD | PARAMS | REC.
@@ -30,6 +33,15 @@
 - **bgGrabSegment**: Kaleidoscope Comp B grab not wired.
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
 - Old hall page components still exist (dead code)
+
+### Recent Changes (2026-03-31, session 3)
+- **Expression engine**: useExpressionValue hook with rAF loop, compile(). Wave helpers: wave/saw/tri/pulse(PWM)/rand/ease(curve)/bell/exp/log/step. Math: sin/cos/abs/floor/ceil/round/sqrt/pow/PI/PHI. Variables: t, f, min, max.
+- **Oscilloscope**: Canvas with ResizeObserver, zoom X/Y/Scale, Min/Max/Sec/Ofs, Fit/Expand/Reset, grab-to-pan, red 0-100 reference lines.
+- **ExpressionReference**: Extracted component, 5 scrollable 320px columns. Code spans with Cmd+click append. NumberInput component for zoom values.
+- **Expressions tab**: Third mixer tab with wave icon, gap-6 between tabs, gap-2 icon-to-text.
+- **RotaryDial**: Expression support via useExpressionValue. Click-to-edit value input, alt+click cancel. Accent color when animating. Mono font on labels.
+- **Slider**: formatValue(() => null) hides value span.
+- **Logos**: VECTOR_LOGOS category (L-01 = shape-00.svg), dropdown in LOAD tab.
 
 ### Recent Changes (2026-03-31, session 2)
 - **Knob grid**: Flat CSS grid replaces nested flex. Knobs wired to FX (INT/HUE/SAT/BRT/CTR/BLR). getFxValue/setFxValue helpers.

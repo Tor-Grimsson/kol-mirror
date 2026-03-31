@@ -1,8 +1,12 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
+import useExpressionValue from '../../hooks/useExpressionValue'
 
 export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false }) {
   const dragRef = useRef(null)
   const onChangeRef = useRef(onChange)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const { expr, commit: commitExpr, isAnimating } = useExpressionValue({ onChange, min, max })
   onChangeRef.current = onChange
 
   const range = max - min
@@ -110,9 +114,24 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
           </g>
         </svg>
       </div>
-      {label && <div className="flex items-center justify-between w-full px-2" style={{ fontSize: '10px' }}>
+      {label && <div className="flex items-center justify-between w-full px-2" style={{ fontSize: '10px', fontFamily: 'var(--kol-font-family-mono)' }}>
         <span className="text-fg-64 uppercase">{label}</span>
-        <span className="text-fg-96">{Math.round(value)}%</span>
+        <span className="text-fg-96" style={{ width: '32px', height: '15px', textAlign: 'right', display: 'inline-block', overflow: 'hidden' }}>
+          {editing ? (
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => { setEditing(false); commitExpr(draft, onChange) }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { setEditing(false); commitExpr(draft, onChange) } if (e.key === 'Escape') setEditing(false) }}
+              autoFocus
+              className="bg-surface-tertiary"
+              style={{ width: '100%', height: '15px', border: 'none', outline: 'none', color: 'inherit', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, textAlign: 'right', borderRadius: '2px', lineHeight: '15px' }}
+            />
+          ) : (
+            <span className={`cursor-pointer ${isAnimating ? 'text-accent-primary' : ''}`} onClick={(e) => { if (e.altKey && isAnimating) { commitExpr('', onChange) } else { setDraft(expr || String(Math.round(value))); setEditing(true) } }}>{expr || `${Math.round(value)}%`}</span>
+          )}
+        </span>
       </div>}
     </div>
   )
