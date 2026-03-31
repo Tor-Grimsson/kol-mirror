@@ -1,7 +1,12 @@
 import { useRef, useCallback, useState } from 'react'
 import useExpressionValue from '../../hooks/useExpressionValue'
 
-export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false }) {
+const DIAL_VARIANTS = {
+  default: { knobRatio: 0.7, tickSize: 64 },
+  dense: { knobRatio: 0.95, tickSize: 40 },
+}
+
+export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false, variant = 'default' }) {
   const dragRef = useRef(null)
   const onChangeRef = useRef(onChange)
   const [editing, setEditing] = useState(false)
@@ -32,9 +37,10 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
     window.addEventListener('pointerup', handleUp)
   }, [value, size, min, max, range])
 
-  const tickPadding = (64 - size) / 2
+  const { knobRatio, tickSize } = DIAL_VARIANTS[variant] || DIAL_VARIANTS.default
+  const tickPadding = (tickSize - size) / 2
   const outerRadius = size / 2
-  const innerRadius = (size * 0.7) / 2
+  const innerRadius = (size * knobRatio) / 2
   const fullSize = size + tickPadding * 2
   const offset = tickPadding
   const strokeWidth = 2
@@ -55,13 +61,13 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
 
   // Tick marks: 11 major (0,10,...100), 4 minor between each = 51 total
   const ticks = []
-  const tickInnerR = innerRadius + 12
+  const tickInnerR = innerRadius + (variant === 'dense' ? 2 : 12)
   for (let i = 0; i <= 50; i++) {
     const frac = i / 50
     const deg = sweepStart + frac * sweepTotal
     const rad = (deg * Math.PI) / 180
     const isMajor = i % 5 === 0
-    const outerR = tickInnerR + (isMajor ? 8 : 4)
+    const outerR = tickInnerR + (variant === 'dense' ? (isMajor ? 6 : 3) : (isMajor ? 8 : 4))
     ticks.push({
       x1: cx + tickInnerR * Math.cos(rad),
       y1: cy + tickInnerR * Math.sin(rad),
@@ -84,7 +90,7 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
           width={fullSize}
           height={fullSize}
           viewBox={`0 0 ${fullSize} ${fullSize}`}
-          style={{ position: 'relative', top: '6px' }}
+          style={{ position: 'relative', top: variant === 'dense' ? '0px' : '6px' }}
         >
           {/* Tick marks */}
           {ticks.map((t, i) => (
@@ -114,9 +120,9 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
           </g>
         </svg>
       </div>
-      {label && <div className="flex items-center justify-between w-full px-2" style={{ fontSize: '10px', fontFamily: 'var(--kol-font-family-mono)' }}>
+      {label && <div className={`flex items-center justify-center gap-1 w-full ${variant === 'dense' ? 'kol-helper-xxxs' : ''}`} style={variant === 'dense' ? {} : { fontSize: '10px', fontFamily: 'var(--kol-font-family-mono)' }}>
         <span className="text-fg-64 uppercase">{label}</span>
-        <span className="text-fg-96" style={{ width: '32px', height: '15px', textAlign: 'right', display: 'inline-block', overflow: 'hidden' }}>
+        <span className="text-fg-96" style={{ width: '32px', textAlign: 'right', display: 'inline-block', overflow: 'hidden' }}>
           {editing ? (
             <input
               type="text"

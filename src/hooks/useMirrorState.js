@@ -9,7 +9,7 @@ const FIRST_VARIANT = {
 
 const EMPTY_ARCHIVE = Array.from({ length: 9 }, () => null)
 
-export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, customImageName: null, loadMode: 'effect', vectorPadding: 0, recSlots: [null, null, null, null], activeRecSlot: null, isArmedForRec: false }
+export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, customImageName: null, loadMode: 'effect', vectorPadding: 0, recSlots: [null, null, null, null], activeRecSlot: null, isArmedForRec: false, sendA: 0, sendB: 0, routeFrom: null, routeSendLevels: {} }
 
 const DEV_SLOT_IDS = [
   'subtle-ripple', 'breathing-scale', 'pixi-slices',
@@ -284,7 +284,14 @@ export function useMirrorState() {
   }, [])
 
   // Master output — global FX chain applied to combined output
-  const [symphonyMaster, setSymphonyMaster] = useState({ fx: [], blendMode: 'normal', opacity: 100 })
+  const [symphonyMaster, setSymphonyMaster] = useState({
+    enabled: true,
+    opacity: 80,
+    blendMode: 'normal',
+    fx: [],
+    busA: { enabled: true, returnLevel: 0, fx: [], blendMode: 'normal', solo: false },
+    busB: { enabled: true, returnLevel: 0, fx: [], blendMode: 'normal', solo: false },
+  })
 
   // Currently selected channel tab in sidebar (null = none)
   const [symphonyEditChannel, setSymphonyEditChannel] = useState(null)

@@ -8,6 +8,8 @@ import { findVariant, filterControlsByTab, CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getD
 import RotaryDial from './RotaryDial'
 import ColorPicker from '../atoms/ColorPicker'
 import ChannelWireDiagram from './ChannelWireDiagram'
+import MasterModule from './MasterModule'
+import RoutingMatrix from './RoutingMatrix'
 import ExpressionReference from './ExpressionReference'
 import Dropdown from '../molecules/Dropdown'
 import processImageUpload from '../../utils/processImageUpload'
@@ -1268,161 +1270,17 @@ export default function SymphonyMixer({
 
       {/* B Output — overlays on top when active */}
       {mixerTab === 'output' && (
-      <div className="grid grid-cols-3 gap-4 pr-8" style={{ position: 'absolute', top: 0, left: 0, right: 0, width: '100%' }}>
-        {/* Master Output */}
-        <div className="flex flex-col gap-2">
-          <div className="kol-helper-xs text-fg-48 uppercase">Master Output</div>
-          <div
-            className="flex flex-col items-center gap-4 p-4 bg-surface-secondary border border-fg-16"
-            style={{ borderRadius: '4px', minHeight: '140px' }}
-          >
-            <div className="w-full flex items-center justify-between">
-              <span className="kol-helper-xs text-fg-64 uppercase">Output</span>
-              <div
-                className={`cursor-pointer select-none flex items-center justify-center p-1 border transition-all kol-helper-xs ${masterFxOpen ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
-                style={{ borderRadius: '4px', minWidth: '28px' }}
-                onClick={() => setMasterFxOpen(!masterFxOpen)}
-                title="Master FX"
-              >
-                FX
-              </div>
-            </div>
-            <Slider
-              label="Opacity"
-              min={0}
-              max={100}
-              step={1}
-              value={master.opacity}
-              onChange={(v) => onMasterChange && onMasterChange({ opacity: v })}
-              formatValue={(v) => `${Math.round(v)}%`}
-              className="w-full"
-              variant="minimal"
-            />
-            <div className="w-full flex items-center justify-between kol-helper-xs">
-              <span className="text-fg-64">Blend</span>
-              <Dropdown
-                options={CSS_BLEND_MODES.map(m => ({ value: m, label: m.charAt(0).toUpperCase() + m.slice(1) }))}
-                value={master.blendMode}
-                onChange={(v) => onMasterChange && onMasterChange({ blendMode: v })}
-                variant="minimal"
-                size="md"
-              />
-            </div>
-          </div>
-          {/* Master FX rack */}
-          {masterFxOpen && (
-            <div
-              className="flex flex-col gap-1 px-3 py-3 border border-fg-08 kol-helper-xs"
-              style={{ borderRadius: '4px', backgroundColor: 'var(--kol-surface-tertiary)' }}
-            >
-              {(master.fx || []).map((fxItem, fi) => {
-                const def = CHANNEL_FX_DEFS.find(d => d.id === fxItem.type)
-                const paramKeys = def ? Object.keys(def.params) : []
-                const primaryKey = paramKeys[0]
-                const primarySpec = def?.params[primaryKey]
-                return (
-                  <div key={fi} className="flex items-center gap-2" style={{ height: '24px' }}>
-                    <div
-                      className={`w-3 h-3 rounded-full cursor-pointer shrink-0 ${fxItem.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
-                      onClick={() => {
-                        const next = [...master.fx]
-                        next[fi] = { ...next[fi], enabled: !next[fi].enabled }
-                        onMasterChange({ fx: next })
-                      }}
-                    />
-                    <select
-                      className="bg-transparent text-fg-96 border-none outline-none kol-helper-xs cursor-pointer"
-                      style={{ width: '64px', fontSize: '11px' }}
-                      value={fxItem.type}
-                      onChange={(e) => {
-                        const next = [...master.fx]
-                        next[fi] = { type: e.target.value, enabled: fxItem.enabled, params: getDefaultFxParams(e.target.value) }
-                        onMasterChange({ fx: next })
-                      }}
-                    >
-                      {CHANNEL_FX_DEFS.map(d => (
-                        <option key={d.id} value={d.id}>{d.label}</option>
-                      ))}
-                    </select>
-                    {primarySpec && (
-                      <Slider
-                        label=""
-                        min={primarySpec.min}
-                        max={primarySpec.max}
-                        step={primarySpec.step}
-                        value={fxItem.params[primaryKey] ?? primarySpec.default}
-                        onChange={(v) => {
-                          const next = [...master.fx]
-                          next[fi] = { ...next[fi], params: { ...next[fi].params, [primaryKey]: v } }
-                          onMasterChange({ fx: next })
-                        }}
-                        formatValue={(v) => primarySpec.unit ? `${Math.round(v * 100) / 100}${primarySpec.unit}` : `${Math.round(v * 100) / 100}`}
-                        className="flex-1"
-                        variant="minimal"
-                      />
-                    )}
-                    <span
-                      className="text-fg-96 cursor-pointer select-none shrink-0"
-                      onClick={() => {
-                        const next = master.fx.filter((_, i) => i !== fi)
-                        onMasterChange({ fx: next })
-                      }}
-                    >
-                      <Icon name="x" size={12} />
-                    </span>
-                  </div>
-                )
-              })}
-              {(master.fx || []).length < MAX_CHANNEL_FX && (
-                <div
-                  className="flex items-center justify-center text-fg-32 hover:text-fg-64 cursor-pointer select-none py-1"
-                  onClick={() => {
-                    const newFx = { type: 'blur', enabled: true, params: getDefaultFxParams('blur') }
-                    onMasterChange({ fx: [...(master.fx || []), newFx] })
-                  }}
-                >
-                  [+ ADD FX]
-                </div>
-              )}
-              {(master.fx || []).length === 0 && (
-                <div className="text-fg-24 text-center py-1">No master FX</div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Project Info */}
-        <div className="flex flex-col gap-2">
-          <div className="kol-helper-xs text-fg-48 uppercase">Project Info</div>
-          <div
-            className="flex flex-col gap-2 p-4 bg-surface-secondary border border-fg-08"
-            style={{ borderRadius: '4px' }}
-          >
-            <div className="flex items-center justify-between kol-helper-xs">
-              <span className="text-fg-64">Channels</span>
-              <span className="text-fg-96">{channels.length}</span>
-            </div>
-            <div className="flex items-center justify-between kol-helper-xs">
-              <span className="text-fg-64">Active</span>
-              <span className="text-fg-96">{channels.filter(c => c.enabled).length}</span>
-            </div>
-            <div className="flex items-center justify-between kol-helper-xs">
-              <span className="text-fg-64">Master FX</span>
-              <span className="text-fg-96">{(master.fx || []).length}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Export */}
-        <div className="flex flex-col gap-2">
-          <div className="kol-helper-xs text-fg-48 uppercase">Export</div>
-          <div
-            className="flex flex-col gap-2 p-4 bg-surface-secondary border border-fg-08"
-            style={{ borderRadius: '4px' }}
-          >
-            <div className="kol-helper-xs text-fg-32">Export settings will appear here.</div>
-          </div>
-        </div>
+      <div className="flex flex-row gap-4" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        <MasterModule
+          master={master}
+          onMasterChange={(updates) => onMasterChange && onMasterChange(updates)}
+          channels={channels}
+          onChannelUpdate={onChannelUpdate}
+        />
+        <RoutingMatrix
+          channels={channels}
+          onChannelUpdate={onChannelUpdate}
+        />
       </div>
       )}
       {mixerTab === 'expressions' && <ExpressionReference />}

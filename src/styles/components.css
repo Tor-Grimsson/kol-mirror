@@ -1033,6 +1033,43 @@
   border: none;
 }
 
+/* Vertical fader — rectangular thumb */
+.slider-fader {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 24px;
+}
+.slider-fader::-webkit-slider-runnable-track {
+  background: var(--kol-surface-on-primary);
+  height: 2px;
+  border-radius: 0;
+}
+.slider-fader::-moz-range-track {
+  background: var(--kol-surface-on-primary);
+  height: 2px;
+  border-radius: 0;
+}
+.slider-fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--kol-surface-on-primary);
+  width: 6px;
+  height: 48px;
+  border-radius: 1px;
+  margin-top: -23px;
+  border: none;
+}
+.slider-fader::-moz-range-thumb {
+  appearance: none;
+  background: var(--kol-surface-on-primary);
+  width: 6px;
+  height: 48px;
+  border-radius: 1px;
+  border: none;
+}
+
 /* Dual-range: In thumb — stroke outline, dark fill */
 .dual-range-in {
   -webkit-appearance: none;

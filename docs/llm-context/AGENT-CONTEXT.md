@@ -3,6 +3,10 @@
 ## Current State
 
 ### Active Work
+- **Master Module**: 6-channel mixer (Ch 1-3, RTN 1-2, MST) in Output tab. ChannelMaster component at `src/components/mixer/ChannelMaster.jsx` with custom vertical fader, knobs, A/B bus buttons, indicator dots. MasterModule at `src/components/hall-of-mirrors/MasterModule.jsx`. RotaryDial dense variant (knobRatio 0.85, tickSize 40). AUX SEND section with per-channel send knobs + Indicated wrapper.
+- **Routing Matrix**: `src/components/hall-of-mirrors/RoutingMatrix.jsx` — NxN routing with signal source dropdowns, send matrix knobs, per-channel output controls.
+- **Frame Buffer System**: `src/hooks/useFrameBuffer.js` — OffscreenCanvas per channel, captureAll(), getChannelFrame(), resolveRenderOrder(). Integrated in SymphonyViewport + ChannelLayer (routeFrom → frame buffer → data URL).
+- **Video Synth Plan**: `docs/video-synth-mixer-plan.md` — 5 chunks: routing, feedback, generators, FX modules, modulators.
 - **Expression engine**: `useExpressionValue` hook (rAF loop, `new Function` compile). Helpers: wave/saw/tri/pulse(PWM)/rand/ease(curve)/bell/exp/log/step + sin/cos/abs/floor/ceil/round/sqrt/pow/PI/PHI. Variables: t (seconds), f (frame count), min, max. Click knob value to type expression, alt+click to cancel.
 - **Oscilloscope**: Live canvas preview in Expressions tab. Zoom X/Y/Scale sliders, Min/Max/Sec/Ofs inputs, Fit/Expand/Reset. Grab-to-pan. Red dashed 0-100 reference. ResizeObserver for sharp rendering. 2-column default.
 - **Expressions tab**: Third mixer tab (Channels | Output | Expressions). ExpressionReference component with 5 scrollable 320px columns. Cmd+click code spans to append to oscilloscope.
@@ -33,6 +37,14 @@
 - **bgGrabSegment**: Kaleidoscope Comp B grab not wired.
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
 - Old hall page components still exist (dead code)
+
+### Recent Changes (2026-03-31, session 4)
+- **Master Module**: 6-channel mixer strip (Ch 1-3 red, RTN 1-2 blue, MST teal) with vertical dividers. Custom VerticalFader (pointer drag, track marks, rectangular thumb). AUX SEND section with per-channel knobs + Indicated dots. Header with 16px enable indicator (1px border). ChannelMaster extracted to `src/components/mixer/ChannelMaster.jsx`.
+- **Routing Matrix**: Standalone component with signal source dropdowns, NxN send matrix, per-channel output controls.
+- **Frame Buffer**: useFrameBuffer hook, OffscreenCanvas per channel, resolveRenderOrder topological sort. Integrated in viewport/channel layer.
+- **State**: symphonyMaster expanded (enabled, opacity 80 default, busA/busB with returnLevel/fx/blendMode/solo). EMPTY_CHANNEL: sendA, sendB, routeFrom, routeSendLevels.
+- **RotaryDial**: DIAL_VARIANTS (default/dense). Dense: knobRatio 0.85, tickSize 40, smaller ticks, no top offset.
+- **Video Synth Plan**: docs/video-synth-mixer-plan.md — routing, feedback, generators, FX, modulators.
 
 ### Recent Changes (2026-03-31, session 3)
 - **Expression engine**: useExpressionValue hook with rAF loop, compile(). Wave helpers: wave/saw/tri/pulse(PWM)/rand/ease(curve)/bell/exp/log/step. Math: sin/cos/abs/floor/ceil/round/sqrt/pow/PI/PHI. Variables: t, f, min, max.

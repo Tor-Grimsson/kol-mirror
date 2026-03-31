@@ -4,6 +4,7 @@ import { CSS_BLEND_MODES, ALL_VECTORS, loadVectorSvg } from '../hall-of-mirrors/
 import useImageTiers from '../../hooks/useImageTiers'
 import useChannelRecorder from '../../hooks/useChannelRecorder'
 import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
+import useFrameBuffer, { resolveRenderOrder } from '../../hooks/useFrameBuffer'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import ChannelLayer from './ChannelLayer'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
@@ -63,8 +64,13 @@ export default function SymphonyViewport({ state }) {
   const [seekTargets, setSeekTargets] = useState({}) // channelIndex → target time
   const [renderCosts, setRenderCosts] = useState({}) // channelIndex → cost %
 
+  // Frame buffer for cross-channel routing
+  const frameBuffer = useFrameBuffer(channels.length)
+  const renderOrder = resolveRenderOrder(channels)
+
   const handleCanvasReady = useCallback((channelIndex, canvasEl) => {
     canvasRegistryRef.current.set(channelIndex, canvasEl)
+    frameBuffer.registerCanvas(channelIndex, canvasEl)
     // If this channel is armed, set up the recorder in standby
     if (armedChannelRef.current === channelIndex && recorder.status === 'idle') {
       const ch = channels[channelIndex]
@@ -253,6 +259,19 @@ export default function SymphonyViewport({ state }) {
     const interval = setInterval(() => setTierTick(t => t + 1), 500)
     return () => clearInterval(interval)
   }, [isAnimating])
+
+  // Frame buffer capture loop for cross-channel routing
+  const frameRafRef = useRef(null)
+  const hasRouting = channels.some(ch => ch.routeFrom != null || (ch.routeSendLevels && Object.values(ch.routeSendLevels).some(v => v > 0)))
+  useEffect(() => {
+    if (!hasRouting) return
+    const tick = () => {
+      frameBuffer.captureAll()
+      frameRafRef.current = requestAnimationFrame(tick)
+    }
+    frameRafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frameRafRef.current)
+  }, [hasRouting, frameBuffer])
 
   // Also re-evaluate when recalc is triggered
   const _recalc = state.rasterRecalcCounter + tierTick
@@ -464,6 +483,7 @@ export default function SymphonyViewport({ state }) {
                   imageSrc={channelImageSrc}
                   rasterSrc={rasterForChannel}
                   defaultSvgSrc={channelDefaultSrc}
+                  getChannelFrame={frameBuffer.getChannelFrame}
                   isAnimating={isAnimating}
                   imageFitMode={state.imageFitMode}
                   imageScale={state.imageScale}

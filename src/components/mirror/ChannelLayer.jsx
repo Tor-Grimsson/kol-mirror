@@ -63,7 +63,7 @@ const PIXI_COMPONENTS = {
   'pixi-kaleidoscope': PixiKaleidoscopeVariant,
 }
 
-export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, imageFitMode, imageScale, rawParams = false, onParamChange, onCanvasReady, onPlayheadUpdate, seekTo, onRenderCost }) {
+export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, imageFitMode, imageScale, rawParams = false, onParamChange, onCanvasReady, onPlayheadUpdate, seekTo, onRenderCost, getChannelFrame }) {
   const pollTimerRef = useRef(null)
   const movementImgRef = useRef(null)
   const captureReadyFired = useRef(false)
@@ -71,7 +71,36 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   const [wrapperSize, setWrapperSize] = useState({ width: 0, height: 0 })
 
   const isNonPixi = isDisplacementVariant(channel.variantId) || isMovementVariant(channel.variantId)
-  const effectSrc = isNonPixi ? (imageSrc || rasterSrc) : (rasterSrc || imageSrc)
+
+  // Cross-channel routing: if routeFrom is set, get the routed channel's frame buffer as a data URL
+  const [routedSrc, setRoutedSrc] = useState(null)
+  const routeFrom = channel.routeFrom
+  useEffect(() => {
+    if (routeFrom == null || !getChannelFrame) { setRoutedSrc(null); return }
+    let active = true
+    const tick = () => {
+      if (!active) return
+      const buf = getChannelFrame(routeFrom)
+      if (buf) {
+        try {
+          const url = buf.convertToBlob ? null : null // OffscreenCanvas — use createImageBitmap path
+          // For simplicity, convert to data URL (TODO: optimize with createImageBitmap)
+          const tmpCanvas = document.createElement('canvas')
+          tmpCanvas.width = buf.width
+          tmpCanvas.height = buf.height
+          const ctx = tmpCanvas.getContext('2d')
+          ctx.drawImage(buf, 0, 0)
+          setRoutedSrc(tmpCanvas.toDataURL())
+        } catch { /* buffer not ready */ }
+      }
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+    return () => { active = false }
+  }, [routeFrom, getChannelFrame])
+
+  const resolvedImageSrc = routeFrom != null && routedSrc ? routedSrc : imageSrc
+  const effectSrc = isNonPixi ? (resolvedImageSrc || rasterSrc) : (rasterSrc || resolvedImageSrc)
   const captureActive = !!channel.isArmedForRec && isNonPixi && channel.enabled
 
   // Determine filter ID for displacement capture
