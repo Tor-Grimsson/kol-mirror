@@ -9,7 +9,9 @@ const FIRST_VARIANT = {
 
 const EMPTY_ARCHIVE = Array.from({ length: 9 }, () => null)
 
-export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, customImageName: null, loadMode: 'effect', vectorPadding: 0, recSlots: [null, null, null, null], activeRecSlot: null, isArmedForRec: false, sendA: 0, sendB: 0, routeFrom: null, routeSendLevels: {} }
+export const EMPTY_SENDS = { aux1: 0, aux2: 0, rtn1: 0, rtn2: 0, fx1: 0, fx2: 0 }
+
+export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, customImageName: null, loadMode: 'effect', vectorPadding: 0, recSlots: [null, null, null, null], activeRecSlot: null, isArmedForRec: false, sends: { ...EMPTY_SENDS }, sendA: 0, sendB: 0, routeFrom: null, routeSendLevels: {} }
 
 const DEV_SLOT_IDS = [
   'subtle-ripple', 'breathing-scale', 'pixi-slices',
@@ -234,6 +236,7 @@ export function useMirrorState() {
 
   // Symphony animate + canvas image + load mode + layout + aspect ratio
   const [symphonyAnimating, setSymphonyAnimating] = useState(false)
+  const [symphonyRestartKey, setSymphonyRestartKey] = useState(0)
   const [symphonyCanvasImage, setSymphonyCanvasImage] = useState(null)
   const [symphonyCanvasRaster, setSymphonyCanvasRaster] = useState(null)
   const [symphonyCanvasIsSvg, setSymphonyCanvasIsSvg] = useState(false)
@@ -284,13 +287,21 @@ export function useMirrorState() {
   }, [])
 
   // Master output — global FX chain applied to combined output
+  const EMPTY_BUS = { enabled: true, returnLevel: 0, fx: [], blendMode: 'normal', solo: false }
   const [symphonyMaster, setSymphonyMaster] = useState({
     enabled: true,
     opacity: 80,
     blendMode: 'normal',
     fx: [],
-    busA: { enabled: true, returnLevel: 0, fx: [], blendMode: 'normal', solo: false },
-    busB: { enabled: true, returnLevel: 0, fx: [], blendMode: 'normal', solo: false },
+    inserts: [],
+    busA: { ...EMPTY_BUS },
+    busB: { ...EMPTY_BUS },
+    aux1: { ...EMPTY_BUS },
+    aux2: { ...EMPTY_BUS },
+    rtn1: { ...EMPTY_BUS },
+    rtn2: { ...EMPTY_BUS },
+    fx1: { ...EMPTY_BUS },
+    fx2: { ...EMPTY_BUS },
   })
 
   // Currently selected channel tab in sidebar (null = none)
@@ -338,6 +349,8 @@ export function useMirrorState() {
 
     symphonyAnimating,
     setSymphonyAnimating,
+    symphonyRestartKey,
+    setSymphonyRestartKey,
     symphonyCanvasImage,
     setSymphonyCanvasImage,
     symphonyCanvasRaster,

@@ -63,7 +63,7 @@ const PIXI_COMPONENTS = {
   'pixi-kaleidoscope': PixiKaleidoscopeVariant,
 }
 
-export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, imageFitMode, imageScale, rawParams = false, onParamChange, onCanvasReady, onPlayheadUpdate, seekTo, onRenderCost, getChannelFrame }) {
+export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, restartKey = 0, imageFitMode, imageScale, rawParams = false, onParamChange, onCanvasReady, onPlayheadUpdate, seekTo, onRenderCost, getChannelFrame }) {
   const pollTimerRef = useRef(null)
   const movementImgRef = useRef(null)
   const captureReadyFired = useRef(false)
@@ -151,6 +151,13 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   const fxStyle = buildChannelFxStyle(channel.fx)
   const blendStyle = channel.blendMode && channel.blendMode !== 'normal' ? { mixBlendMode: channel.blendMode } : {}
   const hasBg = channel.backgroundColor && channel.backgroundColor !== 'transparent'
+  const padTransform = channel.vectorPadding ? `scale(${1 / (1 + channel.vectorPadding / 100)})` : ''
+  if (padTransform && fxStyle.transform) {
+    fxStyle.transform = `${fxStyle.transform} ${padTransform}`
+  } else if (padTransform) {
+    fxStyle.transform = padTransform
+    fxStyle.transformOrigin = 'center'
+  }
 
   // Frozen recording — render video loop instead of live effect
   const activeSlot = channel.activeRecSlot != null ? channel.recSlots?.[channel.activeRecSlot] : null
@@ -220,6 +227,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     return (
       <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, ...(hasBg ? { backgroundColor: channel.backgroundColor } : {}) }}>
         <MirrorVariant
+          key={`${channel.variantId}-ch-${channelIndex}-r${restartKey}`}
           title={`${channel.variantId}-ch-${channelIndex}`}
           baseFrequency={scaledParams.baseFrequency}
           numOctaves={scaledParams.numOctaves}
@@ -253,6 +261,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     return (
       <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, ...(hasBg ? { backgroundColor: channel.backgroundColor } : {}) }}>
         <MovementVariant
+          key={`${channel.variantId}-ch-${channelIndex}-r${restartKey}`}
           title={`${channel.variantId}-ch-${channelIndex}`}
           imageSrc={effectSrc}
           isEnabled={channelAnimate}
@@ -293,7 +302,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
       <div ref={pixiWrapperRef} className="absolute inset-0 pixi-fullbleed" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
         {hasBg && <div className="absolute inset-0" style={{ backgroundColor: channel.backgroundColor }} />}
         <Component
-          key={`${channel.variantId}-ch-${channelIndex}-${channel.isArmedForRec ? 'rec' : 'live'}`}
+          key={`${channel.variantId}-ch-${channelIndex}-${channel.isArmedForRec ? 'rec' : 'live'}-r${restartKey}`}
           title={`${channel.variantId}-ch-${channelIndex}`}
           imageSrc={effectSrc}
           isEnabled={true}

@@ -370,6 +370,17 @@ export default function SymphonyViewport({ state }) {
   }, [dropdownItems, channels])
   state.symphonyReloaded = handleReloaded
 
+  const handleLoaded = useCallback((targetCh) => {
+    const all = dropdownItems.filter(d => !d.empty && d.type !== 'separator')
+    const idx = targetCh ?? 0
+    const item = all.length ? all[Math.floor(Math.random() * all.length)] : null
+    if (item) handleSelectVariant(idx, item.id)
+    updateChannel(idx, { enabled: true, vectorPadding: 0 })
+    const v = ALL_VECTORS[Math.floor(Math.random() * ALL_VECTORS.length)]
+    loadVectorSvg(v.value, (updates) => updateChannel(idx, updates))
+  }, [dropdownItems])
+  state.symphonyLoaded = handleLoaded
+
   const handleLoadPreset = ({ channel, source }) => {
     if (source === 'nine') setOpenNineDropdown(channel)
   }
@@ -467,13 +478,15 @@ export default function SymphonyViewport({ state }) {
                   ? ch.vectorColor
                   : vectorColor
                 const hasCustomColor = chVectorColor !== vectorColor
-                const rasterForChannel = hasCustomColor
-                  ? (ch.customRasterSrc || channelRasters[i] || null)
-                  : (sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null))
                 const customSvgColored = hasMedia && ch.customImageSrc?.startsWith('data:image/svg+xml')
                   ? ch.customImageSrc.replace(/currentColor/g, encodeURIComponent(chVectorColor))
                   : ch.customImageSrc
                 const channelImageSrc = hasMedia ? (customSvgColored || ch.customRasterSrc) : null
+                const rasterForChannel = hasMedia
+                  ? (ch.customRasterSrc || channelRasters[i] || null)
+                  : hasCustomColor
+                    ? (ch.customRasterSrc || channelRasters[i] || null)
+                    : (sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null))
                 const channelDefaultSrc = hasMedia ? customSvgColored : null
                 return (
                 <ChannelLayer
@@ -485,6 +498,7 @@ export default function SymphonyViewport({ state }) {
                   defaultSvgSrc={channelDefaultSrc}
                   getChannelFrame={frameBuffer.getChannelFrame}
                   isAnimating={isAnimating}
+                  restartKey={state.symphonyRestartKey}
                   imageFitMode={state.imageFitMode}
                   imageScale={state.imageScale}
                   onCanvasReady={handleCanvasReady}

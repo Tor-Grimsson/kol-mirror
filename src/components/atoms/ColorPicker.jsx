@@ -24,7 +24,7 @@ function rgbStringToHex(rgb) {
   return '#' + match.slice(0, 3).map(n => parseInt(n).toString(16).padStart(2, '0')).join('')
 }
 
-export default function ColorPicker({ color, onChange, className = '' }) {
+export default function ColorPicker({ color, onChange, className = '', defaultValue }) {
   const [open, setOpen] = useState(false)
   const [openDirection, setOpenDirection] = useState('down')
   const popoverRef = useRef(null)
@@ -82,7 +82,8 @@ export default function ColorPicker({ color, onChange, className = '' }) {
     <div className={`relative ${className}`}>
       <div
         ref={swatchRef}
-        onClick={() => {
+        onClick={(e) => {
+          if (e.altKey) { if (defaultValue !== undefined && onChange) onChange(defaultValue); return }
           if (!open && swatchRef.current) {
             const rect = swatchRef.current.getBoundingClientRect()
             const spaceBelow = window.innerHeight - rect.bottom

@@ -11,6 +11,7 @@ SOURCE
   │
   ├─ User upload (symphonyCanvasImage)
   ├─ Default SVG (default-canvas.svg, color-corrected by vectorColor + rasterTheme)
+  ├─ Vector SVG (kol-vector/ shapes/forms/logos, recolored with currentColor)
   │
   ▼
 IMAGE PIPELINE
@@ -24,6 +25,7 @@ PER-CHANNEL SOURCE SELECTION
   │
   For each channel:
   ├─ Custom media? → use channel.customRasterSrc
+  ├─ Routed input? → use frame buffer from routeFrom channel (1-frame delay)
   ├─ Source fallback? → use /images/stack-hero-800.jpg (when loadMode='source')
   └─ Otherwise → rasterTiers[tier] (tier = auto or override)
   │
@@ -66,17 +68,47 @@ PER-CHANNEL POST-FX
   + mix-blend-mode (16 CSS modes)
   │
   ▼
+FRAME BUFFER CAPTURE
+  │
+  useFrameBuffer.captureAll()
+  OffscreenCanvas per channel, captured each frame
+  Used for: cross-channel routing, bus compositing, feedback
+  │
+  ▼
 CHANNEL STACK
   │
   Channels render as absolute-positioned divs in array order (0 = bottom)
   Each: { opacity, mixBlendMode, filter, transform, pointerEvents: none }
   │
+  ├──→ SEND BUSES (per-channel sendA / sendB levels)
+  │    │
+  │    ├─ AUX BUS: composite channel frames at sendA levels + bus FX chain → RTN 1
+  │    └─ FX BUS:  composite channel frames at sendB levels + bus FX chain → RTN 2
+  │    │
+  │    └─ Returns feed back into:
+  │       ├─ Master mix (via returnLevel fader)
+  │       └─ Channel inputs (via routing matrix RTN→Ch, 1-frame delay)
+  │
+  │    NOTE: Bus rendering pipeline not yet implemented.
+  │    UI controls for sends/returns are wired, compositing is not.
+  │
+  ▼
+ROUTING MATRIX
+  │
+  Cross-channel patching:
+  ├─ Ch→Ch: routeFrom (use another channel's output as input)
+  ├─ Ch→RTN: sendA/sendB (send to AUX/FX buses)
+  ├─ RTN→Ch: return routing (bus output → channel input, 1-frame delay)
+  ├─ FB: self-feedback via diagonal (routeSendLevels[self] > 0)
+  │
+  resolveRenderOrder() — topological sort, circular deps use previous frame
+  │
   ▼
 MASTER BUS
   │
-  Wraps all channels in a single div:
+  Wraps all channels + returns in a single div:
   ├─ Master FX chain (same 8 types as channels)
-  ├─ Master opacity (0–100%)
+  ├─ Master opacity (0–100%, MST fader)
   └─ Master blend mode
   │
   ▼
@@ -101,6 +133,11 @@ OUTPUT
 3. SVG: reads as text → `data:image/svg+xml` URL, rasterizes at 4× scale (520×384 from 130×96)
 4. Raster: reads as `dataURL`
 5. Sets `symphonyCanvasImage`, `symphonyCanvasRaster`, `symphonyCanvasIsSvg`
+
+### Per-channel upload
+`processImageUpload` in SRC shelf tab:
+- Normal: loads as-is
+- Recolor: replaces all SVG fills with `currentColor` (vector color applies)
 
 ### Rasterization (useImageTiers)
 `src/hooks/useImageTiers.js`
@@ -127,6 +164,24 @@ Per-variant logic decides `mid` or `high` based on current params:
 | Movement | always mid | mid |
 
 Re-evaluated every 500ms during animation via `tierTick` interval.
+
+---
+
+## Frame Buffer
+
+`src/hooks/useFrameBuffer.js`
+
+OffscreenCanvas per channel, captures rendered output each frame for cross-channel routing and feedback.
+
+| Method | Description |
+|--------|-------------|
+| `registerCanvas(index, canvasEl)` | Register a channel's canvas element |
+| `unregisterCanvas(index)` | Remove registration |
+| `getChannelFrame(index)` | Get buffered frame for routing |
+| `captureAll()` | Copy all registered canvases to buffers |
+| `resolveRenderOrder(channels)` | Topological sort based on routing deps |
+
+Circular dependencies (feedback loops) use the previous frame's buffer.
 
 ---
 
@@ -157,7 +212,7 @@ Non-intensity params are passed through unchanged.
 
 ## Post-FX Chain
 
-Up to 8 FX per channel (and separately on master bus). `buildChannelFxStyle()` converts to inline CSS:
+Up to 8 FX per channel (and separately on master bus and return buses). `buildChannelFxStyle()` converts to inline CSS:
 
 | FX Type | CSS Property | Params |
 |---------|-------------|--------|
@@ -176,7 +231,7 @@ Filters and transforms are concatenated into single `filter` and `transform` str
 
 ## Blend Modes
 
-16 CSS `mix-blend-mode` values available per channel and on master:
+16 CSS `mix-blend-mode` values available per channel, per bus, and on master:
 
 `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `color-dodge`, `color-burn`, `hard-light`, `soft-light`, `difference`, `exclusion`, `hue`, `saturation`, `color`, `luminosity`
 
@@ -186,17 +241,22 @@ Filters and transforms are concatenated into single `filter` and `transform` str
 
 The master wraps all channel layers in a single `<div>` with its own FX chain, opacity, and blend mode. Applied to the *combined* output of all channels, not individually.
 
-### B Output Tab
+---
 
-The mixer has two tabs: **A Channels** (channel strips) and **B Output** (3-column grid):
+## Send / Return Buses
 
-| Column | Content |
-|--------|---------|
-| Master Output | Opacity slider, blend mode selector, [FX] toggle → master FX rack |
-| Project Info | Channel count, active count, master FX count |
-| Export | Placeholder for future export settings |
+Two parallel buses for shared processing:
 
-A Channels is always rendered (holds layout height). B Output overlays on top with `position: absolute`.
+| Bus | Send field | Return state | Purpose |
+|-----|-----------|-------------|---------|
+| AUX (RTN 1) | `channel.sendA` | `master.busA` | Auxiliary bus |
+| FX (RTN 2) | `channel.sendB` | `master.busB` | Effects bus |
+
+Each bus has: `enabled`, `returnLevel`, `fx[]`, `blendMode`, `solo`.
+
+**Flow:** channels send at send levels → bus composites frames → applies bus FX → return enters master mix at returnLevel (or routes back to a channel via routing matrix).
+
+**Status:** UI controls fully wired. Bus compositing (actual video rendering) not yet implemented.
 
 ---
 

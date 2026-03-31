@@ -68,16 +68,18 @@ export default function ChannelMaster({
   onReset,
   accent = '#e74c3c',
 }) {
-  const [busA, setBusA] = useState(false)
-  const [busB, setBusB] = useState(false)
+  const [bank, setBank] = useState(0)
+
+  const visibleKnobs = knobs.slice(bank * 2, bank * 2 + 2)
+
   return (
     <div className="flex flex-col items-center gap-3 self-stretch" style={{ position: 'relative' }}>
-      <div className={`absolute w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ top: '-4px', left: '-4px' }} />
+      <div className={`absolute w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ top: '-4px', left: '-2px' }} />
       {/* Knobs */}
       <div className="flex flex-col items-center">
-        {knobs.map((knob, i) => (
+        {visibleKnobs.map((knob, i) => (
           <RotaryDial
-            key={i}
+            key={knob.label || i}
             label={knob.label}
             value={knob.value}
             onChange={knob.onChange}
@@ -98,14 +100,14 @@ export default function ChannelMaster({
       {/* A / B buttons */}
       <div className="flex items-center gap-3">
         <div
-          className={`kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border ${busA ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+          className={`kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border ${bank === 1 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
           style={{ height: '20px', width: '20px', borderRadius: '2px' }}
-          onClick={() => setBusA(!busA)}
+          onClick={() => setBank(bank === 1 ? 0 : 1)}
         >A</div>
         <div
-          className={`kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border ${busB ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+          className={`kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border ${bank === 2 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
           style={{ height: '20px', width: '20px', borderRadius: '2px' }}
-          onClick={() => setBusB(!busB)}
+          onClick={() => setBank(bank === 2 ? 0 : 2)}
         >B</div>
       </div>
     </div>

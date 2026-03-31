@@ -3,8 +3,8 @@
 ## Current State
 
 ### Active Work
-- **Master Module**: 6-channel mixer (Ch 1-3, RTN 1-2, MST) in Output tab. ChannelMaster component at `src/components/mixer/ChannelMaster.jsx` with custom vertical fader, knobs, A/B bus buttons, indicator dots. MasterModule at `src/components/hall-of-mirrors/MasterModule.jsx`. RotaryDial dense variant (knobRatio 0.85, tickSize 40). AUX SEND section with per-channel send knobs + Indicated wrapper.
-- **Routing Matrix**: `src/components/hall-of-mirrors/RoutingMatrix.jsx` — NxN routing with signal source dropdowns, send matrix knobs, per-channel output controls.
+- **Master Module**: 6-channel mixer (Ch 1-3, RTN 1-2, MST) in Output tab. Ch 1-3 strips wired to actual channel state. A/B knob paging (6 knobs per strip, 2 visible at a time: default=1-2, A=3-4, B=5-6). RTN 1-2 wired to master.rtn1/rtn2. MST wired to master. Bottom tabs: CH1|CH2|CH3|RTN1|RTN2|MST — all show 6 send knobs (AUX1, AUX2, RTN1, RTN2, FX1, FX2). Right shelf: FILES, FX, COLOR, MST, AUX/FX (5 buttons). 6-bus architecture: aux1, aux2, rtn1, rtn2, fx1, fx2. ChannelMaster at `src/components/mixer/ChannelMaster.jsx` with single `knobs` array + A/B paging. MasterModule at `src/components/hall-of-mirrors/MasterModule.jsx`.
+- **Routing Matrix**: `src/components/hall-of-mirrors/RoutingMatrix.jsx` — NxN routing with signal source cycling, send matrix knobs, per-channel output controls. RTN→Ch and RTN→RTN knobs not yet wired.
 - **Frame Buffer System**: `src/hooks/useFrameBuffer.js` — OffscreenCanvas per channel, captureAll(), getChannelFrame(), resolveRenderOrder(). Integrated in SymphonyViewport + ChannelLayer (routeFrom → frame buffer → data URL).
 - **Video Synth Plan**: `docs/video-synth-mixer-plan.md` — 5 chunks: routing, feedback, generators, FX modules, modulators.
 - **Expression engine**: `useExpressionValue` hook (rAF loop, `new Function` compile). Helpers: wave/saw/tri/pulse(PWM)/rand/ease(curve)/bell/exp/log/step + sin/cos/abs/floor/ceil/round/sqrt/pow/PI/PHI. Variables: t (seconds), f (frame count), min, max. Click knob value to type expression, alt+click to cancel.
@@ -38,12 +38,48 @@
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
 - Old hall page components still exist (dead code)
 
+### Recent Changes (2026-03-31, session 8)
+- **Per-channel bottom tabs**: CH1|CH2|CH3|RTN1|RTN2|MST — all show identical 6 send knobs (AUX1, AUX2, RTN1, RTN2, FX1, FX2). Channels write to channel.sends, RTN/MST write to bus.sends.
+- **6-bus architecture**: Master state expanded with aux1, aux2, rtn1, rtn2, fx1, fx2 bus objects. EMPTY_SENDS = { aux1, aux2, rtn1, rtn2, fx1, fx2 }. RTN strips use master.rtn1/rtn2 (not busA/busB).
+- **A/B knob paging**: ChannelMaster simplified to single `knobs` array. Default=knobs 1-2, A=knobs 3-4, B=knobs 5-6. Always 2 visible.
+- **AUX/FX shelf button**: Moved from bottom section up with other 4 shelf buttons (5 buttons total).
+- **Indicator dot alignment**: ChannelMaster and MasterModule Indicated both use left: -2px matching RoutingMatrix.
+
+### Recent Changes (2026-03-31, session 7)
+- **Signal path fix**: Channels with customImageSrc (SRC) never fall back to global raster. SRC is sole image source.
+- **vectorPadding on all variants**: Padding transform merged into fxStyle, applied on displacement/movement/pixi wrapper divs. No more clipping.
+- **Loaded loads vector SVG**: Sidebar Loaded and LOAD tab refresh both load random vector SVG + variant. Resets vectorPadding to 0.
+- **LOAD tab dropdown selection**: Category dropdowns (Displacement/Movement/Copies/Memory) show currently loaded variant as selected.
+- **Animation resume**: MovementVariant uses resume() instead of play() — preserves position on pause/unpause.
+- **Alt+click restart**: Sidebar Animate alt+click bumps symphonyRestartKey, remounts all variants from beginning.
+- **Universal alt+click reset**: RotaryDial, Slider, ColorPicker, Dropdown all accept defaultValue prop. Alt+click resets to defaultValue (knobs/sliders fall back to min).
+- **Background alt+click**: Whole row intercepts alt+click to toggle transparent/black. ColorPicker skips opening on alt+click.
+
+### Recent Changes (2026-03-31, session 6)
+- **Master Module rewired**: Ch 1-3 strips now read/write actual `channels[i]` state (opacity, enabled, intensity, fx) instead of master-level FX. RTN 1-2 wired to busA/busB. MST wired to master state. All local enable states removed.
+- **A/B knob banks**: ChannelMaster accepts `knobsA`/`knobsB` props. Bank A: INT, HUE, SAT. Bank B: BRT, CTR, BLR. Neither pressed = first 2 knobs. Both = all 6. Used on all strips (channels use buildChannelKnobs, buses/master use buildFxKnobs).
+- **Bottom tabs wired**: AUX SND reads/writes `channels[i].sendA`. FX SND reads/writes `channels[i].sendB`. AUX RTN shows busA controls (level, blend, solo, ON/OFF). FX RTN shows busB controls.
+- **Shelf tabs wired**: FILES shows customImageName + recSlots counts. FX shows interactive per-channel FX lists + master FX (add/remove/toggle). COLOR shows per-channel vectorColor, backgroundColor (ColorPicker), blendMode (Dropdown). MST shows master opacity, blend, FX. AUX/FX shows RTN 1-2 full controls.
+- **FX helpers**: readFx/writeFx utility functions in MasterModule for reading/writing FX arrays. buildChannelKnobs/buildFxKnobs for constructing knob bank configs.
+- **FxList component**: Inline FX list with enable dot, type label, primary param slider, remove button. Used in FX shelf and AUX/FX shelf.
+- **Sidebar Loaded**: "Loaded [Random]" row above "Reloaded [Random]". Loads random variant into Ch 1 only. symphonyLoaded function on state (SymphonyViewport).
+- **Background toggle**: Alt+click "Background" label in channel COLOR section toggles transparent/black. Label dims when transparent.
+
+### Recent Changes (2026-03-31, session 5)
+- **Master Module bottom tabs**: AUX SND | AUX RTN | FX SND | FX RTN with dense knobs in 64px containers aligned to channel strips.
+- **Master Module right shelf**: 4 top buttons (FILES/library, FX/frequency, COLOR/layers, MST/circle) + 1 bottom button (AUX-FX/atomic-molecule). 280px shelf panel with 5 tab views (FILES, FX, COLOR, MST, AUX/FX). Placeholder content.
+- **Routing Matrix rewrite**: CSS grid → flex columns via MatrixColumn component. 5×5 matrix (Ch 1-3 + RTN 1-2). Vertical Divider between ch/rtn column groups, horizontal divider between ch/rtn rows. ChannelButton helper for styled pill buttons.
+- **Routing Matrix source cycling**: Row labels are click-to-cycle buttons (Own → Ch 1 → Ch 2 → ..., skipping self). Accent color when routed.
+- **Routing Matrix bottom**: Channel Output section with dense knobs + Indicated wrappers for Ch 1-3 + RTN 1-2.
+- **Routing Matrix shelf**: Right shelf with per-channel output controls (level, blend, ON/OFF).
+- **RTN integration**: RTN 1-2 in matrix read from master.busA/busB. Blue accent (#3b82f6). master/onMasterChange props passed from SymphonyMixer.
+
 ### Recent Changes (2026-03-31, session 4)
 - **Master Module**: 6-channel mixer strip (Ch 1-3 red, RTN 1-2 blue, MST teal) with vertical dividers. Custom VerticalFader (pointer drag, track marks, rectangular thumb). AUX SEND section with per-channel knobs + Indicated dots. Header with 16px enable indicator (1px border). ChannelMaster extracted to `src/components/mixer/ChannelMaster.jsx`.
 - **Routing Matrix**: Standalone component with signal source dropdowns, NxN send matrix, per-channel output controls.
 - **Frame Buffer**: useFrameBuffer hook, OffscreenCanvas per channel, resolveRenderOrder topological sort. Integrated in viewport/channel layer.
 - **State**: symphonyMaster expanded (enabled, opacity 80 default, busA/busB with returnLevel/fx/blendMode/solo). EMPTY_CHANNEL: sendA, sendB, routeFrom, routeSendLevels.
-- **RotaryDial**: DIAL_VARIANTS (default/dense). Dense: knobRatio 0.85, tickSize 40, smaller ticks, no top offset.
+- **RotaryDial**: DIAL_VARIANTS (default/dense). Dense: knobRatio 0.95, tickSize 40, smaller ticks, no top offset.
 - **Video Synth Plan**: docs/video-synth-mixer-plan.md — routing, feedback, generators, FX, modulators.
 
 ### Recent Changes (2026-03-31, session 3)

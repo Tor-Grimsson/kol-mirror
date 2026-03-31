@@ -1,6 +1,6 @@
 # Symphony Mixer
 
-Compositing canvas where multiple effect channels layer together with independent controls, FX chains, and a master bus.
+Compositing canvas where multiple effect channels layer together with independent controls, FX chains, send/return buses, and a master output.
 
 ---
 
@@ -15,9 +15,10 @@ SymphonyViewport
 │       └── ChannelLayer[N] (top)
 └── SymphonyMixer (below canvas)
     ├── ChannelWireDiagram (SVG signal flow)
-    ├── Tab bar: [A Channels] / [B Output]
-    ├── A Channels: horizontal strip per channel + [+] add
-    └── B Output: 3-col grid (Master / Info / Export)
+    ├── Tab bar: [Channels] / [Output] / [Expressions]
+    ├── Channels tab: horizontal strip per channel + [+] add
+    ├── Output tab: MasterModule + RoutingMatrix (side by side)
+    └── Expressions tab: ExpressionReference (5-column wave reference + oscilloscope)
 ```
 
 | Component | File |
@@ -25,10 +26,15 @@ SymphonyViewport
 | SymphonyViewport | `src/components/mirror/SymphonyViewport.jsx` |
 | SymphonyMixer | `src/components/hall-of-mirrors/SymphonyMixer.jsx` |
 | ChannelLayer | `src/components/mirror/ChannelLayer.jsx` |
+| MasterModule | `src/components/hall-of-mirrors/MasterModule.jsx` |
+| RoutingMatrix | `src/components/hall-of-mirrors/RoutingMatrix.jsx` |
+| ChannelMaster | `src/components/mixer/ChannelMaster.jsx` |
 | ChannelWireDiagram | `src/components/hall-of-mirrors/ChannelWireDiagram.jsx` |
-| ChannelVideo | in `ChannelLayer.jsx` |
+| ExpressionReference | `src/components/hall-of-mirrors/ExpressionReference.jsx` |
 | RotaryDial | `src/components/hall-of-mirrors/RotaryDial.jsx` |
 | useChannelRecorder | `src/hooks/useChannelRecorder.js` |
+| useFrameBuffer | `src/hooks/useFrameBuffer.js` |
+| useExpressionValue | `src/hooks/useExpressionValue.js` |
 
 ---
 
@@ -43,7 +49,6 @@ SymphonyViewport
 | `slotIndex` | number\|null | null | Archive slot reference |
 | `enabled` | bool | false | Channel on/off |
 | `intensity` | number | 30 | Dial value |
-| `baseIntensity` | number | 100 | 1× reference |
 | `boosted` | bool | false | 2× multiplier |
 | `speed` | number | 100 | Animation speed % |
 | `opacity` | number | 100 | Layer opacity % |
@@ -51,112 +56,180 @@ SymphonyViewport
 | `fx` | array | [] | Post-FX chain |
 | `blendMode` | string | `'normal'` | CSS mix-blend-mode |
 | `vectorColor` | string | `'currentColor'` | Per-channel SVG color |
-| `backgroundColor` | string | `'transparent'` | Per-channel bg |
+| `backgroundColor` | string | `'transparent'` | Per-channel bg (alt+click label to toggle) |
 | `rasterTheme` | string | `'dark'` | Raster fill context |
 | `rasterTierOverride` | string\|null | null | Force `'mid'` or `'high'` |
 | `customImageSrc` | string\|null | null | Per-channel image |
 | `customRasterSrc` | string\|null | null | Per-channel raster |
+| `customImageName` | string\|null | null | Filename for display |
 | `loadMode` | string | `'effect'` | `'effect'` or `'source'` |
+| `vectorPadding` | number | 0 | SVG padding (-100% to +100%) |
 | `recSlots` | array | [null×4] | Recording slots (max 8) |
 | `activeRecSlot` | number\|null | null | Active playback slot |
 | `isArmedForRec` | bool | false | Recording standby |
+| `sendA` | number | 0 | AUX bus send level (0-100) |
+| `sendB` | number | 0 | FX bus send level (0-100) |
+| `routeFrom` | null\|number | null | Cross-channel input source |
+| `routeSendLevels` | object | {} | Multi-source send levels `{ [chIndex]: 0-100 }` |
 
 ---
 
-## Channel Strip (320px width)
+## Channel Strip (Channels tab)
 
 ### Top row
-- **Enable dot** — red when on, grey when off. Right-click → Remove Channel context menu.
+- **Enable dot** — red when on, grey when off
 - **[RST]** — reset channel (Alt+click: reset all channels)
 - **[REC]** — opens shelf to REC tab
-- **Load button** — archive slots + hall presets dropdown (portal to body to escape overflow)
+- **Load button** — archive slots + hall presets dropdown
 - **Shelf toggle** — opens right shelf
-- **FX toggle** — opens bottom shelf (Alt+click: toggle all channels)
+- **FX toggle** — opens bottom shelf
 
 ### Center
-- **Rotary dial** (120px) — intensity value
+- **Knob grid** — 2×3 CSS grid: INT, HUE, SAT, BRT, CTR, BLR
+- Each knob reads/writes channel FX via getFxValue/setFxValue helpers
 
 ### Bottom
 - **Boost** — [ON/OFF] toggle
 - **Speed** — 0–200% slider
 - **Opacity** — 0–100% slider
 
-### Intensity math
-See [signal-path.md](signal-path.md#intensity-scaling). The dial is a multiplier, not an absolute value. At `baseIntensity` the dial reads 1×. Above = overdrive. Boost doubles it. Applied only to `variant.intensityKeys`.
+### Shelf — Right (280px)
+
+Tabs: **SRC** | **RES** | **LOAD** | **PARAMS** | **REC**
+
+| Tab | Content |
+|-----|---------|
+| SRC | Thumbnail, [Clear], [Load] default SVG, recolor/normal upload |
+| RES | Raster tier override, raster theme, [RECALC] |
+| LOAD | Loaded/Reloaded rows, variant dropdowns, color/blend/blur/brightness/vector/scale randomizers, shapes/forms/logos dropdowns |
+| PARAMS | Variant controls (paginated 7/page), greyed out when frozen |
+| REC | Duration, framerate, record/stop, slot list, trim slider, transport |
+
+### Shelf — Bottom (124px)
+
+Tabs: **COLOR** | **BLEND** | **FX**
+
+| Tab | Content |
+|-----|---------|
+| COLOR | Vector + background color pickers, context color selector |
+| BLEND | Blend mode dropdown (16 modes) |
+| FX | Post-FX chain (max 8), add/remove/toggle/slider per FX |
 
 ---
 
-## Shelf — Right (280–840px, draggable)
+## Output Tab
 
-Tabs: **PARAMS** | **SRC** | **REC**
+Two components rendered side by side with horizontal scroll.
 
-### PARAMS
-- Tab controls pinned at top (for kaleidoscope Comp A/B)
-- Paginated: 7 rows per page
-- Controls greyed out when frozen recording active (`disabledKeys` from `frozenParams`)
-- Real-time param updates
+### Master Module
 
-### SRC
-- 80px thumbnail (custom or global image)
-- Source indicator: Custom / Global
-- Mode: Effect Only / Effect + Source
-- Upload / Clear per-channel image
+6 channel strips: Ch 1-3, RTN 1-2, MST
 
-### REC
-See Recording section below.
+**Channel strips (Ch 1-3):**
+- Wired to actual `channels[i]` state (not master FX)
+- Fader → `channels[i].opacity`
+- Enable → `channels[i].enabled`
+- Knobs → `channels[i].intensity` + `channels[i].fx` (via buildChannelKnobs)
+
+**Return strips (RTN 1-2):**
+- Fader → `busA.returnLevel` / `busB.returnLevel`
+- Enable → `busA.enabled` / `busB.enabled`
+- Knobs → bus FX (via buildFxKnobs)
+- Blue accent (#3b82f6)
+
+**Master strip (MST):**
+- Fader → `master.opacity`
+- Enable → `master.enabled`
+- Knobs → master FX (via buildFxKnobs)
+- Teal accent (#2dd4bf)
+
+**A/B Knob Banks (ChannelMaster component):**
+
+Each strip has A/B toggle buttons that control knob visibility:
+
+| State | Knobs shown |
+|-------|-------------|
+| Neither | First 2 from bank A |
+| A pressed | Bank A (3 knobs) |
+| B pressed | Bank B (3 knobs) |
+| Both | All 6 knobs |
+
+Channel banks: A = INT, HUE, SAT. B = BRT, CTR, BLR.
+Bus/master banks: A = HUE, SAT, BRT. B = CTR, BLR, INV.
+
+**Bottom tabs:**
+
+| Tab | Content |
+|-----|---------|
+| AUX SND | Per-channel `sendA` knobs aligned to strips |
+| AUX RTN | busA controls: level slider, blend, solo, ON/OFF |
+| FX SND | Per-channel `sendB` knobs aligned to strips |
+| FX RTN | busB controls: level slider, blend, solo, ON/OFF |
+
+**Right shelf (280px, 5 tabs):**
+
+| Tab | Content |
+|-----|---------|
+| FILES | Per-channel loaded source (`customImageName`) + recording clip counts |
+| FX | Interactive per-channel FX lists + master FX (add/remove/toggle/slider) |
+| COLOR | Per-channel vectorColor, backgroundColor (ColorPicker), blendMode (Dropdown) |
+| MST | Master opacity, blend mode, master FX chain |
+| AUX/FX | RTN 1-2 full controls: enable, return level, blend, solo, FX chain |
+
+### Routing Matrix
+
+5×5 matrix (Ch 1-3 + RTN 1-2) as both sources and destinations.
+
+- **Flex column layout** via MatrixColumn component
+- **Row labels** — click-to-cycle source selectors (Own → Ch 1 → Ch 2 → ..., skipping self). Accent color when routed.
+- **Send knobs** — RotaryDial dense variant per cell
+- **FB column** — self-feedback toggles per channel (sets diagonal routeSendLevels to 50)
+- **Vertical divider** between Ch and RTN column groups
+- **Bottom section** — Channel Output: dense knobs for per-channel opacity (Ch 1-3) and return level (RTN 1-2)
+- **Right shelf** — Output detail: level slider, blend dropdown, ON/OFF per channel
 
 ---
 
-## Shelf — Bottom (124px fixed)
+## Master State
 
-Tabs: **FX** | **BLEND** | **COLOR** | **RES**
+`symphonyMaster` in `src/hooks/useMirrorState.js`:
 
-### FX
-Post-FX chain (max 8). Each slot: enable dot, type dropdown, param sliders, × remove. `[+ ADD FX]`.
+```js
+{
+  enabled: true,
+  opacity: 80,
+  blendMode: 'normal',
+  fx: [],
+  busA: { enabled: true, returnLevel: 0, fx: [], blendMode: 'normal', solo: false },
+  busB: { enabled: true, returnLevel: 0, fx: [], blendMode: 'normal', solo: false },
+}
+```
 
-### BLEND
-CSS `mix-blend-mode` dropdown (16 modes).
+---
 
-### COLOR
-Vector + Background color pickers. Context Color (raster theme) dark/light selector.
+## Sidebar Controls (Symphony)
 
-### RES
-Raster tier override (Auto / Mid 6× / High 12×). `[+ Recalculate]` button.
+When `activeHall === 'symphony'`:
+
+| Row | Action |
+|-----|--------|
+| Animate [ON/OFF] | Toggle global animation (syncs all channels) |
+| Loaded [Random] | Load random variant into Ch 1 (`state.symphonyLoaded`) |
+| Reloaded [Random] | Randomize all 3 channels: variant + colors + blend + FX + vector (`state.symphonyReloaded`) |
+| Canvas Ratio | Dropdown: 16:9, 5:3, 4:3, 1:1, 3:4, 3:5, 9:16, custom |
+| Image Fit | Dropdown: contain, fit-width, fit-height, manual |
+| Mixer Layout | Dropdown: default, compact, expanded |
+| Undo/Redo | 30-deep channel state history |
 
 ---
 
 ## Slot Systems
 
-Two distinct slot types:
-
 ### Archive slots (9 total, global)
-Save/load any variant + params + image. Shared across the app. Loading into a channel sets `channel.slotIndex` — params resolve live from `variantParams[variantId]`, so hall edits propagate.
+Save/load any variant + params + image. Loading into a channel sets `channel.slotIndex` — params resolve live from `variantParams`.
 
 ### Rec slots (4–8 per channel)
-Video recordings per channel. Stored as WebM blob URLs. Independent per channel — not shared.
-
-When a channel has `slotIndex` set (archive reference):
-- `resolvedChannel.params` = `state.getVariantParams(archiveSlots[slotIndex].variantId)`
-- Param edits go to global `variantParams`, not the channel's local `params`
-
-When a channel has no `slotIndex`:
-- Uses `channel.params` directly (local copy)
-
----
-
-## Master Bus
-
-`symphonyMaster`: `{ fx: [], blendMode: 'normal', opacity: 100 }`
-
-Wraps all channels in a single div. Same FX types as channels (max 8). Controls in B Output tab.
-
-### B Output tab (3-column grid)
-
-| Master Output | Project Info | Export |
-|---------------|-------------|--------|
-| Opacity slider | Channel count | (placeholder) |
-| Blend mode dropdown | Active count | |
-| [FX] → master FX rack | Master FX count | |
+Video recordings per channel. Stored as WebM blob URLs. Independent per channel.
 
 ---
 
@@ -171,60 +244,26 @@ idle → armed → recording → done
        └── disarm/clear ←────┘
 ```
 
-### Hook API (`useChannelRecorder`)
-
-| Method | Description |
-|--------|-------------|
-| `arm(canvas, duration, params, fps)` | Set up stream + MediaRecorder. Snapshots `frozenParams`. |
-| `start(duration?)` | Begin capture. 100ms timer. Auto-stop at duration. |
-| `stop()` | Finalize early → `done`. |
-| `disarm()` / `clear()` | Cancel, revoke blob → `idle`. |
-
-Uses `captureStream(fps)` + `MediaRecorder`. Codec: VP9 → VP8 → WebM fallback. Data in 100ms chunks.
-
-### Flow
-
-1. Open REC tab → Duration (10/20/40/80/160s), Framerate (30/60fps)
-2. Click record dot → **armed**
-   - `isArmedForRec: true` → Pixi remounts with `preserveDrawingBuffer: true`
-   - Canvas registered in `canvasRegistryRef` Map (polling: 120ms + 50ms retry)
-3. `[Start]` → capture begins, progress bar + frame counter
-4. Auto-stop at duration or `[Stop]`
-5. Panel shows file size → `[Save]` or `[Discard]`
-6. Save pushes to first empty `recSlots` entry
+### Capture types
+- **Pixi variants**: `captureStream(fps)` directly from WebGL canvas
+- **DOM variants** (displacement/movement): `useDomCaptureCanvas` — hidden canvas captures DOM output
 
 ### Rec slot data
 
 | Field | Description |
 |-------|-------------|
 | `blobUrl` | Object URL to WebM blob |
-| `fileName` | `rec-01.webm` etc. |
-| `size` | bytes |
-| `codec` | `'webm'` |
 | `fps` | 30 or 60 |
-| `resolution` | e.g. `1920x1080` |
 | `duration` | seconds |
 | `mark1` / `mark2` | trim in/out |
 | `frozenParams` | param snapshot |
-| `source` | `'recorded'` or `'uploaded'` |
-
-### Slot UI
-- Slot list with `[Info]` toggle
-- Dual-handle trim slider with playhead indicator
-- Transport: Play (activate) / Pause / Stop (deactivate)
-- `[Download]`, `×` remove, `[Upload]` on empty slots
-- `[+ Add Slot]` up to 8
-
-### Frozen playback
-When `activeRecSlot` is set, `ChannelLayer` renders `ChannelVideo` (`<video>`) instead of live Pixi. Loops between trim points, supports seek, respects animation state and `recPaused`. PARAMS tab greys out `frozenParams` keys.
-
-### preserveDrawingBuffer
-Armed channels get key-based Pixi remount with `preserveDrawingBuffer: true` (required for `captureStream`). Key includes armed state to force WebGL context recreation.
 
 ---
 
 ## Known Issues
 
-- **Save-to-slot timing**: Slot population can fail — closure/timing issue in save handler when `recSlots` array is modified asynchronously.
-- **Canvas detection**: Polling (120ms + 50ms retry) works around usePixiApp's 100ms init delay. Fragile.
-- **Legacy channels**: Pre-recSlots channels have `recSlots: undefined` — `|| []` fallback handles it but no empty slot placeholders.
+- **RTN→Ch and RTN→RTN** knobs in routing matrix not wired (`onChange={() => {}}`)
+- **Bus rendering** — sends/returns UI is wired, but actual video compositing not implemented
+- **Send data split** — `sendA`/`sendB` vs `routeSendLevels['rtn-1']`/`['rtn-2']` are separate state, need unification
+- **Tier recalc broken** — switching raster tier + RECALC doesn't change resolution on Pixi variants
+- **Displacement capture scale** — DOM capture canvas output cropped vs live

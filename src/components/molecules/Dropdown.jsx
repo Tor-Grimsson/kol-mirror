@@ -18,6 +18,7 @@ const Dropdown = ({
   keepOpen = false,
   renderOption,
   placeholder,
+  defaultValue,
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
@@ -121,7 +122,8 @@ const Dropdown = ({
     })
   }, [options.length])
 
-  const handleToggle = () => {
+  const handleToggle = (e) => {
+    if (e?.altKey && defaultValue !== undefined && onChange) { onChange(defaultValue); setIsOpen(false); return }
     if (!isOpen) {
       updatePanelPosition()
     }

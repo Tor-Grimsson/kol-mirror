@@ -6,7 +6,7 @@ const DIAL_VARIANTS = {
   dense: { knobRatio: 0.95, tickSize: 40 },
 }
 
-export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false, variant = 'default' }) {
+export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false, variant = 'default', defaultValue }) {
   const dragRef = useRef(null)
   const onChangeRef = useRef(onChange)
   const [editing, setEditing] = useState(false)
@@ -19,6 +19,7 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
 
   const handlePointerDown = useCallback((e) => {
     e.preventDefault()
+    if (e.altKey) { onChangeRef.current(defaultValue ?? min); return }
     const startY = e.clientY
     const startValue = value
 

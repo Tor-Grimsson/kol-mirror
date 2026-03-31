@@ -544,8 +544,11 @@ function Channel({
                 <ColorPicker color={vectorColor} onChange={onVectorColorChange} />
               </div>
               <Divider variant="vertical" className="px-4" />
-              <div className="flex items-center justify-between flex-1">
-                <span className="text-fg-96">Background</span>
+              <div
+                className="flex items-center justify-between flex-1"
+                onClick={(e) => { if (e.altKey) { e.stopPropagation(); onBackgroundColorChange(backgroundColor === 'transparent' ? '#000000' : 'transparent') } }}
+              >
+                <span className={`${backgroundColor === 'transparent' ? 'text-fg-32' : 'text-fg-96'} select-none`}>Background</span>
                 <ColorPicker color={backgroundColor} onChange={onBackgroundColorChange} />
               </div>
             </div>
@@ -615,6 +618,8 @@ function Channel({
                   <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => {
                     const all = items?.filter(i => !i.empty && i.type !== 'separator') || []
                     if (all.length) onSelectItem(all[Math.floor(Math.random() * all.length)].id)
+                    const v = ALL_VECTORS[Math.floor(Math.random() * ALL_VECTORS.length)]
+                    loadVectorSvg(v.value, onMediaChange)
                   }}><Icon name="refresh" size={12} /></span>
                   <Dropdown
                     options={[
@@ -670,7 +675,9 @@ function Channel({
                 </span>
               </div>
               <Divider className="my-1" />
-              {loadGroups.map(group => (
+              {loadGroups.map(group => {
+                const selected = loadedName ? group.items.find(i => i.name === loadedName) : null
+                return (
                 <div key={group.key} className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
                   <span className="text-fg-96">{group.label}</span>
                   <Dropdown
@@ -686,7 +693,7 @@ function Channel({
                       const full = i.name?.split(': ').slice(1).join(': ') || i.name
                       return { value: i.id, label: full.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1, 3)).join(' ') }
                     })}
-                    value=""
+                    value={selected ? selected.id : ''}
                     onChange={(v) => onSelectItem(v)}
                     variant="minimal"
                     size="md"
@@ -694,7 +701,8 @@ function Channel({
                     keepOpen
                   />
                 </div>
-              ))}
+                )
+              })}
               <Divider className="my-1" />
               {[
                 { key: 'color', label: 'Color', onRandom: () => { const r = () => Math.floor(Math.random() * 256); onVectorColorChange(`rgba(${r()},${r()},${r()},1)`); onBackgroundColorChange(`rgba(${r()},${r()},${r()},1)`); setRandomized(p => ({ ...p, color: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onVectorColorChange('currentColor'); onBackgroundColorChange('transparent'); setRandomized(p => ({ ...p, color: null })) } },
@@ -1280,6 +1288,8 @@ export default function SymphonyMixer({
         <RoutingMatrix
           channels={channels}
           onChannelUpdate={onChannelUpdate}
+          master={master}
+          onMasterChange={onMasterChange}
         />
       </div>
       )}

@@ -351,10 +351,18 @@ export default function MirrorSidebar({ state, onClose }) {
             <div
               className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
               style={{ height: '24px' }}
-              onClick={() => state.setSymphonyAnimating(!state.symphonyAnimating)}
+              onClick={(e) => { if (e.altKey) { state.setSymphonyRestartKey(k => k + 1); if (!state.symphonyAnimating) state.setSymphonyAnimating(true) } else { state.setSymphonyAnimating(!state.symphonyAnimating) } }}
             >
               <span>Animate</span>
               <span>[{state.symphonyAnimating ? 'ON' : 'OFF'}]</span>
+            </div>
+            <div
+              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
+              style={{ height: '24px' }}
+              onClick={() => state.symphonyLoaded && state.symphonyLoaded(null)}
+            >
+              <span>Loaded</span>
+              <span>[Random]</span>
             </div>
             <div
               className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"

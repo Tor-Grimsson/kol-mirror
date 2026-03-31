@@ -35,7 +35,8 @@ const Slider = ({
   step = 1,
   playhead,
   onPlayheadChange,
-  formatValue
+  formatValue,
+  defaultValue
 }) => {
   const handleChange = (e) => {
     if (onChange) {
@@ -129,7 +130,7 @@ const Slider = ({
   const displayValue = useMemo(() => fmt(value), [decimals, formatValue, value])
 
   return (
-    <div className={`${variantClass} gap-3 shadow-none ${className}`}>
+    <div className={`${variantClass} gap-3 shadow-none ${className}`} onClick={(e) => { if (e.altKey && onChange) { e.preventDefault(); onChange(defaultValue ?? min) } }}>
       {label && (
         <label className="kol-helper-xs whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
           {label}

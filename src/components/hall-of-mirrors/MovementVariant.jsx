@@ -60,7 +60,7 @@ const MovementVariant = ({
   useEffect(() => {
     if (!timelineRef.current) return
     if (isEnabled) {
-      timelineRef.current.play()
+      timelineRef.current.resume()
     } else {
       timelineRef.current.pause()
     }

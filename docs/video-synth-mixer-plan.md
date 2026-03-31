@@ -15,221 +15,251 @@ IMAGES ──────┘         ↑                        │
 
 ## Roadmap
 
-| Chunk | Name | Depends on | What it unlocks |
-|-------|------|-----------|-----------------|
-| 1 | Frame Buffer + Routing | — | Cross-channel patching, serial chains |
-| 2 | Feedback Loops | Chunk 1 | Video feedback art, accumulation, decay |
-| 3 | Generators | Chunk 1 | Noise, patterns, gradients as signal sources |
-| 4 | FX Modules | Chunk 1 | Chromatic aberration, edge detect, posterize, pixel sort |
-| 5 | Modulator UI | — | LFO, envelope, step sequencer (UI on top of expression engine) |
+| # | Name | Depends on | Status |
+|---|------|-----------|--------|
+| 1 | Frame buffer + routing | — | **Done** |
+| 2 | Output tab UI (strips, sends, shelf) | 1 | **Done** |
+| 3 | Bus rendering pipeline | 1, 2 | **Next** |
+| 4 | Unify sends + return-to-channel | 3 | Planned |
+| 5 | Feedback loops (decay/mix/freeze) | 3 | Planned |
+| 6 | Generators (noise, patterns, gradients) | 1 | Planned |
+| 7 | Canvas FX modules (chromatic, edge, pixel sort) | 1 | Planned |
+| 8 | Modulator UI (LFO, envelope, step seq) | — | Planned |
+| 9 | Modular extensions (in/out jacks, multiples, logic) | 3-8 | Future |
 
 ---
 
-## Chunk 1: Frame Buffer + Cross-Channel Routing
-
-### Concept
-
-Any channel's rendered output can be used as the input image for any other channel.
-
-- **Serial chain**: A processes photo → B processes A's output → C processes B's output
-- **Parallel**: A and B both process same source, C mixes them
-- **Feedback**: A→B→A creates accumulating distortion (1-frame delay)
-
-### How it works
+## Signal Flow
 
 ```
-Frame N:
-  1. Capture all channel outputs from frame N-1 buffers
-  2. For each channel, resolve input:
-     - Static image (default, current behavior)
-     - Another channel's buffered output (routed)
-     - Mix of multiple channels at send levels
-  3. Render each channel with resolved input
-  4. Capture outputs to buffers for frame N+1
+┌──────────────────────────────────────────────────────────────────┐
+│                        SYMPHONY MIXER                             │
+│                                                                   │
+│  CHANNELS TAB                             OUTPUT TAB              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                       │
+│  │  SOURCE   │  │  SOURCE   │  │  SOURCE   │  ← image / vector   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘    / generator        │
+│       │              │              │                              │
+│  ┌────▼─────┐  ┌────▼─────┐  ┌────▼─────┐                       │
+│  │ CHANNEL 1│  │ CHANNEL 2│  │ CHANNEL 3│  ← variant + CSS FX   │
+│  │ 6 knobs  │  │ 6 knobs  │  │ 6 knobs  │    (editable from     │
+│  │ (A/B)    │  │ (A/B)    │  │ (A/B)    │     Channels OR        │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘     Output tab)       │
+│       │              │              │                              │
+│  ═════╪══════════════╪══════════════╪═══════════════════════════  │
+│       │              │              │                              │
+│       ├──────────────┼──────────────┤                             │
+│       │      ROUTING MATRIX (NxN)   │                             │
+│       │    ┌──┬──┬──┬────┬────┐     │                             │
+│       │    │--│50│ 0│sndA│sndB│ Ch1 │  Ch→Ch: cross-channel      │
+│       │    │ 0│--│80│sndA│sndB│ Ch2 │  Ch→RTN: bus sends         │
+│       │    │30│ 0│--│sndA│sndB│ Ch3 │  RTN→Ch: return routing    │
+│       │    └──┴──┴──┴────┴────┘     │  FB: self-feedback         │
+│       │              │              │                             │
+│       │         sendA│sendB         │                             │
+│       │           ┌──▼──┐           │                             │
+│       │           │ BUS │           │                             │
+│       │           │ A+B │  ← composite channels at send levels   │
+│       │           │ +FX │    + apply bus FX chain                 │
+│       │           └──┬──┘    (NOT YET RENDERING)                 │
+│       │              │                                            │
+│       │         RTN 1│RTN 2                                      │
+│       │              │                                            │
+│  ┌────▼──────────────▼──────────────────┐                        │
+│  │           MASTER MODULE               │                        │
+│  │  ┌────┐┌────┐┌────┐ ┌─────┐┌─────┐  │                        │
+│  │  │Ch 1││Ch 2││Ch 3│ │RTN 1││RTN 2│  │  ← faders + 6 knobs   │
+│  │  │ A B ││ A B ││ A B │ │ A B  ││ A B  │  │    (A/B banks)      │
+│  │  └──┬─┘└──┬─┘└──┬─┘ └──┬──┘└──┬──┘  │                        │
+│  │     │     │     │      │      │     ┌────┐                    │
+│  │     └─────┴─────┴──────┴──────┘     │MST │ ← master fader    │
+│  │                                      │ A B│   + master FX     │
+│  │  Bottom: AUX SND│FX SND│AUX RTN│FX RTN └──┬─┘                │
+│  │  Shelf:  FILES │ FX │ COLOR │ MST │ AUX/FX │                  │
+│  └─────────────────────────────────────────┬──┘                  │
+│                                            │                      │
+│                                      ┌─────▼─────┐               │
+│                                      │  OUTPUT    │ → viewport   │
+│                                      └───────────┘   / recording │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### New infrastructure
+### Two views, one truth
 
-**useFrameBuffer hook** — OffscreenCanvas per channel, central capture loop
-- `registerCanvas(index, canvasEl)` — called by ChannelLayer
-- `getChannelFrame(index)` — returns buffer canvas for routing
-- `captureAll()` — copies all registered canvases to buffers
+The routing matrix and master module bottom tabs show the same send data:
+- **AUX SND tab** = channel `sendA` knobs aligned to master strips
+- **RTN 1 column** in routing matrix = same `sendA` values in matrix view
+- Currently these are separate state (`sendA` vs `routeSendLevels['rtn-1']`) — unification is chunk 4
 
-**Render order** — topological sort based on routing dependencies. Circular deps (feedback) use previous frame's buffer.
+### Return paths
 
-**Routing matrix UI** — NxN grid in MasterModule shelf:
-```
-         → Ch1  → Ch2  → Ch3
-Ch1 out:  [--]  [50%]  [  0]
-Ch2 out:  [  0]  [--]  [80%]
-Ch3 out:  [30%]  [  0]  [--]
-```
-Diagonal = self-feedback. Each cell = send level 0-100%.
+1. **Into master mix** — RTN fader (returnLevel) controls how much return enters the final composite
+2. **Into a channel** — via routing matrix RTN→Ch sends. Channel re-renders with bus frame as input (1-frame delay). Enables insert-loop effects.
 
-### State
+---
 
-Channel additions:
+## What's Built
+
+### Frame Buffer + Routing (chunk 1)
+
+- **useFrameBuffer** — OffscreenCanvas per channel, `registerCanvas`, `getChannelFrame`, `captureAll`, `resolveRenderOrder` (topological sort, circular deps use previous frame)
+- **Channel state** — `routeFrom` (null = own image, index = other channel), `routeSendLevels` (keyed multi-source mixing), `sendA`/`sendB` (bus send levels)
+- **Routing matrix UI** — flex columns via MatrixColumn, 5x5 (Ch 1-3 + RTN 1-2), click-to-cycle source, FB toggles, channel output knobs, right shelf with output detail
+
+### Output Tab UI (chunk 2)
+
+**Master Module — 6 channel strips:**
+- Ch 1-3 wired to `channels[i]` (fader→opacity, enable→enabled, knobs→intensity+fx)
+- RTN 1-2 wired to `busA`/`busB` (fader→returnLevel, enable→enabled, knobs→bus fx)
+- MST wired to master (fader→opacity, enable→enabled, knobs→master fx)
+
+**A/B knob banks (ChannelMaster component):**
+- Accepts `knobsA`/`knobsB` props. A/B buttons toggle visibility.
+- Neither = first 2 knobs. A = bank A (3). B = bank B (3). Both = all 6.
+- Channel banks: A = INT, HUE, SAT. B = BRT, CTR, BLR.
+- Bus/master banks: A = HUE, SAT, BRT. B = CTR, BLR, INV.
+
+**Bottom tabs:**
+- AUX SND — per-channel `sendA` knobs with active indicators
+- FX SND — per-channel `sendB` knobs
+- AUX RTN — busA controls (level, blend, solo, ON/OFF)
+- FX RTN — busB controls
+
+**Right shelf tabs:**
+- FILES — `customImageName` per channel + `recSlots` clip counts
+- FX — interactive per-channel FX lists + master FX (add/remove/toggle/slider)
+- COLOR — per-channel vectorColor + backgroundColor (ColorPicker) + blendMode (Dropdown)
+- MST — master opacity slider, blend mode, master FX chain
+- AUX/FX — full RTN 1-2 controls (enable, return level, blend, solo, FX chain)
+
+**Helpers** (in MasterModule.jsx):
 ```js
-routeFrom: null,         // null = own image, number = channel index
-routeSendLevels: {},      // { [channelIndex]: 0-100 } for multi-source mixing
+readFx(fxArr, fxId, paramKey)              // read param from FX array
+writeFx(fxArr, fxId, paramKey, val)        // return new FX array with changed param
+buildChannelKnobs(ch, i, onChannelUpdate)  // channel A/B banks
+buildFxKnobs(fxArr, updateFx)              // bus/master A/B banks
 ```
 
-### Files
+### Sidebar
 
-| File | Change |
-|------|--------|
-| `src/hooks/useFrameBuffer.js` | NEW |
-| `src/hooks/useMirrorState.js` | Add route fields to EMPTY_CHANNEL |
-| `src/components/mirror/SymphonyViewport.jsx` | Integrate frame buffers |
-| `src/components/mirror/ChannelLayer.jsx` | Resolve routed input |
-| `src/components/hall-of-mirrors/MasterModule.jsx` | NxN routing matrix UI |
+- **Loaded [Random]** — loads random variant into Ch 1 (`state.symphonyLoaded`)
+- **Reloaded [Random]** — randomizes all 3 channels: variant + colors + blend + FX + vector (`state.symphonyReloaded`)
 
-### Estimate: ~260 lines new code
+### Other
+
+- **Background toggle** — alt+click "Background" label in channel COLOR section toggles transparent/black, label dims when transparent
 
 ---
 
-## Chunk 2: Feedback Loops
+## What's Next
 
-With routing, feedback is automatic (circular routes use frame N-1). Controls add precision:
+### Chunk 3: Bus Rendering Pipeline
+
+The controls are wired. Now make sends/returns actually produce video.
+
+**Each frame:**
+1. Channels render variants (SymphonyViewport — already working)
+2. Frame buffer captures outputs (`captureAll` — already working)
+3. **Bus compositing** (NEW):
+   - For each bus, collect channel frames where send level > 0
+   - Composite onto bus canvas (opacity = sendLevel/100)
+   - Apply bus FX chain
+   - Store as bus frame (RTN 1 / RTN 2)
+4. Master mix composites channels @ fader + returns @ returnLevel + master FX
+
+**State** — current is sufficient:
+```js
+// channel:  sendA: 0, sendB: 0
+// master:   busA: { enabled, returnLevel, fx[], blendMode, solo }
+//           busB: { ... }
+```
+
+**useFrameBuffer extension:**
+- Bus buffer canvases (OffscreenCanvas for AUX and FX composites)
+- `compositeBus(busId, channelFrames, sendLevels, blendMode)` — new method
+- `getBusFrame('aux')` / `getBusFrame('fx')` — access bus results
+
+**Files:** `useFrameBuffer.js`, `SymphonyViewport.jsx`, `ChannelLayer.jsx`
+
+### Chunk 4: Unify Sends + Return-to-Channel
+
+**Problem:** `sendA`/`sendB` on channels and `routeSendLevels['rtn-1']`/`['rtn-2']` on routing matrix are separate state. Master AUX SND tab and routing matrix RTN 1 column should show the same data.
+
+**Recommendation:** use `routeSendLevels` as single source of truth for ALL sends. Remove `sendA`/`sendB`. Matrix RTN columns and master bottom tabs both read/write `routeSendLevels['rtn-1']`/`['rtn-2']`.
+
+**Return-to-channel:** RTN rows in routing matrix send to channel destinations. Bus frames become routable sources via `routeFrom: 'rtn-1'`.
+
+**Files:** `RoutingMatrix.jsx`, `MasterModule.jsx`, `useMirrorState.js`, `useFrameBuffer.js`
+
+---
+
+## Future Chunks
+
+### Chunk 5: Feedback Loops
+
+Routing already handles circular deps (1-frame delay). Controls add precision:
 
 | Control | Range | What |
 |---------|-------|------|
-| Decay | 0-100% | How much previous frame persists. 100% = infinite |
+| Decay | 0-100% | Previous frame persistence. 100% = infinite |
 | Mix | 0-100% | Dry/wet between fresh input and feedback |
-| Freeze | on/off | Hold current buffer, stop updating |
-
-Implementation: blend previous buffer with new frame in capture step.
+| Freeze | on/off | Hold buffer, stop updating |
 
 ```js
 bufferCtx.globalAlpha = decay / 100
 bufferCtx.drawImage(newFrame, 0, 0)
 ```
 
-### Creative applications
-- **Video feedback**: Route C→A with displacement, slight hue shift → evolving fractal textures
-- **Echo/trail**: Low decay + movement variant → motion trails
-- **Freeze + process**: Freeze a frame, apply increasing distortion over time
+Applications: video feedback fractals, motion trails, freeze + distort.
 
----
+### Chunk 6: Generators
 
-## Chunk 3: Generators
+Channels with no input image — signal from math. Generator = channel variant rendering to canvas via rAF.
 
-Channels with no input image — they create signal from math.
+| Generator | Parameters |
+|-----------|-----------|
+| Noise (Perlin/simplex) | scale, speed, octaves, seed |
+| Gradient (linear/radial/conic) | angle, colors, speed |
+| Pattern (stripes/dots/checker) | spacing, angle, duty |
+| Color Field | color (expression-driven) |
+| Oscillator | wave type, rate, range |
 
-| Generator | Output | Parameters |
-|-----------|--------|-----------|
-| Noise | Perlin/simplex texture | scale, speed, octaves, seed |
-| Gradient | Linear/radial/conic | angle, colors, speed |
-| Pattern | Stripes/dots/checker | spacing, angle, speed, duty |
-| Color Field | Solid/animated color | color (expression-driven) |
-| Oscillator | Brightness/hue cycle | wave type, rate, range |
+Applications: noise as displacement map, gradient as LFO source, pattern + feedback = cellular automata.
 
-Architecture: Generator = channel variant. Renders to canvas via rAF. Parameters driven by expression engine. Output enters frame buffer like any variant.
+### Chunk 7: Canvas FX Modules
 
-```js
-{ id: 'gen-noise', name: 'Noise', hall: 'generator', controls: [...] }
-```
+Post-processing beyond CSS filters. Pixel-level manipulation via `canvasFx` array on OffscreenCanvas.
 
-### Creative applications
-- **Noise → displacement map**: Feed noise generator output to displacement variant input → organic distortion
-- **Gradient → hue modulation**: Use gradient as LFO source mapped to another channel's hue
-- **Pattern + feedback**: Checkerboard with feedback creates cellular automata-like patterns
+| FX | Key params |
+|----|-----------|
+| Chromatic Aberration | offsetX/Y per R/G/B |
+| Edge Detect (Sobel) | threshold, invert |
+| Posterize | levels (2-32) |
+| Pixel Sort | direction, threshold, length |
+| Feedback Blur | angle, amount |
+| Datamosh | intensity, blockSize |
 
----
+Applications: RGB split + displacement = analog video, edge detect + feedback = wireframe hallucinations.
 
-## Chunk 4: FX Modules
+### Chunk 8: Modulator UI
 
-Canvas-based post-processing (beyond CSS filters). Runs on frame buffer after variant renders.
+Visual UI on top of the expression engine (`useExpressionValue`):
 
-| FX | What | Key params |
-|----|------|-----------|
-| Chromatic Aberration | RGB channel offset | offsetX, offsetY per R/G/B |
-| Edge Detect | Sobel/Laplacian | threshold, invert |
-| Posterize | Reduce color levels | levels (2-32) |
-| Threshold | Binary B/W | level, smoothness |
-| Pixel Sort | Glitch art sorting | direction, threshold, length |
-| Feedback Blur | Motion blur from prev frame | angle, amount |
-| Datamosh | Frame displacement | intensity, blockSize |
+| Module | Expression | UI |
+|--------|-----------|-----|
+| LFO | `wave(t*rate)*depth+offset` | wave shape + rate/depth/offset knobs |
+| Envelope | ADSR curve | A/D/S/R sliders |
+| Step Sequencer | stepped values | grid of value cells |
+| Random S&H | `step(rand(), rate)` | rate + range knobs |
 
-Architecture: `canvasFx` array alongside CSS `fx` array. Canvas FX process the OffscreenCanvas directly — pixel-level manipulation.
+All generate expression strings. Oscilloscope previews them.
 
-### Creative applications
-- **Chromatic aberration + displacement**: RGB split creates analog video distortion
-- **Edge detect → feedback**: Edges accumulate into wire-frame hallucinations
-- **Pixel sort + slow movement**: Glitch art that flows
+### Chunk 9: Modular Extensions
 
----
-
-## Chunk 5: Modulator UI
-
-The expression engine (`useExpressionValue`) already IS the modulator system. This chunk adds visual UI:
-
-| Module | What it generates | UI |
-|--------|------------------|-----|
-| LFO | `wave(t*rate)*depth+offset` | Wave shape selector + rate/depth/offset knobs |
-| Envelope | ADSR curve | Attack/Decay/Sustain/Release sliders |
-| Step Sequencer | Stepped values at rate | Grid of value cells |
-| Random S&H | `step(rand(), rate)` | Rate knob + range |
-
-All generate expression strings under the hood. The oscilloscope previews them.
-
----
-
-## Signal Flow (Complete Architecture)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      SYMPHONY MIXER                          │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │ GEN/IMG  │  │ GEN/IMG  │  │ GEN/IMG  │  ← Sources       │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘                  │
-│       │              │              │                         │
-│  ┌────▼─────┐  ┌────▼─────┐  ┌────▼─────┐                  │
-│  │ CHANNEL 1│  │ CHANNEL 2│  │ CHANNEL 3│  ← Processing    │
-│  │ Variant  │  │ Variant  │  │ Variant  │                   │
-│  │ CSS FX   │  │ CSS FX   │  │ CSS FX   │                   │
-│  │ Canvas FX│  │ Canvas FX│  │ Canvas FX│                   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘                  │
-│       │              │              │                         │
-│       ├──────────────┼──────────────┤                        │
-│       │     ROUTING MATRIX (NxN)    │  ← Patching           │
-│       │   ┌──┬──┬──┐               │                        │
-│       │   │--│50│ 0│ Ch1 sends     │                        │
-│       │   │ 0│--│80│ Ch2 sends     │                        │
-│       │   │30│ 0│--│ Ch3 sends     │                        │
-│       │   └──┴──┴──┘               │                        │
-│       │         │                   │                        │
-│       │    ┌────▼────┐              │                        │
-│       │    │ FEEDBACK │ ◄───────────┤  ← 1-frame delay      │
-│       │    │ (decay)  │             │                        │
-│       │    └────┬────┘              │                        │
-│       │         │                   │                        │
-│  ┌────▼─────────▼───────────▼──┐                            │
-│  │        MASTER MODULE         │  ← Final processing       │
-│  │  Knobs: HUE SAT BRT CTR BLR │                           │
-│  │  Faders: MST  BUS-A  BUS-B  │                           │
-│  │  Master FX chain             │                           │
-│  └──────────────┬───────────────┘                           │
-│                 │                                            │
-│           ┌─────▼─────┐                                     │
-│           │   OUTPUT   │  → Viewport / Recording            │
-│           └───────────┘                                     │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Expression Engine Integration
-
-Every parameter in the system is expression-driven. The expression engine (`useExpressionValue`) provides:
-
-**Waves**: `wave(t)` `saw(t)` `tri(t)` `pulse(t, width)` `rand()`
-**Curves**: `ease(t, curve)` `bell(t)` `exp(t)` `log(t)` `step(t, n)`
-**Math**: `sin` `cos` `abs` `floor` `ceil` `round` `sqrt` `pow` `PI` `PHI`
-**Variables**: `t` (seconds) `f` (frame count) `min` `max`
-
-Any knob value can be replaced with an expression. The oscilloscope in the Expressions tab previews waveforms.
+- **In/Out on everything** — every parameter gets input/output jacks
+- **Signal multiples** — split one signal to many destinations
+- **Logic gates** — AND/OR/XOR on binary (threshold-based) signals
+- **Standalone generators** — signal sources independent of channels
 
 ---
 
@@ -244,9 +274,29 @@ Any knob value can be replaced with an expression. The oscilloscope in the Expre
 - Frame buffers only allocated for channels with active routes
 - Bus layers only render when returnLevel > 0 AND sends > 0
 - Render order computed once when routing changes (memoized topological sort)
-- Canvas FX use Web Workers if available (pixel manipulation off main thread)
+- Canvas FX use Web Workers if available
 
 ### Backward Compatibility
 - New fields default to null/0/{} — existing saved states work unchanged
 - Routing disabled by default (routeFrom: null)
 - No performance impact when routing unused
+
+### Open Questions
+1. **Pre vs post fader sends** — post-fader simpler, add toggle later
+2. **Bus composite blend mode** — normal (layered) default, screen/additive optional
+3. **sendA/sendB vs routeSendLevels** — recommend unifying in chunk 4
+
+---
+
+## Key Files
+
+| File | What |
+|------|------|
+| `src/hooks/useFrameBuffer.js` | OffscreenCanvas per channel, captureAll, resolveRenderOrder |
+| `src/hooks/useMirrorState.js` | EMPTY_CHANNEL (sendA, sendB, routeFrom, routeSendLevels), symphonyMaster |
+| `src/components/hall-of-mirrors/MasterModule.jsx` | 6 strips, A/B banks, bottom tabs, shelf, readFx/writeFx helpers |
+| `src/components/hall-of-mirrors/RoutingMatrix.jsx` | NxN matrix, source cycling, FB, output section |
+| `src/components/mixer/ChannelMaster.jsx` | Strip: fader, knobsA/knobsB, A/B toggles, enable |
+| `src/components/hall-of-mirrors/RotaryDial.jsx` | Dense variant for matrix/bottom knobs |
+| `src/components/mirror/SymphonyViewport.jsx` | Frame loop, handleLoaded, handleReloaded |
+| `src/components/hall-of-mirrors/SymphonyMixer.jsx` | Channel mixer, LOAD/REC/SRC/PARAMS shelves |
