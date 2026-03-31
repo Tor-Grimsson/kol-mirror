@@ -42,8 +42,8 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
   const [shelfOpen, setShelfOpen] = useState(false)
   const [shelfTab, setShelfTab] = useState('output')
 
-  const busA = master?.rtn1 || { enabled: false, returnLevel: 0 }
-  const busB = master?.rtn2 || { enabled: false, returnLevel: 0 }
+  const rtn1 = master?.rtn1 || { enabled: false, returnLevel: 0 }
+  const rtn2 = master?.rtn2 || { enabled: false, returnLevel: 0 }
 
   // All source rows: Ch 1-3 then RTN 1-2
   const chCount = channels.length
@@ -74,10 +74,13 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                 dividerAfter={dividerAfterRow}
                 rows={[
                   ...channels.map((ch, i) => {
-                    const sources = [null, ...channels.map((_, j) => j).filter(j => j !== i)]
+                    const BUS_SOURCES = ['rtn1', 'rtn2', 'aux1', 'aux2', 'fx1', 'fx2']
+                    const BUS_LABELS = { rtn1: 'RTN 1', rtn2: 'RTN 2', aux1: 'AUX 1', aux2: 'AUX 2', fx1: 'FX 1', fx2: 'FX 2' }
+                    const sources = [null, ...channels.map((_, j) => j).filter(j => j !== i), ...BUS_SOURCES]
                     const currentIdx = sources.indexOf(ch.routeFrom)
-                    const label = ch.routeFrom != null ? `Ch ${ch.routeFrom + 1}` : `Ch ${i + 1}`
-                    const isRouted = ch.routeFrom != null
+                    const rf = ch.routeFrom
+                    const label = rf == null ? `Ch ${i + 1}` : (typeof rf === 'string' ? (BUS_LABELS[rf] || rf) : `Ch ${rf + 1}`)
+                    const isRouted = rf != null
                     return (
                       <ChannelButton
                         label={label}
@@ -90,8 +93,8 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                       />
                     )
                   }),
-                  <ChannelButton label="RTN 1" enabled={busA.enabled} accent="#3b82f6" />,
-                  <ChannelButton label="RTN 2" enabled={busB.enabled} accent="#3b82f6" />,
+                  <ChannelButton label="RTN 1" enabled={rtn1.enabled} accent="#3b82f6" />,
+                  <ChannelButton label="RTN 2" enabled={rtn2.enabled} accent="#3b82f6" />,
                 ]}
               />
               {/* Ch destination columns */}
@@ -104,33 +107,33 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                     ...channels.map((srcCh, i) => (
                       <RotaryDial label="" value={srcCh.routeSendLevels?.[j] || 0} onChange={(v) => onChannelUpdate(i, { routeSendLevels: { ...(srcCh.routeSendLevels || {}), [j]: v } })} size={22} compact variant="dense" />
                     )),
-                    <RotaryDial label="" value={0} onChange={() => {}} size={22} compact variant="dense" />,
-                    <RotaryDial label="" value={0} onChange={() => {}} size={22} compact variant="dense" />,
+                    <RotaryDial label="" value={rtn1.sends?.[`ch${j}`] || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), [`ch${j}`]: v } } })} size={22} compact variant="dense" />,
+                    <RotaryDial label="" value={rtn2.sends?.[`ch${j}`] || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), [`ch${j}`]: v } } })} size={22} compact variant="dense" />,
                   ]}
                 />
               ))}
               <Divider variant="vertical" />
               {/* RTN destination columns */}
               <MatrixColumn
-                header={<ChannelButton label="RTN 1" enabled={busA.enabled} accent="#3b82f6" />}
+                header={<ChannelButton label="RTN 1" enabled={rtn1.enabled} accent="#3b82f6" />}
                 dividerAfter={dividerAfterRow}
                 rows={[
                   ...channels.map((srcCh, i) => (
-                    <RotaryDial label="" value={srcCh.routeSendLevels?.['rtn-1'] || 0} onChange={(v) => onChannelUpdate(i, { routeSendLevels: { ...(srcCh.routeSendLevels || {}), 'rtn-1': v } })} size={22} compact variant="dense" />
+                    <RotaryDial label="" value={srcCh.sends?.rtn1 || 0} onChange={(v) => onChannelUpdate(i, { sends: { ...(srcCh.sends || {}), rtn1: v } })} size={22} compact variant="dense" />
                   )),
-                  <RotaryDial label="" value={0} onChange={() => {}} size={22} compact variant="dense" />,
-                  <RotaryDial label="" value={0} onChange={() => {}} size={22} compact variant="dense" />,
+                  <RotaryDial label="" value={rtn1.sends?.rtn1 || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), rtn1: v } } })} size={22} compact variant="dense" />,
+                  <RotaryDial label="" value={rtn2.sends?.rtn1 || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), rtn1: v } } })} size={22} compact variant="dense" />,
                 ]}
               />
               <MatrixColumn
-                header={<ChannelButton label="RTN 2" enabled={busB.enabled} accent="#3b82f6" />}
+                header={<ChannelButton label="RTN 2" enabled={rtn2.enabled} accent="#3b82f6" />}
                 dividerAfter={dividerAfterRow}
                 rows={[
                   ...channels.map((srcCh, i) => (
-                    <RotaryDial label="" value={srcCh.routeSendLevels?.['rtn-2'] || 0} onChange={(v) => onChannelUpdate(i, { routeSendLevels: { ...(srcCh.routeSendLevels || {}), 'rtn-2': v } })} size={22} compact variant="dense" />
+                    <RotaryDial label="" value={srcCh.sends?.rtn2 || 0} onChange={(v) => onChannelUpdate(i, { sends: { ...(srcCh.sends || {}), rtn2: v } })} size={22} compact variant="dense" />
                   )),
-                  <RotaryDial label="" value={0} onChange={() => {}} size={22} compact variant="dense" />,
-                  <RotaryDial label="" value={0} onChange={() => {}} size={22} compact variant="dense" />,
+                  <RotaryDial label="" value={rtn1.sends?.rtn2 || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), rtn2: v } } })} size={22} compact variant="dense" />,
+                  <RotaryDial label="" value={rtn2.sends?.rtn2 || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), rtn2: v } } })} size={22} compact variant="dense" />,
                 ]}
               />
               {/* FB column */}
@@ -180,10 +183,10 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
               ))}
               <Divider variant="vertical" />
               <div className="flex items-center justify-center" style={{ width: '64px' }}>
-                <Indicated active={busA.enabled}><RotaryDial label={busA.enabled ? 'R1' : 'RTN 1'} value={busA.returnLevel ?? 0} onChange={(v) => onMasterChange?.({ rtn1: { ...busA, returnLevel: v } })} size={22} compact variant="dense" /></Indicated>
+                <Indicated active={rtn1.enabled}><RotaryDial label={rtn1.enabled ? 'R1' : 'RTN 1'} value={rtn1.returnLevel ?? 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, returnLevel: v } })} size={22} compact variant="dense" /></Indicated>
               </div>
               <div className="flex items-center justify-center" style={{ width: '64px' }}>
-                <Indicated active={busB.enabled}><RotaryDial label={busB.enabled ? 'R2' : 'RTN 2'} value={busB.returnLevel ?? 0} onChange={(v) => onMasterChange?.({ rtn2: { ...busB, returnLevel: v } })} size={22} compact variant="dense" /></Indicated>
+                <Indicated active={rtn2.enabled}><RotaryDial label={rtn2.enabled ? 'R2' : 'RTN 2'} value={rtn2.returnLevel ?? 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, returnLevel: v } })} size={22} compact variant="dense" /></Indicated>
               </div>
             </div>
             <div className="flex flex-col gap-2">

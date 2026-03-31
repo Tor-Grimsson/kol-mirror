@@ -19,8 +19,8 @@ IMAGES ──────┘         ↑                        │
 |---|------|-----------|--------|
 | 1 | Frame buffer + routing | — | **Done** |
 | 2 | Output tab UI (strips, sends, shelf) | 1 | **Done** |
-| 3 | Bus rendering pipeline | 1, 2 | **Next** |
-| 4 | Unify sends + return-to-channel | 3 | Planned |
+| 3 | Bus rendering pipeline | 1, 2 | **Done** |
+| 4 | Unify sends + return-to-channel | 3 | **Next** |
 | 5 | Feedback loops (decay/mix/freeze) | 3 | Planned |
 | 6 | Generators (noise, patterns, gradients) | 1 | Planned |
 | 7 | Canvas FX modules (chromatic, edge, pixel sort) | 1 | Planned |
@@ -61,7 +61,7 @@ IMAGES ──────┘         ↑                        │
 │       │           │ BUS │           │                             │
 │       │           │ A+B │  ← composite channels at send levels   │
 │       │           │ +FX │    + apply bus FX chain                 │
-│       │           └──┬──┘    (NOT YET RENDERING)                 │
+│       │           └──┬──┘    (rendering via BusLayer)            │
 │       │              │                                            │
 │       │         RTN 1│RTN 2                                      │
 │       │              │                                            │
@@ -87,9 +87,10 @@ IMAGES ──────┘         ↑                        │
 ### Two views, one truth
 
 The routing matrix and master module bottom tabs show the same send data:
-- **AUX SND tab** = channel `sendA` knobs aligned to master strips
-- **RTN 1 column** in routing matrix = same `sendA` values in matrix view
-- Currently these are separate state (`sendA` vs `routeSendLevels['rtn-1']`) — unification is chunk 4
+- **Bottom tabs** (CH1-3, RTN1-2, MST) each show 6 send knobs (AUX1, AUX2, RTN1, RTN2, FX1, FX2)
+- **Routing matrix** RTN columns map to the same bus destinations
+- Legacy `sendA`/`sendB` have been removed from EMPTY_CHANNEL. The unified `sends` object (`{ aux1, aux2, rtn1, rtn2, fx1, fx2 }`) is the single source of truth for all bus sends
+- Full unification of `sends` with `routeSendLevels` (routing matrix cross-channel sends) is chunk 4
 
 ### Return paths
 
@@ -103,7 +104,7 @@ The routing matrix and master module bottom tabs show the same send data:
 ### Frame Buffer + Routing (chunk 1)
 
 - **useFrameBuffer** — OffscreenCanvas per channel, `registerCanvas`, `getChannelFrame`, `captureAll`, `resolveRenderOrder` (topological sort, circular deps use previous frame)
-- **Channel state** — `routeFrom` (null = own image, index = other channel), `routeSendLevels` (keyed multi-source mixing), `sendA`/`sendB` (bus send levels)
+- **Channel state** — `routeFrom` (null = own image, index = other channel), `routeSendLevels` (keyed multi-source mixing), `sends` object (6-bus send levels: aux1/2, rtn1/2, fx1/2)
 - **Routing matrix UI** — flex columns via MatrixColumn, 5x5 (Ch 1-3 + RTN 1-2), click-to-cycle source, FB toggles, channel output knobs, right shelf with output detail
 
 ### Output Tab UI (chunk 2)
@@ -140,6 +141,17 @@ buildChannelKnobs(ch, i, onChannelUpdate)  // channel A/B banks
 buildFxKnobs(fxArr, updateFx)              // bus/master A/B banks
 ```
 
+### Bus Rendering Pipeline (chunk 3)
+
+- **useFrameBuffer extended** with `compositeBuses(channels, buses)` and `getBusFrame(key)` — composites channel frames into per-bus OffscreenCanvases weighted by send levels (opacity = sendLevel/100)
+- **BusLayer component** (in SymphonyViewport.jsx) renders bus output as a visible `<canvas>` with CSS FX from the bus FX chain, blend mode from bus config, and opacity set to returnLevel/100
+- **Single rAF loop** in SymphonyViewport: `captureAll` -> `compositeBuses` -> copy bus OffscreenCanvases to visible BusLayer canvases (zero-delay pipeline, no extra frame latency)
+- **DOM capture activated** for channels with bus sends (`hasBusSends`), not just channels armed for recording — ensures frame buffer has source data to composite
+- **All 6 buses** (aux1, aux2, rtn1, rtn2, fx1, fx2) supported; buses only allocate/render when enabled AND returnLevel > 0 AND at least one channel has a non-zero send
+- **Legacy cleanup** — removed `busA`/`busB` from master state, removed `sendA`/`sendB` from EMPTY_CHANNEL (unified `sends` object is now sole source of truth)
+- **Signal bus** — `useSignalBus` hook provides a shared ref (`busRef`) for generator/LFO values. Expression engine (`useExpressionValue`) extended to read `busRef` — expressions can now reference `lfo1`, `lfo2`, `seq1`, `gate1`
+- **Generator state** — `generatorState` added to useMirrorState with LFO, sequencer, logic gate, and oscillator presets. GeneratorTab UI scaffolded with LFOModule, SequencerModule, LogicGateModule components
+
 ### Sidebar
 
 - **Loaded [Random]** — loads random variant into Ch 1 (`state.symphonyLoaded`)
@@ -152,34 +164,6 @@ buildFxKnobs(fxArr, updateFx)              // bus/master A/B banks
 ---
 
 ## What's Next
-
-### Chunk 3: Bus Rendering Pipeline
-
-The controls are wired. Now make sends/returns actually produce video.
-
-**Each frame:**
-1. Channels render variants (SymphonyViewport — already working)
-2. Frame buffer captures outputs (`captureAll` — already working)
-3. **Bus compositing** (NEW):
-   - For each bus, collect channel frames where send level > 0
-   - Composite onto bus canvas (opacity = sendLevel/100)
-   - Apply bus FX chain
-   - Store as bus frame (RTN 1 / RTN 2)
-4. Master mix composites channels @ fader + returns @ returnLevel + master FX
-
-**State** — current is sufficient:
-```js
-// channel:  sendA: 0, sendB: 0
-// master:   busA: { enabled, returnLevel, fx[], blendMode, solo }
-//           busB: { ... }
-```
-
-**useFrameBuffer extension:**
-- Bus buffer canvases (OffscreenCanvas for AUX and FX composites)
-- `compositeBus(busId, channelFrames, sendLevels, blendMode)` — new method
-- `getBusFrame('aux')` / `getBusFrame('fx')` — access bus results
-
-**Files:** `useFrameBuffer.js`, `SymphonyViewport.jsx`, `ChannelLayer.jsx`
 
 ### Chunk 4: Unify Sends + Return-to-Channel
 
@@ -284,7 +268,7 @@ All generate expression strings. Oscilloscope previews them.
 ### Open Questions
 1. **Pre vs post fader sends** — post-fader simpler, add toggle later
 2. **Bus composite blend mode** — normal (layered) default, screen/additive optional
-3. **sendA/sendB vs routeSendLevels** — recommend unifying in chunk 4
+3. ~~**sendA/sendB vs routeSendLevels**~~ — resolved: sendA/sendB removed, `sends` object is source of truth for bus sends. Unifying `sends` with `routeSendLevels` (cross-channel routing) is chunk 4
 
 ---
 
@@ -292,11 +276,13 @@ All generate expression strings. Oscilloscope previews them.
 
 | File | What |
 |------|------|
-| `src/hooks/useFrameBuffer.js` | OffscreenCanvas per channel, captureAll, resolveRenderOrder |
+| `src/hooks/useFrameBuffer.js` | OffscreenCanvas per channel, captureAll, compositeBuses, getBusFrame, resolveRenderOrder |
 | `src/hooks/useMirrorState.js` | EMPTY_CHANNEL (sendA, sendB, routeFrom, routeSendLevels), symphonyMaster |
 | `src/components/hall-of-mirrors/MasterModule.jsx` | 6 strips, A/B banks, bottom tabs, shelf, readFx/writeFx helpers |
 | `src/components/hall-of-mirrors/RoutingMatrix.jsx` | NxN matrix, source cycling, FB, output section |
 | `src/components/mixer/ChannelMaster.jsx` | Strip: fader, knobsA/knobsB, A/B toggles, enable |
 | `src/components/hall-of-mirrors/RotaryDial.jsx` | Dense variant for matrix/bottom knobs |
 | `src/components/mirror/SymphonyViewport.jsx` | Frame loop, handleLoaded, handleReloaded |
+| `src/hooks/useSignalBus.js` | Shared signal bus ref for generator/LFO values in expressions |
 | `src/components/hall-of-mirrors/SymphonyMixer.jsx` | Channel mixer, LOAD/REC/SRC/PARAMS shelves |
+| `src/components/hall-of-mirrors/generators/GeneratorTab.jsx` | Generator UI: LFO, sequencer, logic gate modules |

@@ -5,7 +5,10 @@ function isExpression(str) {
 }
 
 const HELPERS = `
-  var sin=Math.sin,cos=Math.cos,abs=Math.abs,floor=Math.floor,ceil=Math.ceil,
+  var bus=typeof __bus!=='undefined'&&__bus?__bus:{},
+      lfo1=bus.lfo1||0,lfo2=bus.lfo2||0,seq1=bus.seq1||0,gate1=bus.gate1||0,env1=bus.env1||0,sh1=bus.sh1||0,
+      mult1_a=bus.mult1_a||0,mult1_b=bus.mult1_b||0,mult1_c=bus.mult1_c||0,
+      sin=Math.sin,cos=Math.cos,abs=Math.abs,floor=Math.floor,ceil=Math.ceil,
       round=Math.round,sqrt=Math.sqrt,pow=Math.pow,PI=Math.PI,PHI=1.618033988749895,
       wave=function(x){return(sin(x)*0.5+0.5)*max},
       saw=function(x){return(x%1)*max},
@@ -21,13 +24,13 @@ const HELPERS = `
 
 export function compile(expr) {
   try {
-    return new Function('t', 'f', 'min', 'max', `${HELPERS}return (${expr})`)
+    return new Function('t', 'f', 'min', 'max', '__bus', `${HELPERS}return (${expr})`)
   } catch {
     return null
   }
 }
 
-export default function useExpressionValue({ onChange, min = 0, max = 100 }) {
+export default function useExpressionValue({ onChange, min = 0, max = 100, busRef }) {
   const [expr, setExpr] = useState(null)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -46,7 +49,7 @@ export default function useExpressionValue({ onChange, min = 0, max = 100 }) {
       const t = performance.now() / 1000 - start
       const f = frameRef.current++
       try {
-        const raw = fn(t, f, min, max)
+        const raw = fn(t, f, min, max, busRef?.current)
         onChangeRef.current(Math.max(min, Math.min(max, Math.round(raw))))
       } catch { /* silent */ }
       rafRef.current = requestAnimationFrame(tick)

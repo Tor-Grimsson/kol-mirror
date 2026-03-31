@@ -1,15 +1,85 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, buildChannelFxStyle, CHANNEL_FX_DEFS, getDefaultFxParams } from '../../data/mirrorVariants'
 import { CSS_BLEND_MODES, ALL_VECTORS, loadVectorSvg } from '../hall-of-mirrors/SymphonyMixer'
+import { GENERATOR_TYPES } from '../hall-of-mirrors/generators'
 import useImageTiers from '../../hooks/useImageTiers'
 import useChannelRecorder from '../../hooks/useChannelRecorder'
 import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
 import useFrameBuffer, { resolveRenderOrder } from '../../hooks/useFrameBuffer'
+import useSignalBus from '../../hooks/useSignalBus'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import ChannelLayer from './ChannelLayer'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
 
 const DEFAULT_SVG_DATA_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
+
+const BUS_RENDER_KEYS = ['aux1', 'aux2', 'rtn1', 'rtn2', 'fx1', 'fx2']
+
+function FeedbackLayer({ channelIndex, feedback, getFeedbackFrame }) {
+  const canvasRef = useRef(null)
+  const rafRef = useRef(null)
+
+  useEffect(() => {
+    if (!feedback?.enabled) return
+    const paint = () => {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const frame = getFeedbackFrame(channelIndex)
+      if (frame) {
+        if (canvas.width !== frame.width || canvas.height !== frame.height) {
+          canvas.width = frame.width
+          canvas.height = frame.height
+        }
+        const ctx = canvas.getContext('2d')
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(frame, 0, 0)
+      }
+      rafRef.current = requestAnimationFrame(paint)
+    }
+    rafRef.current = requestAnimationFrame(paint)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [feedback?.enabled, channelIndex, getFeedbackFrame])
+
+  if (!feedback?.enabled) return null
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0"
+      style={{
+        width: '100%',
+        height: '100%',
+        opacity: (feedback.mix ?? 50) / 100,
+        pointerEvents: 'none',
+      }}
+    />
+  )
+}
+
+function BusLayer({ busKey, bus, onRegister }) {
+  const refCallback = useCallback((el) => {
+    onRegister(busKey, el)
+  }, [busKey, onRegister])
+
+  if (!bus?.enabled || (bus.returnLevel ?? 0) <= 0) return null
+
+  const fxStyle = buildChannelFxStyle(bus.fx || [])
+
+  return (
+    <canvas
+      ref={refCallback}
+      className="absolute inset-0"
+      style={{
+        width: '100%',
+        height: '100%',
+        opacity: (bus.returnLevel ?? 0) / 100,
+        ...fxStyle,
+        ...(bus.blendMode && bus.blendMode !== 'normal' ? { mixBlendMode: bus.blendMode } : {}),
+        pointerEvents: 'none',
+      }}
+    />
+  )
+}
 
 const RASTER_SCALE = 4
 
@@ -66,7 +136,21 @@ export default function SymphonyViewport({ state }) {
 
   // Frame buffer for cross-channel routing
   const frameBuffer = useFrameBuffer(channels.length)
+  const signalBus = useSignalBus()
   const renderOrder = resolveRenderOrder(channels)
+
+  // Refs for stable access in rAF loop (avoids stale closures)
+  const channelsRef = useRef(channels)
+  channelsRef.current = channels
+  const masterRef = useRef(state.symphonyMaster)
+  masterRef.current = state.symphonyMaster
+
+  // Bus canvas registration for zero-delay rendering
+  const busCanvasMapRef = useRef(new Map())
+  const registerBusCanvas = useCallback((busKey, canvasEl) => {
+    if (canvasEl) busCanvasMapRef.current.set(busKey, canvasEl)
+    else busCanvasMapRef.current.delete(busKey)
+  }, [])
 
   const handleCanvasReady = useCallback((channelIndex, canvasEl) => {
     canvasRegistryRef.current.set(channelIndex, canvasEl)
@@ -260,18 +344,50 @@ export default function SymphonyViewport({ state }) {
     return () => clearInterval(interval)
   }, [isAnimating])
 
-  // Frame buffer capture loop for cross-channel routing
+  // Frame buffer capture loop for cross-channel routing + bus compositing + feedback
   const frameRafRef = useRef(null)
   const hasRouting = channels.some(ch => ch.routeFrom != null || (ch.routeSendLevels && Object.values(ch.routeSendLevels).some(v => v > 0)))
+  const hasCanvasFx = channels.some(ch => ch.enabled && ch.canvasFx && ch.canvasFx.length > 0)
+  const hasSends = channels.some(ch => ch.enabled && ch.sends && Object.values(ch.sends).some(v => v > 0))
+  const hasFeedback = channels.some(ch => ch.enabled && ch.feedback?.enabled)
   useEffect(() => {
-    if (!hasRouting) return
+    if (!hasRouting && !hasSends && !hasFeedback && !hasCanvasFx) return
     const tick = () => {
       frameBuffer.captureAll()
+      // Apply canvas FX to channel buffers after capture
+      const chs = channelsRef.current
+      for (let i = 0; i < chs.length; i++) {
+        const ch = chs[i]
+        if (ch?.enabled && ch.canvasFx && ch.canvasFx.length > 0) {
+          frameBuffer.processChannelFx(i, ch.canvasFx)
+        }
+      }
+      // Apply feedback for channels that have it enabled
+      for (let i = 0; i < chs.length; i++) {
+        const ch = chs[i]
+        if (ch?.enabled && ch.feedback?.enabled) {
+          frameBuffer.applyFeedback(i, ch.feedback)
+        }
+      }
+      frameBuffer.compositeBuses(channelsRef.current, masterRef.current)
+      // Copy bus frames to visible canvases
+      busCanvasMapRef.current.forEach((canvas, key) => {
+        const frame = frameBuffer.getBusFrame(key)
+        if (frame) {
+          if (canvas.width !== frame.width || canvas.height !== frame.height) {
+            canvas.width = frame.width
+            canvas.height = frame.height
+          }
+          const ctx = canvas.getContext('2d')
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          ctx.drawImage(frame, 0, 0)
+        }
+      })
       frameRafRef.current = requestAnimationFrame(tick)
     }
     frameRafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frameRafRef.current)
-  }, [hasRouting, frameBuffer])
+  }, [hasRouting, hasSends, hasFeedback, hasCanvasFx, frameBuffer])
 
   // Also re-evaluate when recalc is triggered
   const _recalc = state.rasterRecalcCounter + tierTick
@@ -303,6 +419,14 @@ export default function SymphonyViewport({ state }) {
         variantId: v.id,
       }))
     ),
+    { id: 'sep-gen', name: '—', empty: true, type: 'separator' },
+    ...GENERATOR_TYPES.map(g => ({
+      id: `gen:${g.id}`,
+      name: `Generator: ${g.label}`,
+      empty: false,
+      type: 'generator',
+      variantId: `gen-${g.id}`,
+    })),
   ]
 
   const nineVariants = {
@@ -388,6 +512,21 @@ export default function SymphonyViewport({ state }) {
   const handleSelectVariant = (channel, itemId) => {
     const item = dropdownItems.find(d => d.id === itemId)
     if (!item || item.empty || item.type === 'separator') {
+      setOpenNineDropdown(null)
+      return
+    }
+
+    if (item.type === 'generator') {
+      const genDef = GENERATOR_TYPES.find(g => `gen-${g.id}` === item.variantId)
+      updateChannel(channel, {
+        variantId: item.variantId,
+        slotIndex: null,
+        params: { ...genDef?.params, animate: true },
+        enabled: true,
+        intensity: 100,
+        baseIntensity: 100,
+        name: item.name,
+      })
       setOpenNineDropdown(null)
       return
     }
@@ -489,8 +628,13 @@ export default function SymphonyViewport({ state }) {
                     : (sourceFallback || (rastersReady ? rasterTiers[tier] || rasterTiers.mid : null))
                 const channelDefaultSrc = hasMedia ? customSvgColored : null
                 return (
+                <React.Fragment key={i}>
+                <FeedbackLayer
+                  channelIndex={i}
+                  feedback={ch.feedback}
+                  getFeedbackFrame={frameBuffer.getFeedbackFrame}
+                />
                 <ChannelLayer
-                  key={i}
                   channel={resolvedChannel}
                   channelIndex={i}
                   imageSrc={channelImageSrc}
@@ -517,8 +661,18 @@ export default function SymphonyViewport({ state }) {
                     }
                   }}
                 />
+                </React.Fragment>
                 )
               })}
+              {/* Bus return layers — composited channel sends rendered at returnLevel */}
+              {BUS_RENDER_KEYS.map(busKey => (
+                <BusLayer
+                  key={busKey}
+                  busKey={busKey}
+                  bus={state.symphonyMaster[busKey]}
+                  onRegister={registerBusCanvas}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -569,7 +723,7 @@ export default function SymphonyViewport({ state }) {
             setChannels(prev => prev.filter((_, i) => i !== idx))
           }}
           onAddChannel={() => {
-            setChannels(prev => [...prev, { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, baseIntensity: 100, fx: [], blendMode: 'normal' }])
+            setChannels(prev => [...prev, { ...EMPTY_CHANNEL }])
           }}
           master={state.symphonyMaster}
           onMasterChange={(updates) => state.setSymphonyMaster(prev => ({ ...prev, ...updates }))}
@@ -605,6 +759,9 @@ export default function SymphonyViewport({ state }) {
           onAddRecSlot={handleAddRecSlot}
           onUploadRecSlot={handleUploadRecSlot}
           onUpdateRecSlotTrim={handleUpdateRecSlotTrim}
+          busRef={signalBus.busRef}
+          generatorState={state.generatorState}
+          onGeneratorChange={(updates) => state.setGeneratorState(prev => ({ ...prev, ...updates }))}
         />
       </div>
     </div>

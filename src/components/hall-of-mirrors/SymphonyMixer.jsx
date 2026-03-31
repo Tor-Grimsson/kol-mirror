@@ -11,6 +11,7 @@ import ChannelWireDiagram from './ChannelWireDiagram'
 import MasterModule from './MasterModule'
 import RoutingMatrix from './RoutingMatrix'
 import ExpressionReference from './ExpressionReference'
+import GeneratorTab from './generators/GeneratorTab'
 import Dropdown from '../molecules/Dropdown'
 import processImageUpload from '../../utils/processImageUpload'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
@@ -192,6 +193,8 @@ function Channel({
   activeRecSlot = null,
   recPaused = false,
   onRecPauseToggle,
+  feedback = { enabled: false, decay: 80, mix: 50, freeze: false },
+  onFeedbackChange,
 }) {
   // i/o keys snap in/out handles to playhead
   const playheadRef = useRef(playhead)
@@ -414,7 +417,7 @@ function Channel({
       >
         <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 shrink-0" style={{ backgroundColor: 'var(--kol-surface-tertiary)' }}>
           <div className="flex items-center gap-3">
-            {['color', 'blend', 'fx'].map(tab => (
+            {['color', 'blend', 'fx', 'fb'].map(tab => (
               <span
                 key={tab}
                 className={`cursor-pointer select-none uppercase ${fxTab === tab ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`}
@@ -565,6 +568,46 @@ function Channel({
                 size="md"
               />
             </div>
+          </div>
+        )}
+        {fxTab === 'fb' && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2" style={{ height: '24px' }}>
+              <div
+                className={`w-3 h-3 rounded-full cursor-pointer shrink-0 ${feedback?.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
+                onClick={() => onFeedbackChange({ ...feedback, enabled: !feedback?.enabled })}
+              />
+              <span className="text-fg-96">Feedback</span>
+              <div className="flex-1" />
+              <span
+                className={`cursor-pointer select-none ${feedback?.freeze ? 'text-[#2dd4bf]' : 'text-fg-32'}`}
+                onClick={() => onFeedbackChange({ ...feedback, freeze: !feedback?.freeze })}
+              >
+                {feedback?.freeze ? 'FROZEN' : 'FREEZE'}
+              </span>
+            </div>
+            <Slider
+              label="Decay"
+              min={0}
+              max={100}
+              step={1}
+              value={feedback?.decay ?? 80}
+              onChange={(v) => onFeedbackChange({ ...feedback, decay: v })}
+              formatValue={(v) => `${Math.round(v)}%`}
+              className="w-full"
+              variant="minimal"
+            />
+            <Slider
+              label="Mix"
+              min={0}
+              max={100}
+              step={1}
+              value={feedback?.mix ?? 50}
+              onChange={(v) => onFeedbackChange({ ...feedback, mix: v })}
+              formatValue={(v) => `${Math.round(v)}%`}
+              className="w-full"
+              variant="minimal"
+            />
           </div>
         )}
         </div>
@@ -1122,6 +1165,9 @@ export default function SymphonyMixer({
   onAddRecSlot,
   onUploadRecSlot,
   onUpdateRecSlotTrim,
+  busRef,
+  generatorState,
+  onGeneratorChange,
 }) {
   const [masterFxOpen, setMasterFxOpen] = useState(false)
   const [fxOpenAll, setFxOpenAll] = useState({ open: false, tick: 0 })
@@ -1164,6 +1210,7 @@ export default function SymphonyMixer({
       <div className="flex items-center gap-6 pb-2 mb-1 border-b border-fg-08">
         {[
           { key: 'channels', label: 'Channels', icon: 'settings-01' },
+          { key: 'generators', label: 'Generators', icon: 'atomic-molecule' },
           { key: 'output', label: 'Output', icon: 'circle' },
           { key: 'expressions', label: 'Expressions', icon: 'wave' },
         ].map(tab => (
@@ -1260,6 +1307,8 @@ export default function SymphonyMixer({
             onUpdateRecSlotTrim={(si, m1, m2) => onUpdateRecSlotTrim && onUpdateRecSlotTrim(i, si, m1, m2)}
             recSlots={ch.recSlots || []}
             activeRecSlot={ch.activeRecSlot}
+            feedback={ch.feedback || { enabled: false, decay: 80, mix: 50, freeze: false }}
+            onFeedbackChange={(fb) => onChannelUpdate(i, { feedback: fb })}
           />
         ))}
 
@@ -1292,6 +1341,26 @@ export default function SymphonyMixer({
           onMasterChange={onMasterChange}
         />
       </div>
+      )}
+      {mixerTab === 'generators' && generatorState && (
+        <GeneratorTab
+          generatorState={generatorState}
+          onGeneratorChange={onGeneratorChange}
+          busRef={busRef}
+          onLoadGenerator={(variantId, params) => {
+            const targetCh = channels.findIndex(ch => ch.enabled)
+            const idx = targetCh >= 0 ? targetCh : 0
+            onChannelUpdate(idx, {
+              variantId,
+              slotIndex: null,
+              params: { ...params, animate: true },
+              enabled: true,
+              intensity: 100,
+              baseIntensity: 100,
+              name: `Generator: ${variantId.replace('gen-', '')}`,
+            })
+          }}
+        />
       )}
       {mixerTab === 'expressions' && <ExpressionReference />}
       </div>{/* close relative wrapper */}

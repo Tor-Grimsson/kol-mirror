@@ -1,17 +1,20 @@
 import { useRef, useCallback, useState } from 'react'
+import { createPortal } from 'react-dom'
 import useExpressionValue from '../../hooks/useExpressionValue'
+import ModulationAssign from './ModulationAssign'
 
 const DIAL_VARIANTS = {
   default: { knobRatio: 0.7, tickSize: 64 },
   dense: { knobRatio: 0.95, tickSize: 40 },
 }
 
-export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false, variant = 'default', defaultValue }) {
+export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false, variant = 'default', defaultValue, modulationSource, onModulationAssign, busRef }) {
   const dragRef = useRef(null)
   const onChangeRef = useRef(onChange)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
-  const { expr, commit: commitExpr, isAnimating } = useExpressionValue({ onChange, min, max })
+  const [modMenu, setModMenu] = useState(null)
+  const { expr, commit: commitExpr, isAnimating } = useExpressionValue({ onChange, min, max, busRef })
   onChangeRef.current = onChange
 
   const range = max - min
@@ -37,6 +40,25 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)
   }, [value, size, min, max, range])
+
+  const handleContextMenu = useCallback((e) => {
+    if (!onModulationAssign) return
+    e.preventDefault()
+    setModMenu({ x: e.clientX, y: e.clientY })
+  }, [onModulationAssign])
+
+  const handleModSelect = useCallback((sourceId) => {
+    if (!onModulationAssign) return
+    if (sourceId) {
+      // Set expression to the bus variable name
+      commitExpr(sourceId, onChange)
+      onModulationAssign(sourceId)
+    } else {
+      // Clear modulation — clear expression
+      commitExpr('', onChange)
+      onModulationAssign(null)
+    }
+  }, [onModulationAssign, commitExpr, onChange])
 
   const { knobRatio, tickSize } = DIAL_VARIANTS[variant] || DIAL_VARIANTS.default
   const tickPadding = (tickSize - size) / 2
@@ -86,6 +108,7 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
           touchAction: 'none',
         }}
         onPointerDown={handlePointerDown}
+        onContextMenu={handleContextMenu}
       >
         <svg
           width={fullSize}
@@ -120,7 +143,30 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
             />
           </g>
         </svg>
+        {modulationSource && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: variant === 'dense' ? 2 : 8,
+              right: 2,
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              backgroundColor: '#e74c3c',
+            }}
+          />
+        )}
       </div>
+      {modMenu && createPortal(
+        <ModulationAssign
+          x={modMenu.x}
+          y={modMenu.y}
+          currentSource={modulationSource}
+          onSelect={handleModSelect}
+          onClose={() => setModMenu(null)}
+        />,
+        document.body
+      )}
       {label && <div className={`flex items-center justify-center gap-1 w-full ${variant === 'dense' ? 'kol-helper-xxxs' : ''}`} style={variant === 'dense' ? {} : { fontSize: '10px', fontFamily: 'var(--kol-font-family-mono)' }}>
         <span className="text-fg-64 uppercase">{label}</span>
         <span className="text-fg-96" style={{ width: '32px', textAlign: 'right', display: 'inline-block', overflow: 'hidden' }}>

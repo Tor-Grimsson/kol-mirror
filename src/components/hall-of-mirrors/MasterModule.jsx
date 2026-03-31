@@ -7,6 +7,7 @@ import ColorPicker from '../atoms/ColorPicker'
 import RotaryDial from './RotaryDial'
 import ChannelMaster from '../mixer/ChannelMaster'
 import { CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
+import { CANVAS_FX_DEFS, MAX_CANVAS_FX, getDefaultCanvasFxParams } from '../../hooks/useCanvasFx'
 
 const CSS_BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity']
 
@@ -131,6 +132,64 @@ function FxList({ fx, onFxChange }) {
 }
 
 
+function CanvasFxList({ fx, onFxChange }) {
+  return (
+    <div className="flex flex-col gap-1">
+      {fx.map((fxItem, fi) => {
+        const def = CANVAS_FX_DEFS.find(d => d.id === fxItem.type)
+        const paramKeys = def ? Object.keys(def.params) : []
+        const primaryKey = paramKeys[0]
+        const primarySpec = def?.params[primaryKey]
+        return (
+          <div key={fi} className="flex items-center gap-2" style={{ height: '24px' }}>
+            <div
+              className={`w-2 h-2 rounded-full cursor-pointer shrink-0 ${fxItem.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
+              onClick={() => {
+                const next = [...fx]
+                next[fi] = { ...next[fi], enabled: !next[fi].enabled }
+                onFxChange(next)
+              }}
+            />
+            <span className="text-fg-64 shrink-0" style={{ width: '48px' }}>{def?.label || fxItem.type}</span>
+            {primarySpec && (
+              <Slider
+                label=""
+                min={primarySpec.min}
+                max={primarySpec.max}
+                step={primarySpec.step}
+                value={fxItem.params[primaryKey] ?? primarySpec.default}
+                onChange={(v) => {
+                  const next = [...fx]
+                  next[fi] = { ...next[fi], params: { ...next[fi].params, [primaryKey]: v } }
+                  onFxChange(next)
+                }}
+                formatValue={(v) => `${Math.round(v * 100) / 100}`}
+                className="flex-1"
+                variant="minimal"
+              />
+            )}
+            <span
+              className="text-fg-96 cursor-pointer select-none shrink-0 inline-flex"
+              onClick={() => onFxChange(fx.filter((_, i) => i !== fi))}
+            >
+              <Icon name="x" size={12} />
+            </span>
+          </div>
+        )
+      })}
+      {fx.length < MAX_CANVAS_FX && (
+        <div
+          className="kol-helper-xs text-fg-96 cursor-pointer select-none"
+          style={{ height: '24px', lineHeight: '24px' }}
+          onClick={() => onFxChange([...fx, { type: 'chromatic', enabled: true, params: getDefaultCanvasFxParams('chromatic') }])}
+        >
+          [+ Add Canvas FX]
+        </div>
+      )}
+    </div>
+  )
+}
+
 const SEND_KEYS = ['aux1', 'aux2', 'rtn1', 'rtn2', 'fx1', 'fx2']
 const SEND_LABELS = { aux1: 'AUX 1', aux2: 'AUX 2', rtn1: 'RTN 1', rtn2: 'RTN 2', fx1: 'FX 1', fx2: 'FX 2' }
 const BUS_KEYS = ['aux1', 'aux2', 'fx1', 'fx2']
@@ -190,9 +249,11 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
             <div key={i} className="flex flex-col gap-1">
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
                 <span className={ch.enabled ? 'text-fg-96' : 'text-fg-32'}>Ch {i + 1}</span>
-                <span className="text-fg-32">{(ch.fx || []).length || 'No'} FX</span>
+                <span className="text-fg-32">{((ch.fx || []).length + (ch.canvasFx || []).length) || 'No'} FX</span>
               </div>
               <FxList fx={ch.fx || []} onFxChange={(newFx) => onChannelUpdate(i, { fx: newFx })} />
+              {(ch.canvasFx || []).length > 0 && <Divider className="mt-1 mb-1" />}
+              <CanvasFxList fx={ch.canvasFx || []} onFxChange={(newFx) => onChannelUpdate(i, { canvasFx: newFx })} />
               {i < channels.length - 1 && <Divider className="mt-1" />}
             </div>
           ))}
@@ -419,7 +480,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                       onFaderChange={(v) => onChannelUpdate(i, { opacity: v })}
                       enabled={ch.enabled}
                       onEnabledChange={(v) => onChannelUpdate(i, { enabled: v })}
-                      onReset={() => onChannelUpdate(i, { opacity: 100, intensity: 30, fx: [] })}
+                      onReset={() => onChannelUpdate(i, { opacity: 100, intensity: 30, fx: [], canvasFx: [] })}
                     />
                 ))}
                 <Divider variant="vertical" />

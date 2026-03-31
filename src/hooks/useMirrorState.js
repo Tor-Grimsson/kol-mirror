@@ -11,7 +11,7 @@ const EMPTY_ARCHIVE = Array.from({ length: 9 }, () => null)
 
 export const EMPTY_SENDS = { aux1: 0, aux2: 0, rtn1: 0, rtn2: 0, fx1: 0, fx2: 0 }
 
-export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, customImageName: null, loadMode: 'effect', vectorPadding: 0, recSlots: [null, null, null, null], activeRecSlot: null, isArmedForRec: false, sends: { ...EMPTY_SENDS }, sendA: 0, sendB: 0, routeFrom: null, routeSendLevels: {} }
+export const EMPTY_CHANNEL = { variantId: null, params: {}, slotIndex: null, enabled: false, intensity: 30, boosted: false, speed: 100, opacity: 100, name: null, fx: [], canvasFx: [], blendMode: 'normal', vectorColor: 'currentColor', backgroundColor: 'transparent', rasterTheme: 'dark', rasterTierOverride: null, customImageSrc: null, customRasterSrc: null, customImageName: null, loadMode: 'effect', vectorPadding: 0, recSlots: [null, null, null, null], activeRecSlot: null, isArmedForRec: false, sends: { ...EMPTY_SENDS }, routeFrom: null, routeSendLevels: {}, feedback: { enabled: false, decay: 80, mix: 50, freeze: false } }
 
 const DEV_SLOT_IDS = [
   'subtle-ripple', 'breathing-scale', 'pixi-slices',
@@ -294,14 +294,25 @@ export function useMirrorState() {
     blendMode: 'normal',
     fx: [],
     inserts: [],
-    busA: { ...EMPTY_BUS },
-    busB: { ...EMPTY_BUS },
     aux1: { ...EMPTY_BUS },
     aux2: { ...EMPTY_BUS },
     rtn1: { ...EMPTY_BUS },
     rtn2: { ...EMPTY_BUS },
     fx1: { ...EMPTY_BUS },
     fx2: { ...EMPTY_BUS },
+  })
+
+  // Generator state
+  const [generatorState, setGeneratorState] = useState({
+    lfo1: { waveform: 'sine', rate: 1, depth: 100, offset: 0, enabled: true },
+    lfo2: { waveform: 'sine', rate: 0.5, depth: 100, offset: 0, enabled: false },
+    seq1: { steps: [100, 75, 50, 25, 0, 25, 50, 75], rate: 2, direction: 'forward', enabled: false },
+    gate1: { type: 'AND', thresholdA: 50, thresholdB: 50, inputA: 'lfo1', inputB: 'lfo2', enabled: false },
+    osc1: { waveform: 'sine', frequency: 4, speed: 1, rotation: 0, colorMode: 'mono', enabled: false },
+    osc2: { waveform: 'stripes', frequency: 8, speed: 0.5, rotation: 45, colorMode: 'mono', enabled: false },
+    env1: { attack: 0.1, decay: 0.3, sustain: 0.7, release: 0.5, enabled: false },
+    sh1: { rate: 2, min: 0, max: 100, smooth: 0, enabled: false },
+    mult1: { input: 'lfo1', outputs: [{ scale: 1, offset: 0 }, { scale: 0.5, offset: 50 }, { scale: -1, offset: 100 }], enabled: false },
   })
 
   // Currently selected channel tab in sidebar (null = none)
@@ -377,6 +388,9 @@ export function useMirrorState() {
 
     symphonyMaster,
     setSymphonyMaster,
+
+    generatorState,
+    setGeneratorState,
 
     symphonyEditChannel,
     setSymphonyEditChannel,

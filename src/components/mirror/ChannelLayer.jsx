@@ -8,6 +8,7 @@ import PixiMorphVariant from '../hall-of-mirrors/PixiMorphVariant'
 import PixiRadialVariant from '../hall-of-mirrors/PixiRadialVariant'
 import PixiKaleidoscopeVariant from '../hall-of-mirrors/PixiKaleidoscopeVariant'
 import { isDisplacementVariant, isMovementVariant, isPixiVariant, scaleParamsByIntensity, findVariant, buildChannelFxStyle } from '../../data/mirrorVariants'
+import { GENERATOR_COMPONENTS } from '../hall-of-mirrors/generators'
 
 function ChannelVideo({ blobUrl, mark1, mark2, isPlaying = true, onTimeUpdate: onTimeUpdateCb, seekTo }) {
   const videoRef = useRef(null)
@@ -101,21 +102,24 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
 
   const resolvedImageSrc = routeFrom != null && routedSrc ? routedSrc : imageSrc
   const effectSrc = isNonPixi ? (resolvedImageSrc || rasterSrc) : (rasterSrc || resolvedImageSrc)
-  const captureActive = !!channel.isArmedForRec && isNonPixi && channel.enabled
+  const hasBusSends = channel.sends && Object.values(channel.sends).some(v => v > 0)
+  const captureActive = (!!channel.isArmedForRec || hasBusSends) && isNonPixi && channel.enabled
 
   // Determine filter ID for displacement capture
   const displacementFilterId = isDisplacementVariant(channel.variantId)
     ? `distortion-${channel.variantId}-ch-${channelIndex}`
     : null
 
-  // Measure wrapper size for capture canvas resolution
+  const isGenerator = channel.variantId?.startsWith('gen-')
+
+  // Measure wrapper size for capture canvas resolution and generators
   useEffect(() => {
-    if (captureActive && wrapperRef.current) {
+    if ((captureActive || isGenerator) && wrapperRef.current) {
       const { width, height } = wrapperRef.current.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
       setWrapperSize({ width: Math.round(width * dpr), height: Math.round(height * dpr) })
     }
-  }, [captureActive])
+  }, [captureActive, isGenerator])
 
   // DOM capture canvas for non-Pixi variants
   const { canvasRef: captureCanvasRef } = useDomCaptureCanvas({
@@ -165,6 +169,31 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     return (
       <div className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
         <ChannelVideo blobUrl={activeSlot.blobUrl} mark1={activeSlot.mark1} mark2={activeSlot.mark2} isPlaying={isAnimating && !channel.recPaused} onTimeUpdate={onPlayheadUpdate} seekTo={seekTo} />
+      </div>
+    )
+  }
+
+  // Generator — renders procedural visuals to canvas (no input image needed)
+  if (channel.variantId?.startsWith('gen-')) {
+    const genType = channel.variantId.replace('gen-', '')
+    const GenComponent = GENERATOR_COMPONENTS[genType]
+    if (!GenComponent) return null
+
+    const channelAnimate = channel.params?.animate ?? isAnimating
+    // Use wrapper bounding rect for canvas dimensions, fallback to reasonable defaults
+    const genWidth = wrapperSize.width > 0 ? wrapperSize.width : 512
+    const genHeight = wrapperSize.height > 0 ? wrapperSize.height : 512
+
+    return (
+      <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
+        {hasBg && <div className="absolute inset-0" style={{ backgroundColor: channel.backgroundColor }} />}
+        <GenComponent
+          width={genWidth}
+          height={genHeight}
+          {...(channel.params || {})}
+          animate={channelAnimate}
+          onCanvasReady={(canvas) => onCanvasReady?.(channelIndex, canvas)}
+        />
       </div>
     )
   }

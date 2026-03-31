@@ -3,10 +3,16 @@
 ## Current State
 
 ### Active Work
-- **Master Module**: 6-channel mixer (Ch 1-3, RTN 1-2, MST) in Output tab. Ch 1-3 strips wired to actual channel state. A/B knob paging (6 knobs per strip, 2 visible at a time: default=1-2, A=3-4, B=5-6). RTN 1-2 wired to master.rtn1/rtn2. MST wired to master. Bottom tabs: CH1|CH2|CH3|RTN1|RTN2|MST — all show 6 send knobs (AUX1, AUX2, RTN1, RTN2, FX1, FX2). Right shelf: FILES, FX, COLOR, MST, AUX/FX (5 buttons). 6-bus architecture: aux1, aux2, rtn1, rtn2, fx1, fx2. ChannelMaster at `src/components/mixer/ChannelMaster.jsx` with single `knobs` array + A/B paging. MasterModule at `src/components/hall-of-mirrors/MasterModule.jsx`.
-- **Routing Matrix**: `src/components/hall-of-mirrors/RoutingMatrix.jsx` — NxN routing with signal source cycling, send matrix knobs, per-channel output controls. RTN→Ch and RTN→RTN knobs not yet wired.
-- **Frame Buffer System**: `src/hooks/useFrameBuffer.js` — OffscreenCanvas per channel, captureAll(), getChannelFrame(), resolveRenderOrder(). Integrated in SymphonyViewport + ChannelLayer (routeFrom → frame buffer → data URL).
-- **Video Synth Plan**: `docs/video-synth-mixer-plan.md` — 5 chunks: routing, feedback, generators, FX modules, modulators.
+- **Video Synth Plan COMPLETE**: All 9 chunks done. `docs/video-synth-mixer-plan.md`. Full docs at `docs/documentation/video-synth/README.md`.
+- **Bus Rendering Pipeline**: useFrameBuffer: compositeBuses(), getBusFrame(), applyFeedback(), processChannelFx(). BusLayer + FeedbackLayer in SymphonyViewport. Single rAF: captureAll → canvasFx → feedback → compositeBuses → paint.
+- **Routing Matrix**: NxN routing with source cycling (channels + buses), send matrix knobs, RTN→Ch and RTN→RTN cross-sends all wired. Bus keys routable as channel sources via routeFrom.
+- **Feedback Loops**: Per-channel decay/mix/freeze. FeedbackLayer renders before each ChannelLayer. FB tab in FX rack.
+- **Generators**: 4 visual (Noise, Gradient, Pattern, Color Field) loadable into channels. VisualGeneratorModule preview cards in Generators tab.
+- **Canvas FX**: 6 pixel processors (RGB Split, Edge Detect, Posterize, Pixel Sort, Mirror, Threshold). CanvasFxList in MasterModule FX shelf.
+- **Modulators**: 8 modules in Generators tab — LFO x2, Sequencer, Logic Gate, Envelope (ADSR), Sample & Hold, Multiples. All publish to signal bus.
+- **Modulation Assign**: Right-click any RotaryDial to assign mod source. ModulationAssign popup. Indicator dot when modulated.
+- **Master Module**: 6 strips (Ch 1-3, RTN 1-2, MST), A/B knob paging, 6-bus send tabs, 5-button right shelf.
+- **Frame Buffer**: OffscreenCanvas per channel + per bus + per feedback. captureAll(), getChannelFrame() (handles int + string keys), resolveRenderOrder().
 - **Expression engine**: `useExpressionValue` hook (rAF loop, `new Function` compile). Helpers: wave/saw/tri/pulse(PWM)/rand/ease(curve)/bell/exp/log/step + sin/cos/abs/floor/ceil/round/sqrt/pow/PI/PHI. Variables: t (seconds), f (frame count), min, max. Click knob value to type expression, alt+click to cancel.
 - **Oscilloscope**: Live canvas preview in Expressions tab. Zoom X/Y/Scale sliders, Min/Max/Sec/Ofs inputs, Fit/Expand/Reset. Grab-to-pan. Red dashed 0-100 reference. ResizeObserver for sharp rendering. 2-column default.
 - **Expressions tab**: Third mixer tab (Channels | Output | Expressions). ExpressionReference component with 5 scrollable 320px columns. Cmd+click code spans to append to oscilloscope.
@@ -37,6 +43,31 @@
 - **bgGrabSegment**: Kaleidoscope Comp B grab not wired.
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
 - Old hall page components still exist (dead code)
+
+### Recent Changes (2026-03-31, session 10)
+- **Chunks 3-9 complete**: Bus pipeline, return-to-channel, feedback, generators, canvas FX, modulators, modular extensions
+- **Bus rendering**: compositeBuses() composites channels into 6 bus OffscreenCanvases. BusLayer renders at returnLevel opacity with CSS FX + blend.
+- **Feedback loops**: Per-channel decay/mix/freeze. feedbackBuffersRef accumulates frames. FeedbackLayer renders behind live channel.
+- **Return-to-channel**: routeFrom accepts string bus keys ('rtn1', 'aux1'). getChannelFrame delegates to getBusFrame for strings. Routing matrix cycles through bus sources.
+- **4 visual generators**: NoiseGenerator (fbm), GradientGenerator (linear/radial/conic), PatternGenerator (stripes/dots/checker), ColorFieldGenerator. All render to canvas via rAF.
+- **6 canvas FX**: useCanvasFx.js — chromatic (RGB split), edge-detect (Sobel), posterize, pixel-sort, mirror, threshold. Applied per-channel on frame buffers.
+- **Envelope + S&H modules**: ADSR envelope generator, Sample & Hold with smooth interpolation. Both in Generators tab.
+- **Multiples module**: 1-to-3 signal splitter with scale/offset per output. Publishes mult1_a/b/c.
+- **Modulation assign**: Right-click RotaryDial opens ModulationAssign popup. Red indicator dot when modulated.
+- **Legacy cleanup**: Removed busA/busB, sendA/sendB. RTN knobs in routing matrix fully wired.
+- **onLoadGenerator**: SymphonyMixer wires GeneratorTab [Load] to channel variant loading.
+- **Documentation**: docs/documentation/video-synth/README.md — combined user guide + developer reference.
+
+### Recent Changes (2026-03-31, session 9)
+- **Bus rendering pipeline (chunk 3)**: useFrameBuffer extended with `compositeBuses(channels, buses)` and `getBusFrame(key)`. Composites channel frames into per-bus OffscreenCanvases weighted by send levels (opacity = sendLevel/100). Lazy allocation: buffers only created when bus is enabled + has sends + returnLevel > 0.
+- **BusLayer component**: Renders bus output as visible `<canvas>` in SymphonyViewport. CSS FX from bus FX chain, blend mode from bus config, opacity = returnLevel/100. All 6 buses (aux1/2, rtn1/2, fx1/2) rendered inside master output wrapper.
+- **Zero-delay rAF loop**: Single animation frame: `captureAll` -> `compositeBuses` -> copy OffscreenCanvases to visible BusLayer canvases via `busCanvasMapRef`. Loop activates when `hasRouting` or `hasSends`.
+- **DOM capture for sends**: ChannelLayer activates DOM capture when channel has non-zero bus sends (`hasBusSends`), not just when armed for recording.
+- **Legacy cleanup**: Removed `busA`/`busB` from master state. Removed `sendA`/`sendB` from EMPTY_CHANNEL. Unified `sends` object is sole source of truth for bus sends.
+- **Signal bus**: `useSignalBus` hook — shared mutable ref (`busRef`) for generator values. `publish(key, value)` and `reset()`. Initial keys: lfo1, lfo2, seq1, gate1.
+- **Expression bus variables**: `useExpressionValue` extended — `compile()` passes `busRef.current` as 5th argument. Expressions can reference `lfo1`, `lfo2`, `seq1`, `gate1`.
+- **Generator state**: `generatorState`/`setGeneratorState` in useMirrorState. LFO x2, sequencer, logic gate, oscillator x2 presets.
+- **Generator UI scaffold**: GeneratorTab with LFOModule, SequencerModule, LogicGateModule components (UI only, not yet publishing to bus).
 
 ### Recent Changes (2026-03-31, session 8)
 - **Per-channel bottom tabs**: CH1|CH2|CH3|RTN1|RTN2|MST — all show identical 6 send knobs (AUX1, AUX2, RTN1, RTN2, FX1, FX2). Channels write to channel.sends, RTN/MST write to bus.sends.
@@ -147,24 +178,22 @@
 - Undo/redo: 30-deep history stack for channel state in useMirrorState
 
 ### Key Files
-- `src/data/mirrorVariants.js` — Variant definitions, controls, `getRasterTier`, `RASTER_TIER_SCALES`, `CHANNEL_FX_DEFS`, `getDefaultFxParams`
-- `src/hooks/useMirrorState.js` — All state, EMPTY_CHANNEL (includes vectorPadding, customImageName), undo/redo (symphonyUndo/symphonyRedo)
-- `src/hooks/usePixiApp.js` — Pixi lifecycle, renderCost, textureVersion, transparent background
-- `src/hooks/useImageTiers.js` — Tiered image generation and caching, same output dimensions
-- `src/hooks/useChannelRecorder.js` — Recording state machine (idle→armed→recording→done)
-- `src/hooks/useDomCaptureCanvas.js` — DOM capture canvas for Displacement/Movement recording
-- `src/components/mirror/ChannelLayer.jsx` — Render dispatcher, DOM capture, playhead/seek/renderCost, vectorPadding, backgroundColor on all paths, per-channel animate
-- `src/components/mirror/VariantControls.jsx` — Control renderer, gap-2
-- `src/components/mirror/SymphonyViewport.jsx` — Recording orchestration, per-channel colors, variant loading, channel rasterization, handleReloaded, global animate sync, mobile layout
-- `src/components/mirror/ArchiveViewport.jsx` — Memory grid [M1] labels, [LOAD]/[RELOAD]
-- `src/components/mirror/MirrorSidebar.jsx` — Navigation, Animate, Reloaded, History undo/redo, [LOAD]/[RELOAD]
-- `src/components/hall-of-mirrors/SymphonyMixer.jsx` — Channel mixer, LOAD/REC/RES/SRC/PARAMS shelves, FX rack, rotary dials, media transport, CSS_BLEND_MODES, ALL_VECTORS, loadVectorSvg exports
-- `src/components/hall-of-mirrors/RotaryDial.jsx` — Tick marks, fixed outer arc, 270° sweep, compact prop (WIP)
-- `src/components/hall-of-mirrors/ChannelWireDiagram.jsx` — SVG signal-flow (80px fixed, MST x=300, OUT x=600)
-- `src/components/atoms/Slider.jsx` — Dual variant, playhead, click-to-seek
-- `src/components/atoms/ColorPicker.jsx` — RGBA picker, portal rendering
-- `src/components/molecules/Dropdown.jsx` — Custom dropdown, onOptionHover, 96px minimal width, keepOpen, renderOption
-- `src/utils/processImageUpload.js` — SVG/raster upload, recolor option
-- `src/index.css` — Symphony viewport mobile/desktop CSS classes
-- `public/kol-vector/` — Shape and form SVGs for vector loading
-- All 5 Pixi variants — onRenderCost, textureVersion deps, transparent background
+- `src/hooks/useMirrorState.js` — All state, EMPTY_CHANNEL (sends, feedback, canvasFx), generatorState, undo/redo
+- `src/hooks/useFrameBuffer.js` — Channel/bus/feedback OffscreenCanvases, captureAll, compositeBuses, applyFeedback, processChannelFx, getChannelFrame (int + string keys)
+- `src/hooks/useCanvasFx.js` — CANVAS_FX_DEFS (6 pixel processors), applyCanvasFx()
+- `src/hooks/useSignalBus.js` — Shared signal bus (lfo1/2, seq1, gate1, env1, sh1, mult1_a/b/c)
+- `src/hooks/useExpressionValue.js` — Expression compile(), wave helpers, bus variable access
+- `src/hooks/usePixiApp.js` — Pixi lifecycle, renderCost, textureVersion
+- `src/hooks/useChannelRecorder.js` — Recording state machine
+- `src/hooks/useDomCaptureCanvas.js` — DOM capture for Displacement/Movement
+- `src/data/mirrorVariants.js` — Variant defs, CHANNEL_FX_DEFS, buildChannelFxStyle
+- `src/components/mirror/SymphonyViewport.jsx` — BusLayer, FeedbackLayer, rAF loop, generator dropdown, recording
+- `src/components/mirror/ChannelLayer.jsx` — Render dispatcher, generator branch, DOM capture for sends
+- `src/components/hall-of-mirrors/SymphonyMixer.jsx` — Channel mixer, FX rack (FB tab), shelves, onLoadGenerator
+- `src/components/hall-of-mirrors/MasterModule.jsx` — 6 strips, sends, FxList, CanvasFxList
+- `src/components/hall-of-mirrors/RoutingMatrix.jsx` — NxN matrix, bus source cycling, RTN send wiring
+- `src/components/hall-of-mirrors/RotaryDial.jsx` — Knob with modulation assign (right-click)
+- `src/components/hall-of-mirrors/ModulationAssign.jsx` — Mod source popup
+- `src/components/hall-of-mirrors/generators/` — NoiseGenerator, GradientGenerator, PatternGenerator, ColorFieldGenerator, VisualGeneratorModule, LFOModule, SequencerModule, LogicGateModule, EnvelopeModule, RandomSHModule, MultiplesModule, GeneratorTab, index.js
+- `src/components/mixer/ChannelMaster.jsx` — Strip: fader, knobs, A/B paging
+- `docs/documentation/video-synth/README.md` — Full user guide + developer reference
