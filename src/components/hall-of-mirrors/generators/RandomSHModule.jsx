@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
 import Divider from '../../atoms/Divider'
+import ModuleIO from './ModuleIO'
 
 function drawOscilloscope(canvas, historyRef, currentIdx, smooth, t, rate) {
   if (!canvas) return
@@ -149,10 +150,10 @@ export default function RandomSHModule({ id, label, config, onChange, busRef }) 
       <div className="flex flex-col gap-3 p-3">
         {/* Knobs */}
         <div className="flex items-center justify-around">
-          <RotaryDial label="Rate" value={Math.round((rate - 0.1) / 19.9 * 100)} onChange={(v) => update('rate', Math.round((v / 100 * 19.9 + 0.1) * 10) / 10)} size={36} defaultValue={10} />
-          <RotaryDial label="Min" value={min} onChange={(v) => update('min', v)} size={36} defaultValue={0} />
-          <RotaryDial label="Max" value={max} onChange={(v) => update('max', v)} size={36} defaultValue={100} />
-          <RotaryDial label="Smooth" value={smooth} onChange={(v) => update('smooth', v)} size={36} defaultValue={0} />
+          <RotaryDial label="Rate" value={Math.round((rate - 0.1) / 19.9 * 100)} onChange={(v) => update('rate', Math.round((v / 100 * 19.9 + 0.1) * 10) / 10)} size={36} defaultValue={10} busRef={busRef} />
+          <RotaryDial label="Min" value={min} onChange={(v) => update('min', v)} size={36} defaultValue={0} busRef={busRef} />
+          <RotaryDial label="Max" value={max} onChange={(v) => update('max', v)} size={36} defaultValue={100} busRef={busRef} />
+          <RotaryDial label="Smooth" value={smooth} onChange={(v) => update('smooth', v)} size={36} defaultValue={0} busRef={busRef} />
         </div>
 
         <Divider />
@@ -173,6 +174,14 @@ export default function RandomSHModule({ id, label, config, onChange, busRef }) 
           </span>
         </div>
       </div>
+
+      <ModuleIO
+        moduleId={id}
+        onEnable={() => update('enabled', true)}
+        busRef={busRef}
+        outputs={[id]}
+        inputs={[]}
+      />
     </div>
   )
 }

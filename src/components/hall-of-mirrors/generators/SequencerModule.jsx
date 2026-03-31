@@ -1,21 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import RotaryDial from '../RotaryDial'
-import Dropdown from '../../molecules/Dropdown'
 import Divider from '../../atoms/Divider'
+import ExpressionInput from './ExpressionInput'
+import ModuleIO from './ModuleIO'
+
+const STEP_COUNTS = [8, 12, 16, 24, 32, 48, 64]
+const PAGE_SIZE = 16
 
 const DIRECTIONS = [
-  { value: 'forward', label: 'Forward' },
-  { value: 'reverse', label: 'Reverse' },
-  { value: 'pingpong', label: 'Ping-Pong' },
-  { value: 'random', label: 'Random' },
-]
-
-const STEP_COUNTS = [
-  { value: 4, label: '4 steps' },
-  { value: 6, label: '6 steps' },
-  { value: 8, label: '8 steps' },
-  { value: 12, label: '12 steps' },
-  { value: 16, label: '16 steps' },
+  { value: 'forward', label: 'FWD' },
+  { value: 'reverse', label: 'REV' },
+  { value: 'pingpong', label: 'P-P' },
+  { value: 'random', label: 'RND' },
 ]
 
 function StepBar({ value, onChange, active }) {
@@ -33,7 +28,7 @@ function StepBar({ value, onChange, active }) {
         ref={trackRef}
         className="relative w-full cursor-pointer"
         style={{
-          height: '68px',
+          height: '56px',
           borderRadius: '2px',
           backgroundColor: 'rgba(255,255,255,0.06)',
           border: `1px solid ${active ? 'rgba(231,76,60,0.4)' : 'rgba(255,255,255,0.07)'}`,
@@ -61,40 +56,65 @@ function StepBar({ value, onChange, active }) {
 }
 
 export default function SequencerModule({ id, label, config, onChange, busRef }) {
-  const { steps = [100, 75, 50, 25, 0, 25, 50, 75], rate = 2, direction = 'forward', enabled = false } = config
+  const { steps = [100, 75, 50, 25, 0, 25, 50, 75], direction = 'forward', clockExpr = 'clk1', resetExpr = '', enabled = false } = config
   const [currentStep, setCurrentStep] = useState(0)
+  const [page, setPage] = useState(0)
   const dirRef = useRef(1)
   const valRef = useRef(null)
+  const stepRef = useRef(0)
 
+  // Clock trigger — advance step
+  const handleClockTrigger = useCallback(() => {
+    if (!enabled) return
+    setCurrentStep(prev => {
+      const len = steps.length
+      let next
+      if (direction === 'forward') next = (prev + 1) % len
+      else if (direction === 'reverse') next = (prev - 1 + len) % len
+      else if (direction === 'random') next = Math.floor(Math.random() * len)
+      else {
+        const n = prev + dirRef.current
+        if (n >= len - 1) dirRef.current = -1
+        if (n <= 0) dirRef.current = 1
+        next = Math.max(0, Math.min(len - 1, n))
+      }
+      const val = steps[next] ?? 0
+      stepRef.current = next
+      if (busRef?.current) {
+        busRef.current[id] = val
+        busRef.current[`${id}_gate`] = 100
+        busRef.current[`${id}_step`] = Math.round(next / Math.max(1, len - 1) * 100)
+      }
+      if (valRef.current) valRef.current.textContent = val
+      return next
+    })
+    // Gate off after a short window (next frame)
+    requestAnimationFrame(() => {
+      if (busRef?.current) busRef.current[`${id}_gate`] = 0
+    })
+  }, [enabled, steps, direction, id, busRef])
+
+  // Reset trigger
+  const handleResetTrigger = useCallback(() => {
+    if (!enabled) return
+    setCurrentStep(0)
+    stepRef.current = 0
+    dirRef.current = 1
+  }, [enabled])
+
+  // Initialize bus keys and handle disable
   useEffect(() => {
+    if (busRef?.current) {
+      if (!(id in busRef.current)) busRef.current[id] = 0
+      if (!(`${id}_gate` in busRef.current)) busRef.current[`${id}_gate`] = 0
+      if (!(`${id}_step` in busRef.current)) busRef.current[`${id}_step`] = 0
+    }
     if (!enabled) {
-      if (busRef) busRef.current[id] = 0
+      if (busRef?.current) { busRef.current[id] = 0; busRef.current[`${id}_gate`] = 0; busRef.current[`${id}_step`] = 0 }
       setCurrentStep(0)
       if (valRef.current) valRef.current.textContent = '—'
-      return
     }
-    const intervalMs = Math.max(50, 1000 / rate)
-    const iv = setInterval(() => {
-      setCurrentStep(prev => {
-        const len = steps.length
-        let next
-        if (direction === 'forward') next = (prev + 1) % len
-        else if (direction === 'reverse') next = (prev - 1 + len) % len
-        else if (direction === 'random') next = Math.floor(Math.random() * len)
-        else {
-          const n = prev + dirRef.current
-          if (n >= len - 1) dirRef.current = -1
-          if (n <= 0) dirRef.current = 1
-          next = Math.max(0, Math.min(len - 1, n))
-        }
-        const val = steps[next] ?? 0
-        if (busRef) busRef.current[id] = val
-        if (valRef.current) valRef.current.textContent = val
-        return next
-      })
-    }, intervalMs)
-    return () => clearInterval(iv)
-  }, [enabled, rate, direction, steps, id, busRef])
+  }, [enabled, id, busRef])
 
   const update = useCallback((key, val) => onChange({ ...config, [key]: val }), [config, onChange])
 
@@ -105,7 +125,12 @@ export default function SequencerModule({ id, label, config, onChange, busRef })
   const setStepCount = useCallback((count) => {
     const next = Array.from({ length: count }, (_, i) => steps[i] ?? Math.round(Math.random() * 100))
     update('steps', next)
-  }, [steps, update])
+    if (page * PAGE_SIZE >= count) setPage(0)
+  }, [steps, update, page])
+
+  const totalPages = Math.ceil(steps.length / PAGE_SIZE)
+  const pageStart = page * PAGE_SIZE
+  const pageSteps = steps.slice(pageStart, pageStart + PAGE_SIZE)
 
   return (
     <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
@@ -122,38 +147,98 @@ export default function SequencerModule({ id, label, config, onChange, busRef })
 
       {/* Body */}
       <div className="flex flex-col gap-3 p-3">
-        {/* Step bars */}
-        <div className="flex gap-1">
-          {steps.map((val, i) => (
-            <StepBar key={i} value={val} onChange={(v) => updateStep(i, v)} active={enabled && i === currentStep} />
-          ))}
-        </div>
+        {/* Clock & Reset inputs */}
+        <ExpressionInput
+          label="Clock"
+          expr={clockExpr}
+          onExprChange={(v) => update('clockExpr', v)}
+          busRef={busRef}
+          onTrigger={handleClockTrigger}
+        />
+        <ExpressionInput
+          label="Reset"
+          expr={resetExpr}
+          onExprChange={(v) => update('resetExpr', v)}
+          busRef={busRef}
+          onTrigger={handleResetTrigger}
+        />
 
         <Divider />
 
-        {/* Controls */}
-        <div className="flex items-center gap-3">
-          <RotaryDial
-            label="Rate"
-            value={Math.round(rate / 20 * 100)}
-            onChange={(v) => update('rate', Math.round(v / 100 * 20 * 10) / 10)}
-            size={36}
-            defaultValue={10}
-          />
-          <div className="flex flex-col gap-1.5 flex-1">
-            <Dropdown options={DIRECTIONS} value={direction} onChange={(v) => update('direction', v)} variant="minimal" size="md" />
-            <Dropdown options={STEP_COUNTS} value={steps.length} onChange={(v) => setStepCount(Number(v))} variant="minimal" size="md" />
+        {/* Step bars */}
+        <div className="flex gap-1">
+          {pageSteps.map((val, i) => (
+            <StepBar
+              key={pageStart + i}
+              value={val}
+              onChange={(v) => updateStep(pageStart + i, v)}
+              active={enabled && (pageStart + i) === currentStep}
+            />
+          ))}
+        </div>
+
+        {/* Page indicators + step count */}
+        <div className="flex items-center justify-between kol-helper-xxs">
+          <div className="flex items-center gap-1">
+            {totalPages > 1 && Array.from({ length: totalPages }, (_, i) => (
+              <span
+                key={i}
+                className={`cursor-pointer ${page === i ? 'text-fg-96' : 'text-fg-24'}`}
+                onClick={() => setPage(i)}
+              >
+                {i * PAGE_SIZE + 1}-{Math.min((i + 1) * PAGE_SIZE, steps.length)}
+              </span>
+            ))}
           </div>
+          <div className="flex items-center gap-1">
+            {STEP_COUNTS.map(c => (
+              <span
+                key={c}
+                className={`cursor-pointer ${steps.length === c ? 'text-[#e74c3c]' : 'text-fg-24'}`}
+                onClick={() => setStepCount(c)}
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Direction buttons */}
+        <div className="flex items-center gap-1">
+          {DIRECTIONS.map(d => (
+            <button
+              key={d.value}
+              className={`flex-1 kol-helper-xxs py-0.5 rounded-sm cursor-pointer border ${
+                direction === d.value
+                  ? 'bg-[#e74c3c] text-fg-96 border-[#e74c3c]'
+                  : 'bg-transparent text-fg-32 border-fg-08 hover:text-fg-64'
+              }`}
+              onClick={() => update('direction', d.value)}
+            >
+              {d.label}
+            </button>
+          ))}
         </div>
 
         {/* Output */}
         <div className="flex items-center justify-between kol-helper-xs">
-          <span className="text-fg-32">Output</span>
+          <span className="text-fg-32">Step {currentStep + 1}/{steps.length}</span>
           <span ref={valRef} className="text-fg-64" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {enabled ? '0' : '—'}
           </span>
         </div>
       </div>
+
+      <ModuleIO
+        moduleId={id}
+        onEnable={() => update('enabled', true)}
+        busRef={busRef}
+        outputs={[id, `${id}_gate`, `${id}_step`]}
+        inputs={[
+          { label: 'clock', active: !!clockExpr, configKey: 'clockExpr', onExprChange: (v) => update('clockExpr', v) },
+          { label: 'reset', active: !!resetExpr, configKey: 'resetExpr', onExprChange: (v) => update('resetExpr', v) },
+        ]}
+      />
     </div>
   )
 }

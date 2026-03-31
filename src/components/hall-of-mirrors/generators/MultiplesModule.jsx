@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
 import Dropdown from '../../molecules/Dropdown'
 import Divider from '../../atoms/Divider'
+import ModuleIO from './ModuleIO'
 
 const SIGNAL_SOURCES = [
   { value: 'lfo1', label: 'LFO 1' },
@@ -145,6 +146,7 @@ export default function MultiplesModule({ id, label, config, onChange, busRef })
                 onChange={(v) => updateOutput(i, 'scale', Math.round((v / 100 * 4 - 2) * 100) / 100)}
                 size={36}
                 defaultValue={75}
+                busRef={busRef}
               />
               <RotaryDial
                 label="Offset"
@@ -152,6 +154,7 @@ export default function MultiplesModule({ id, label, config, onChange, busRef })
                 onChange={(v) => updateOutput(i, 'offset', Math.round(v / 100 * 200 - 100))}
                 size={36}
                 defaultValue={50}
+                busRef={busRef}
               />
               <div className="flex flex-col items-center">
                 <span ref={valRefs[i]} className="text-fg-64 kol-helper-xs" style={{ fontVariantNumeric: 'tabular-nums', width: '28px', textAlign: 'right' }}>
@@ -172,6 +175,14 @@ export default function MultiplesModule({ id, label, config, onChange, busRef })
           style={{ width: '100%', height: '52px', borderRadius: '3px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block' }}
         />
       </div>
+
+      <ModuleIO
+        moduleId={id}
+        onEnable={() => update('enabled', true)}
+        busRef={busRef}
+        outputs={OUTPUT_KEYS}
+        inputs={[]}
+      />
     </div>
   )
 }

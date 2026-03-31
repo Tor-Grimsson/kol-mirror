@@ -164,6 +164,7 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
           currentSource={modulationSource}
           onSelect={handleModSelect}
           onClose={() => setModMenu(null)}
+          busRef={busRef}
         />,
         document.body
       )}

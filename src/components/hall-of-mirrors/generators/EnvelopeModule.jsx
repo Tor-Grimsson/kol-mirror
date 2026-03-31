@@ -1,39 +1,26 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
 import Divider from '../../atoms/Divider'
+import ExpressionInput from './ExpressionInput'
+import ModuleIO from './ModuleIO'
 
-function computeEnvelope(tInCycle, attack, decay, sustain, release) {
-  const susLevel = sustain * 100
-  if (tInCycle < attack) {
-    // Attack: ramp 0 -> 100
-    return (tInCycle / attack) * 100
-  }
-  const t2 = tInCycle - attack
-  if (t2 < decay) {
-    // Decay: drop 100 -> sustain
-    return 100 - (100 - susLevel) * (t2 / decay)
-  }
-  const t3 = t2 - decay
-  if (t3 < 1) {
-    // Sustain: hold for 1 second
-    return susLevel
-  }
-  const t4 = t3 - 1
-  if (t4 < release) {
-    // Release: drop sustain -> 0
-    return susLevel * (1 - t4 / release)
-  }
-  return 0
-}
+// States: 0=IDLE, 1=ATTACK, 2=DECAY, 3=SUSTAIN, 4=RELEASE
+const IDLE = 0, ATTACK = 1, DECAY = 2, SUSTAIN = 3, RELEASE = 4
 
-function drawOscilloscope(canvas, attack, decay, sustain, release, t, cycleLen) {
+function drawOscilloscope(canvas, stateRef, valueRef) {
   if (!canvas) return
   const ctx = canvas.getContext('2d')
   const w = canvas.width
   const h = canvas.height
+  const history = stateRef._history || (stateRef._history = new Float32Array(w).fill(0))
+
+  // Shift left, add current value
+  history.copyWithin(0, 1)
+  history[w - 1] = valueRef.current
+
   ctx.clearRect(0, 0, w, h)
 
-  // Grid lines
+  // Grid
   ctx.strokeStyle = 'rgba(255,255,255,0.06)'
   ctx.lineWidth = 1
   for (let i = 1; i < 4; i++) {
@@ -41,44 +28,39 @@ function drawOscilloscope(canvas, attack, decay, sustain, release, t, cycleLen) 
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke()
   }
 
-  // Playhead at 80%
-  const playX = Math.round(w * 0.8) + 0.5
-  ctx.strokeStyle = 'rgba(255,255,255,0.10)'
-  ctx.beginPath(); ctx.moveTo(playX, 0); ctx.lineTo(playX, h); ctx.stroke()
-
-  // Show ~1.5 cycles, current moment at 80%
-  const windowT = cycleLen * 1.5
-  const startT = t - windowT * 0.8
-
   // Waveform
   ctx.beginPath()
   ctx.strokeStyle = '#e74c3c'
   ctx.lineWidth = 1.5
-  let started = false
   for (let x = 0; x < w; x++) {
-    const sampleT = startT + (x / w) * windowT
-    // Wrap into cycle
-    const inCycle = ((sampleT % cycleLen) + cycleLen) % cycleLen
-    const val = computeEnvelope(inCycle, attack, decay, sustain, release)
-    const clamped = Math.max(0, Math.min(100, val))
-    const y = (1 - clamped / 100) * (h - 2) + 1
-    if (!started) { ctx.moveTo(x, y); started = true } else ctx.lineTo(x, y)
+    const y = (1 - history[x] / 100) * (h - 2) + 1
+    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
   }
   ctx.stroke()
+
+  // State indicator
+  const labels = ['IDLE', 'ATK', 'DEC', 'SUS', 'REL']
+  const state = stateRef.current
+  ctx.fillStyle = state === IDLE ? 'rgba(255,255,255,0.15)' : '#e74c3c'
+  ctx.font = '9px monospace'
+  ctx.fillText(labels[state] || '', 3, 10)
 }
 
 export default function EnvelopeModule({ id, label, config, onChange, busRef }) {
-  const { attack = 0.1, decay = 0.3, sustain = 0.7, release = 0.5, enabled = false } = config
+  const { attack = 0.1, decay = 0.3, sustain = 0.7, release = 0.5, triggerExpr = '', gateExpr = '', retrigger = false, enabled = false } = config
   const rafRef = useRef(null)
-  const startRef = useRef(performance.now() / 1000)
   const canvasRef = useRef(null)
   const valRef = useRef(null)
-
-  const cycleLen = attack + decay + 1 + release
+  const valueRef = useRef(0)
+  const stateRef = useRef(IDLE)
+  const stateTimeRef = useRef(0)
+  const releaseFromRef = useRef(0)
 
   useEffect(() => {
     if (!enabled) {
-      if (busRef) busRef.current[id] = 0
+      if (busRef?.current) { busRef.current[id] = 0; busRef.current[`${id}_eoc`] = 0 }
+      valueRef.current = 0
+      stateRef.current = IDLE
       if (valRef.current) valRef.current.textContent = '—'
       const canvas = canvasRef.current
       if (canvas) {
@@ -93,20 +75,91 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
       }
       return
     }
-    const start = startRef.current
+
+    // Initialize bus keys
+    if (busRef?.current) {
+      if (!(id in busRef.current)) busRef.current[id] = 0
+      if (!(`${id}_eoc` in busRef.current)) busRef.current[`${id}_eoc`] = 0
+    }
+
+    let lastTime = performance.now() / 1000
+    const susLevel = sustain * 100
+
     const tick = () => {
-      const t = performance.now() / 1000 - start
-      const inCycle = ((t % cycleLen) + cycleLen) % cycleLen
-      const raw = computeEnvelope(inCycle, attack, decay, sustain, release)
-      const val = Math.max(0, Math.min(100, Math.round(raw)))
-      if (busRef) busRef.current[id] = val
-      if (valRef.current) valRef.current.textContent = val
-      drawOscilloscope(canvasRef.current, attack, decay, sustain, release, t, cycleLen)
+      const now = performance.now() / 1000
+      const dt = now - lastTime
+      lastTime = now
+
+      stateTimeRef.current += dt
+      const st = stateTimeRef.current
+      let val = valueRef.current
+      let eoc = 0
+
+      const state = stateRef.current
+
+      if (state === ATTACK) {
+        val = attack > 0 ? Math.min(100, (st / attack) * 100) : 100
+        if (st >= attack) {
+          stateRef.current = DECAY
+          stateTimeRef.current = 0
+          val = 100
+        }
+      } else if (state === DECAY) {
+        val = decay > 0 ? 100 - (100 - susLevel) * Math.min(1, st / decay) : susLevel
+        if (st >= decay) {
+          stateRef.current = SUSTAIN
+          stateTimeRef.current = 0
+          val = susLevel
+        }
+      } else if (state === SUSTAIN) {
+        val = susLevel
+        // Sustain holds until gate drops — handled by trigger/gate logic below
+      } else if (state === RELEASE) {
+        val = release > 0 ? releaseFromRef.current * Math.max(0, 1 - st / release) : 0
+        if (st >= release) {
+          stateRef.current = IDLE
+          stateTimeRef.current = 0
+          val = 0
+          eoc = 100
+        }
+      }
+      // IDLE: val stays at 0
+
+      valueRef.current = val
+
+      if (busRef?.current) {
+        busRef.current[id] = Math.round(val)
+        busRef.current[`${id}_eoc`] = eoc
+      }
+      if (valRef.current) valRef.current.textContent = Math.round(val)
+
+      drawOscilloscope(canvasRef.current, stateRef, valueRef)
+
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [enabled, attack, decay, sustain, release, cycleLen, id, busRef])
+  }, [enabled, attack, decay, sustain, release, id, busRef])
+
+  // Trigger handler — called by ExpressionInput on rising edge
+  const handleTrigger = useCallback(() => {
+    if (!enabled) return
+    const state = stateRef.current
+    if (state === IDLE || retrigger) {
+      stateRef.current = ATTACK
+      stateTimeRef.current = 0
+    }
+  }, [enabled, retrigger])
+
+  // Gate value handler — when gate drops below threshold, start release
+  const handleGateValue = useCallback((val) => {
+    if (!enabled) return
+    if (stateRef.current === SUSTAIN && val <= 50) {
+      releaseFromRef.current = valueRef.current
+      stateRef.current = RELEASE
+      stateTimeRef.current = 0
+    }
+  }, [enabled])
 
   const update = useCallback((key, val) => onChange({ ...config, [key]: val }), [config, onChange])
 
@@ -125,17 +178,46 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
 
       {/* Body */}
       <div className="flex flex-col gap-3 p-3">
-        {/* Knobs */}
-        <div className="flex items-center justify-around">
-          <RotaryDial label="ATK" value={Math.round((attack - 0.01) / 1.99 * 100)} onChange={(v) => update('attack', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={5} />
-          <RotaryDial label="DEC" value={Math.round((decay - 0.01) / 1.99 * 100)} onChange={(v) => update('decay', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={15} />
-          <RotaryDial label="SUS" value={Math.round(sustain * 100)} onChange={(v) => update('sustain', v / 100)} size={36} defaultValue={70} />
-          <RotaryDial label="REL" value={Math.round((release - 0.01) / 1.99 * 100)} onChange={(v) => update('release', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={25} />
+        {/* Trigger & Gate inputs */}
+        <ExpressionInput
+          label="Trigger"
+          expr={triggerExpr}
+          onExprChange={(v) => update('triggerExpr', v)}
+          busRef={busRef}
+          onTrigger={handleTrigger}
+        />
+        <ExpressionInput
+          label="Gate"
+          expr={gateExpr}
+          onExprChange={(v) => update('gateExpr', v)}
+          busRef={busRef}
+          onValue={handleGateValue}
+        />
+
+        {/* Retrigger toggle */}
+        <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+          <span className="text-fg-64">Retrigger</span>
+          <span
+            className={`cursor-pointer select-none ${retrigger ? 'text-fg-96' : 'text-fg-32'}`}
+            onClick={() => update('retrigger', !retrigger)}
+          >
+            {retrigger ? 'ON' : 'OFF'}
+          </span>
         </div>
 
         <Divider />
 
-        {/* Oscilloscope canvas */}
+        {/* ADSR Knobs */}
+        <div className="flex items-center justify-around">
+          <RotaryDial label="ATK" value={Math.round((attack - 0.01) / 1.99 * 100)} onChange={(v) => update('attack', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={5} busRef={busRef} />
+          <RotaryDial label="DEC" value={Math.round((decay - 0.01) / 1.99 * 100)} onChange={(v) => update('decay', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={15} busRef={busRef} />
+          <RotaryDial label="SUS" value={Math.round(sustain * 100)} onChange={(v) => update('sustain', v / 100)} size={36} defaultValue={70} busRef={busRef} />
+          <RotaryDial label="REL" value={Math.round((release - 0.01) / 1.99 * 100)} onChange={(v) => update('release', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={25} busRef={busRef} />
+        </div>
+
+        <Divider />
+
+        {/* Oscilloscope */}
         <canvas
           ref={canvasRef}
           width={252}
@@ -151,6 +233,17 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
           </span>
         </div>
       </div>
+
+      <ModuleIO
+        moduleId={id}
+        onEnable={() => update('enabled', true)}
+        busRef={busRef}
+        outputs={[id, `${id}_eoc`]}
+        inputs={[
+          { label: 'trigger', active: !!triggerExpr, configKey: 'triggerExpr', onExprChange: (v) => update('triggerExpr', v) },
+          { label: 'gate', active: !!gateExpr, configKey: 'gateExpr', onExprChange: (v) => update('gateExpr', v) },
+        ]}
+      />
     </div>
   )
 }

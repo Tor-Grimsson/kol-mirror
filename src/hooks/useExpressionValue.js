@@ -4,11 +4,8 @@ function isExpression(str) {
   return /[a-df-zA-DF-Z]/.test(str)
 }
 
-const HELPERS = `
-  var bus=typeof __bus!=='undefined'&&__bus?__bus:{},
-      lfo1=bus.lfo1||0,lfo2=bus.lfo2||0,seq1=bus.seq1||0,gate1=bus.gate1||0,env1=bus.env1||0,sh1=bus.sh1||0,
-      mult1_a=bus.mult1_a||0,mult1_b=bus.mult1_b||0,mult1_c=bus.mult1_c||0,
-      sin=Math.sin,cos=Math.cos,abs=Math.abs,floor=Math.floor,ceil=Math.ceil,
+const MATH_HELPERS = `
+  var sin=Math.sin,cos=Math.cos,abs=Math.abs,floor=Math.floor,ceil=Math.ceil,
       round=Math.round,sqrt=Math.sqrt,pow=Math.pow,PI=Math.PI,PHI=1.618033988749895,
       wave=function(x){return(sin(x)*0.5+0.5)*max},
       saw=function(x){return(x%1)*max},
@@ -22,9 +19,13 @@ const HELPERS = `
       step=function(x,n){n=n||4;var p=((x%1)+1)%1;return floor(p*n)/n*max};
 `
 
-export function compile(expr) {
+export function compile(expr, busKeys) {
   try {
-    return new Function('t', 'f', 'min', 'max', '__bus', `${HELPERS}return (${expr})`)
+    const keys = busKeys || []
+    const busVars = keys.length
+      ? 'var bus=__bus||{},' + keys.map(k => `${k}=bus.${k}||0`).join(',') + ';'
+      : 'var bus=__bus||{};'
+    return new Function('t', 'f', 'min', 'max', '__bus', `${busVars}${MATH_HELPERS}return (${expr})`)
   } catch {
     return null
   }
@@ -40,7 +41,8 @@ export default function useExpressionValue({ onChange, min = 0, max = 100, busRe
 
   useEffect(() => {
     if (!expr) { frameRef.current = 0; return }
-    const fn = compile(expr)
+    const busKeys = busRef?.current ? Object.keys(busRef.current) : []
+    const fn = compile(expr, busKeys)
     if (!fn) { setExpr(null); return }
     const start = startRef.current ?? performance.now() / 1000
     startRef.current = start

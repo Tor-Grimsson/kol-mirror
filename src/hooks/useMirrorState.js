@@ -304,15 +304,17 @@ export function useMirrorState() {
 
   // Generator state
   const [generatorState, setGeneratorState] = useState({
+    clk1: { bpm: 120, swing: 0, pulseWidth: 10, division: 1, enabled: true },
+    gate1: { triggerExpr: 'clk1', delay: 0, length: 0.2, repeat: 1, enabled: false },
     lfo1: { waveform: 'sine', rate: 1, depth: 100, offset: 0, enabled: true },
     lfo2: { waveform: 'sine', rate: 0.5, depth: 100, offset: 0, enabled: false },
-    seq1: { steps: [100, 75, 50, 25, 0, 25, 50, 75], rate: 2, direction: 'forward', enabled: false },
-    gate1: { type: 'AND', thresholdA: 50, thresholdB: 50, inputA: 'lfo1', inputB: 'lfo2', enabled: false },
-    osc1: { waveform: 'sine', frequency: 4, speed: 1, rotation: 0, colorMode: 'mono', enabled: false },
-    osc2: { waveform: 'stripes', frequency: 8, speed: 0.5, rotation: 45, colorMode: 'mono', enabled: false },
-    env1: { attack: 0.1, decay: 0.3, sustain: 0.7, release: 0.5, enabled: false },
+    seq1: { steps: [100, 75, 50, 25, 0, 25, 50, 75], direction: 'forward', clockExpr: 'clk1', resetExpr: '', enabled: false },
+    logic1: { type: 'AND', inputAExpr: '', inputBExpr: '', enabled: false },
+    env1: { attack: 0.1, decay: 0.3, sustain: 0.7, release: 0.5, triggerExpr: '', gateExpr: '', retrigger: false, enabled: false },
     sh1: { rate: 2, min: 0, max: 100, smooth: 0, enabled: false },
     mult1: { input: 'lfo1', outputs: [{ scale: 1, offset: 0 }, { scale: 0.5, offset: 50 }, { scale: -1, offset: 100 }], enabled: false },
+    math1: { ch1Rise: 0.5, ch1Fall: 0.5, ch1SignalExpr: '', ch1TriggerExpr: '', ch2Rise: 0.5, ch2Fall: 0.5, ch2SignalExpr: '', ch2TriggerExpr: '', enabled: false },
+    mix1: { in1Expr: '', in2Expr: '', in3Expr: '', in4Expr: '', level1: 100, level2: 100, level3: 100, level4: 100, master: 100, mode: 'ADD', enabled: false },
   })
 
   // Currently selected channel tab in sidebar (null = none)

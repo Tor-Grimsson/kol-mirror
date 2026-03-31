@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
 import Dropdown from '../../molecules/Dropdown'
 import Divider from '../../atoms/Divider'
+import ModuleIO from './ModuleIO'
 import { compile } from '../../../hooks/useExpressionValue'
 
 const WAVEFORMS = [
@@ -145,9 +146,9 @@ export default function LFOModule({ id, label, config, onChange, busRef }) {
 
         {/* Knobs — size 36 default variant matches channel knobs */}
         <div className="flex items-center justify-around">
-          <RotaryDial label="Rate" value={Math.round(rate / 20 * 100)} onChange={(v) => update('rate', Math.round(v / 100 * 20 * 10) / 10)} size={36} defaultValue={5} />
-          <RotaryDial label="Depth" value={depth} onChange={(v) => update('depth', v)} size={36} defaultValue={100} />
-          <RotaryDial label="Offset" value={offset} onChange={(v) => update('offset', v)} size={36} defaultValue={0} />
+          <RotaryDial label="Rate" value={Math.round(rate / 20 * 100)} onChange={(v) => update('rate', Math.round(v / 100 * 20 * 10) / 10)} size={36} defaultValue={5} busRef={busRef} />
+          <RotaryDial label="Depth" value={depth} onChange={(v) => update('depth', v)} size={36} defaultValue={100} busRef={busRef} />
+          <RotaryDial label="Offset" value={offset} onChange={(v) => update('offset', v)} size={36} defaultValue={0} busRef={busRef} />
         </div>
 
         <Divider />
@@ -168,6 +169,18 @@ export default function LFOModule({ id, label, config, onChange, busRef }) {
           </span>
         </div>
       </div>
+
+      <ModuleIO
+        moduleId={id}
+        onEnable={() => update('enabled', true)}
+        busRef={busRef}
+        outputs={[id]}
+        inputs={[
+          { label: 'rate', active: false },
+          { label: 'depth', active: false },
+          { label: 'offset', active: false },
+        ]}
+      />
     </div>
   )
 }

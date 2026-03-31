@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import RotaryDial from '../RotaryDial'
 import Dropdown from '../../molecules/Dropdown'
 import Divider from '../../atoms/Divider'
+import ModuleIO from './ModuleIO'
 
 const PREVIEW_W = 252
 const PREVIEW_H = 120
 
-export default function VisualGeneratorModule({ id, label, GenComponent, defaultParams, onLoadToChannel }) {
+export default function VisualGeneratorModule({ id, label, GenComponent, defaultParams, onLoadToChannel, busRef }) {
   const [params, setParams] = useState({ ...defaultParams, animate: true })
   const [enabled, setEnabled] = useState(true)
   const previewCanvasRef = useRef(null)
@@ -49,9 +50,9 @@ export default function VisualGeneratorModule({ id, label, GenComponent, default
         {/* Controls — varies by generator type */}
         {id === 'noise' && (
           <div className="flex items-center justify-around">
-            <RotaryDial label="Scale" value={Math.round(params.scale / 100 * 100)} onChange={(v) => update('scale', Math.round(v / 100 * 100))} size={36} defaultValue={20} />
-            <RotaryDial label="Speed" value={Math.round(params.speed / 10 * 100)} onChange={(v) => update('speed', Math.round(v / 100 * 10 * 10) / 10)} size={36} defaultValue={10} />
-            <RotaryDial label="Oct" value={Math.round((params.octaves - 1) / 5 * 100)} onChange={(v) => update('octaves', Math.round(v / 100 * 5) + 1)} size={36} defaultValue={33} />
+            <RotaryDial label="Scale" value={Math.round(params.scale / 100 * 100)} onChange={(v) => update('scale', Math.round(v / 100 * 100))} size={36} busRef={busRef} defaultValue={20} />
+            <RotaryDial label="Speed" value={Math.round(params.speed / 10 * 100)} onChange={(v) => update('speed', Math.round(v / 100 * 10 * 10) / 10)} size={36} busRef={busRef} defaultValue={10} />
+            <RotaryDial label="Oct" value={Math.round((params.octaves - 1) / 5 * 100)} onChange={(v) => update('octaves', Math.round(v / 100 * 5) + 1)} size={36} busRef={busRef} defaultValue={33} />
           </div>
         )}
 
@@ -68,8 +69,8 @@ export default function VisualGeneratorModule({ id, label, GenComponent, default
               />
             </div>
             <div className="flex items-center justify-around">
-              <RotaryDial label="Angle" value={Math.round(params.angle / 360 * 100)} onChange={(v) => update('angle', Math.round(v / 100 * 360))} size={36} defaultValue={0} />
-              <RotaryDial label="Speed" value={Math.round(params.speed / 10 * 100)} onChange={(v) => update('speed', Math.round(v / 100 * 10 * 10) / 10)} size={36} defaultValue={10} />
+              <RotaryDial label="Angle" value={Math.round(params.angle / 360 * 100)} onChange={(v) => update('angle', Math.round(v / 100 * 360))} size={36} busRef={busRef} defaultValue={0} />
+              <RotaryDial label="Speed" value={Math.round(params.speed / 10 * 100)} onChange={(v) => update('speed', Math.round(v / 100 * 10 * 10) / 10)} size={36} busRef={busRef} defaultValue={10} />
             </div>
           </>
         )}
@@ -87,9 +88,9 @@ export default function VisualGeneratorModule({ id, label, GenComponent, default
               />
             </div>
             <div className="flex items-center justify-around">
-              <RotaryDial label="Space" value={Math.round(params.spacing / 100 * 100)} onChange={(v) => update('spacing', Math.max(4, Math.round(v / 100 * 100)))} size={36} defaultValue={20} />
-              <RotaryDial label="Angle" value={Math.round(params.angle / 360 * 100)} onChange={(v) => update('angle', Math.round(v / 100 * 360))} size={36} defaultValue={0} />
-              <RotaryDial label="Duty" value={Math.round(params.duty * 100)} onChange={(v) => update('duty', Math.round(v) / 100)} size={36} defaultValue={50} />
+              <RotaryDial label="Space" value={Math.round(params.spacing / 100 * 100)} onChange={(v) => update('spacing', Math.max(4, Math.round(v / 100 * 100)))} size={36} busRef={busRef} defaultValue={20} />
+              <RotaryDial label="Angle" value={Math.round(params.angle / 360 * 100)} onChange={(v) => update('angle', Math.round(v / 100 * 360))} size={36} busRef={busRef} defaultValue={0} />
+              <RotaryDial label="Duty" value={Math.round(params.duty * 100)} onChange={(v) => update('duty', Math.round(v) / 100)} size={36} busRef={busRef} defaultValue={50} />
             </div>
           </>
         )}
@@ -106,6 +107,27 @@ export default function VisualGeneratorModule({ id, label, GenComponent, default
           </div>
         )}
       </div>
+
+      <ModuleIO
+        moduleId={`gen-${id}`}
+        outputs={[`gen_${id}`]}
+        inputs={
+          id === 'noise' ? [
+            { label: 'scale', active: false },
+            { label: 'speed', active: false },
+            { label: 'octaves', active: false },
+          ] : id === 'gradient' ? [
+            { label: 'angle', active: false },
+            { label: 'speed', active: false },
+          ] : id === 'pattern' ? [
+            { label: 'spacing', active: false },
+            { label: 'angle', active: false },
+            { label: 'duty', active: false },
+          ] : id === 'color-field' ? [
+            { label: 'color', active: false },
+          ] : []
+        }
+      />
     </div>
   )
 }
