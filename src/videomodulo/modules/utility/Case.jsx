@@ -1,7 +1,8 @@
 import { TOTAL_HP, ASPECT, RAIL_HEIGHT, hpToPercent } from './eurorack'
 
-export function HP(hp) {
-  return { width: `${hpToPercent(hp)}%`, flexShrink: 0, height: '100%', overflow: 'hidden' }
+// HP with grid placement — offset is 0-based HP position
+export function HP(hp, offset = 0) {
+  return { gridColumn: `${offset + 1} / span ${hp}`, height: '100%', overflow: 'hidden' }
 }
 
 const SLOTS = Array.from({ length: TOTAL_HP }, (_, i) => i)
@@ -45,8 +46,8 @@ export function RackRow({ height = '3u', children }) {
       {/* Layer 1: rails — visible in empty HP space */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1 }}><Rail /></div>
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1 }}><Rail /></div>
-      {/* Layer 2: modules/panels — cover rails where they exist */}
-      <div className="relative flex flex-row" style={{ width: '100%', height: '100%', zIndex: 2, gap: 2 }}>
+      {/* Layer 2: modules */}
+      <div className="relative" style={{ width: '100%', height: '100%', zIndex: 2 }}>
         {children}
       </div>
     </div>

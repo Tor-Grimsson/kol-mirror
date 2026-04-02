@@ -24,11 +24,11 @@ function waveFn(phase, shape) {
   }
 }
 
-export default function LFOModule({ id = 'lfo1' }) {
-  const [rate, setRate] = useState(10)     // maps to 0.1-20 Hz
-  const [depth, setDepth] = useState(100)
-  const [offset, setOffset] = useState(50)
-  const [shape, setShape] = useState('sin')
+export default function LFOModule({ id = 'lfo1', init }) {
+  const [rate, setRate] = useState(init?.rate ?? 10)     // maps to 0.1-20 Hz
+  const [depth, setDepth] = useState(init?.depth ?? 100)
+  const [offset, setOffset] = useState(init?.offset ?? 50)
+  const [shape, setShape] = useState(init?.shape ?? 'sin')
   const [enabled, setEnabled] = useState(true)
   const routing = usePatchRouting()
 

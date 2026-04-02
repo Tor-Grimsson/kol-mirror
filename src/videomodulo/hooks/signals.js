@@ -23,7 +23,7 @@ export function points(arr, edges = null) {
   return { type: 'points', value: arr, edges }
 }
 
-export const PEN_DEFAULTS = { thickness: 1.5, dash: 0, gap: 0, opacity: 100, cap: 'round' }
+export const PEN_DEFAULTS = { thickness: 1.5, dash: 0, gap: 0, opacity: 100, cap: 'round', lofi: 0, color: null }
 
 export function pen(props) {
   return { type: 'pen', value: { ...PEN_DEFAULTS, ...props } }

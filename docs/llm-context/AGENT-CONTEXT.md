@@ -44,6 +44,19 @@
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
 - Old hall page components still exist (dead code)
 
+### Recent Changes (2026-04-02, session 15)
+- **Sidebar**: 3-tab (Presets, Case, Modules). Lock/unlock footer on all tabs. Module catalog with 1U/3U labels. Case row management. Preset loading replaces rack modules + connections.
+- **Rack state system**: `useRackState` hook manages rows, modules with HP offsets, parked modules, edit mode. Dynamic rendering from state. `moduleRegistry.js` maps 34 module types.
+- **Drag-to-move**: Edit mode, 5px threshold, drag within rows or out to park. Parked modules at drop coordinates.
+- **New modules**: LineGen (8HP, 2D patterns: line/grid/circle/spiral/lissajous), Transform (12HP, XYZ rotation + perspective + translate + scale, 2x3 knobs with CV), Console (48HP, 4-channel mixer with faders, 2 send/return, built-in canvas, bg+pen inputs).
+- **Preset system rewrite**: Each preset defines modules + connections + initial knob state. `init` prop on modules. 22+ presets. Empty preset for clearing rack.
+- **Pen upgrades**: `lofi` knob (>50 = chunky bars/dots), `color` input (overrides default green/blue).
+- **Delay rewrite**: Buffers full signals (scalar/color/points). 4 knobs with CV: time, mix, copies, feedback. Points signals merge past frames as echoes.
+- **Output bg CV input**: Animate background brightness via patched signal.
+- **Fader control**: Vertical slider for Console channel strips.
+- **Fixes**: userSelect none on modules, PatchCableOverlay re-renders on connection change, 3U maintains aspect in 1U rows, 1U modules only into 1U rows, edit mode click threshold.
+- **34 total modules** across control (10), math (13 +Transform), generators (7 +LineGen), display (3 +Console), utility (1). 7 shared controls (+Fader).
+
 ### Recent Changes (2026-04-02, session 14)
 - **Phases 4-5 complete**: Monitor upgraded (scope trace, wireframe edges, waveform polyline, pen input). OutputModule (16HP, 4-layer compositing). Reference patch with initial connections. PatchModule save/load/clear. Frame timing in render loop.
 - **19 new modules built**: 1U: Mult, Noise, Attenuator (attenuverter + CV), VCA. 3U small: Logic, Comparator, ClockDivider, Switch, Quantizer, ScaleOffset. 3U medium: S&H, RingMod, Waveshaper, Ramp, Delay, Reverb. 3U large: Mixer, Maths, SMX3 color matrix.

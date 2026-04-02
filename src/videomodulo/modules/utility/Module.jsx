@@ -14,6 +14,7 @@ export default function Module({ children, className = 'bg-surface-secondary' })
         display: 'flex',
         flexDirection: 'column',
         padding: `${MODULE_PADDING}px 0`,
+        userSelect: 'none',
       }}
     >
       <div style={{ flex: 1, overflow: 'hidden', padding: '0 4px' }}>

@@ -11,9 +11,9 @@ import ModuleHeader from '../controls/ModuleHeader'
 
 const GATE_DURATION = 0.03 // 30ms pulse width
 
-export default function ClockModule({ id = 'clk1' }) {
-  const [bpm, setBpm] = useState(120)
-  const [division, setDivision] = useState(4)
+export default function ClockModule({ id = 'clk1', init }) {
+  const [bpm, setBpm] = useState(init?.bpm ?? 120)
+  const [division, setDivision] = useState(init?.division ?? 4)
   const [enabled, setEnabled] = useState(true)
   const enabledRef = useRef(true)
   const bpmRef = useRef(120)

@@ -13,12 +13,12 @@ import { usePatchRouting } from '../../hooks/usePatchRouting.jsx'
 
 const STAGES = { IDLE: 0, ATTACK: 1, DECAY: 2, SUSTAIN: 3, RELEASE: 4 }
 
-export default function EnvelopeModule({ id = 'env1' }) {
-  const [attack, setAttack] = useState(10)    // 0-100 maps to 0-2s
-  const [decay, setDecay] = useState(30)
-  const [sustain, setSustain] = useState(70)
-  const [release, setRelease] = useState(50)
-  const [cycle, setCycle] = useState(false)
+export default function EnvelopeModule({ id = 'env1', init }) {
+  const [attack, setAttack] = useState(init?.attack ?? 10)    // 0-100 maps to 0-2s
+  const [decay, setDecay] = useState(init?.decay ?? 30)
+  const [sustain, setSustain] = useState(init?.sustain ?? 70)
+  const [release, setRelease] = useState(init?.release ?? 50)
+  const [cycle, setCycle] = useState(init?.cycle ?? false)
   const [enabled, setEnabled] = useState(true)
   const routing = usePatchRouting()
 

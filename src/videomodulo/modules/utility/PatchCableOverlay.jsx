@@ -33,17 +33,12 @@ export default function PatchCableOverlay({ containerRef }) {
   const [mousePos, setMousePos] = useState(null)
   const [, forceUpdate] = useState(0)
 
-  // Re-render after jacks register so initial connections draw
+  // Re-render after connections change (delayed so jacks register first)
+  const conns = routing?.connections
   useEffect(() => {
     const id = requestAnimationFrame(() => forceUpdate(n => n + 1))
     return () => cancelAnimationFrame(id)
-  }, [])
-
-  // Re-render after jacks register so initial connections draw
-  useEffect(() => {
-    const id = requestAnimationFrame(() => forceUpdate(n => n + 1))
-    return () => cancelAnimationFrame(id)
-  }, [])
+  }, [conns])
 
   // Re-render on scroll
   useEffect(() => {

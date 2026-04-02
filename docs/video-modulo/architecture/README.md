@@ -16,25 +16,25 @@ Working plan for the modular video synthesizer. Each phase is a self-contained m
 6. [Raster Bridge](phase-6-raster.md) — WebGL render target, first shader effect
 7. [Integration](phase-7-integration.md) — Channel/mixer system, image/video input
 
-## Current Module Count: 30
+## Current Module Count: 34
 
-### Control (9)
-Clock, ClockDivider, LFO, Envelope, Sequencer, Constant, Logic, Comparator, SampleHold
+### Control (10)
+Clock, ClockDivider, LFO, Envelope, Sequencer, Constant, Logic, Comparator, SampleHold, Pen
 
-### Math (12)
-Mult, Attenuator, VCA, Switch, Quantizer, ScaleOffset, RingMod, Waveshaper, Delay, Reverb, Mixer, Maths
+### Math (13)
+Mult, Attenuator, VCA, Switch, Quantizer, ScaleOffset, RingMod, Waveshaper, Delay, Reverb, Mixer, Maths, Transform
 
-### Generators (5)
-RGBOscillator, Waveform, Wireframe, Noise, Ramp, SMX3
+### Generators (7)
+RGBOscillator, Waveform, Wireframe, Noise, Ramp, SMX3, LineGen
 
-### Display (2)
-Monitor, Output
+### Display (3)
+Monitor, Output, Console
 
 ### Utility (1)
 PatchModule
 
-### Controls (6 shared UI components)
-Knob, ModuleHeader, Selector, Toggle, WaveSelect, Dropdown
+### Controls (7 shared UI components)
+Knob, Fader, ModuleHeader, Selector, Toggle, WaveSelect, Dropdown
 
 ## Reference
 

@@ -26,6 +26,7 @@ export default function OutputModule({ id = 'out1' }) {
 
   const inputRefs = useRef({ a: null, b: null, c: null, d: null })
   const penRef = useRef(null)
+  const bgInRef = useRef(null)
 
   const historyRefs = useRef({
     a: new Float32Array(BUF_LEN),
@@ -41,6 +42,7 @@ export default function OutputModule({ id = 'out1' }) {
     connected[ch] = conns.some(c => c.toModuleId === id && c.toPort === ch)
   }
   const penConnected = conns.some(c => c.toModuleId === id && c.toPort === 'pen')
+  const bgConnected = conns.some(c => c.toModuleId === id && c.toPort === 'bg')
 
   useModule({
     id,
@@ -50,6 +52,7 @@ export default function OutputModule({ id = 'out1' }) {
       c: { type: 'any' },
       d: { type: 'any' },
       pen: { type: 'pen' },
+      bg: { type: 'scalar' },
     },
     outputs: {},
     process: (inputs) => {
@@ -59,6 +62,7 @@ export default function OutputModule({ id = 'out1' }) {
         return {}
       }
       penRef.current = inputs.pen
+      bgInRef.current = inputs.bg
       const idx = writeIdxRef.current
       for (const ch of CHANNELS) {
         inputRefs.current[ch] = inputs[ch]
@@ -96,7 +100,8 @@ export default function OutputModule({ id = 'out1' }) {
       const h = canvas.height
       if (!w || !h) { raf = requestAnimationFrame(draw); return }
 
-      const g = Math.round((bgRef.current / 100) * 255)
+      const bgVal = bgInRef.current?.type === 'scalar' ? bgInRef.current.value : bgRef.current
+      const g = Math.round((bgVal / 100) * 255)
       ctx.fillStyle = `rgb(${g},${g},${g})`
       ctx.fillRect(0, 0, w, h)
 
@@ -138,7 +143,10 @@ export default function OutputModule({ id = 'out1' }) {
           }}
         />
 
-        <Knob value={bg} onChange={setBg} label="bg" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <JackSocket type="in" port="bg" moduleId={id} active={bgConnected} signalRef={bgInRef} label="cv" size="sm" />
+          <Knob value={bg} onChange={setBg} label="bg" />
+        </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
           {CHANNELS.map(ch => (
