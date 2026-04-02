@@ -1,8 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
-import Dropdown from '../../molecules/Dropdown'
-import Divider from '../../atoms/Divider'
 import ModuleIO from './ModuleIO'
+import JackSocket from './JackSocket'
 import { compile } from '../../../hooks/useExpressionValue'
 
 const WAVEFORMS = [
@@ -123,58 +122,65 @@ export default function LFOModule({ id, label, config, onChange, busRef }) {
 
   const update = useCallback((key, val) => onChange({ ...config, [key]: val }), [config, onChange])
 
+  const wfIdx = WAVEFORMS.findIndex(w => w.value === waveform)
+  const cycleWaveform = (dir) => {
+    const next = (wfIdx + dir + WAVEFORMS.length) % WAVEFORMS.length
+    update('waveform', WAVEFORMS[next].value)
+  }
+
   return (
-    <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between kol-helper-xs px-3 border-b border-fg-08" style={{ height: '29px' }}>
-        <span className="flex items-center gap-3">
+    <div className="flex flex-col h-full border-r border-fg-08">
+      {/* Header — 20px */}
+      <div className="flex items-center justify-between px-2 border-b border-fg-08 shrink-0" style={{ height: '20px', fontFamily: 'monospace', fontSize: '9px' }}>
+        <span className="flex items-center gap-1.5">
           <span className="cursor-pointer select-none" onClick={() => update('enabled', !enabled)}>
-            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
+            <div className={`rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ width: '6px', height: '6px' }} />
           </span>
-          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>{label}</span>
+          <span className="text-fg-96">{label}</span>
         </span>
-        <span className="text-fg-32 kol-helper-xxs">{id}</span>
+        <span ref={valRef} className="text-fg-32" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {enabled ? '0' : '—'}
+        </span>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col gap-3 p-3">
-        {/* Waveform */}
-        <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
-          <span className="text-fg-64">Waveform</span>
-          <Dropdown options={WAVEFORMS} value={waveform} onChange={(v) => update('waveform', v)} variant="minimal" size="md" />
-        </div>
-
-        {/* Knobs — size 36 default variant matches channel knobs */}
-        <div className="flex items-center justify-around">
-          <RotaryDial label="Rate" value={Math.round(rate / 20 * 100)} onChange={(v) => update('rate', Math.round(v / 100 * 20 * 10) / 10)} size={36} defaultValue={5} busRef={busRef} />
-          <RotaryDial label="Depth" value={depth} onChange={(v) => update('depth', v)} size={36} defaultValue={100} busRef={busRef} />
-          <RotaryDial label="Offset" value={offset} onChange={(v) => update('offset', v)} size={36} defaultValue={0} busRef={busRef} />
-        </div>
-
-        <Divider />
-
-        {/* Oscilloscope canvas */}
-        <canvas
-          ref={canvasRef}
-          width={252}
-          height={52}
-          style={{ width: '100%', height: '52px', borderRadius: '3px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block' }}
-        />
-
-        {/* Output row */}
-        <div className="flex items-center justify-between kol-helper-xs">
-          <span className="text-fg-32">Output</span>
-          <span ref={valRef} className="text-fg-64" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {enabled ? '0' : '—'}
+      {/* Controls — flex-1 */}
+      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
+        {/* Waveform selector */}
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">WF</span>
+          <span className="flex items-center gap-1">
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleWaveform(-1)}>{'\u2039'}</span>
+            <span className="text-fg-96" style={{ minWidth: '36px', textAlign: 'center' }}>{WAVEFORMS[wfIdx]?.label || waveform}</span>
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleWaveform(1)}>{'\u203a'}</span>
           </span>
         </div>
+
+        {/* Knobs — vertical stack */}
+        <div className="flex flex-col items-center gap-2 flex-1 justify-center">
+          <RotaryDial label="Rate" value={Math.round(rate / 20 * 100)} onChange={(v) => update('rate', Math.round(v / 100 * 20 * 10) / 10)} size={32} defaultValue={5} busRef={busRef} />
+          <RotaryDial label="Depth" value={depth} onChange={(v) => update('depth', v)} size={32} defaultValue={100} busRef={busRef} />
+          <RotaryDial label="Offset" value={offset} onChange={(v) => update('offset', v)} size={32} defaultValue={0} busRef={busRef} />
+        </div>
+
+        {/* Scope canvas — full width x 40px */}
+        <canvas
+          ref={canvasRef}
+          width={200}
+          height={40}
+          style={{ width: '100%', height: '40px', borderRadius: '2px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block', flexShrink: 0 }}
+        />
+      </div>
+
+      {/* Outputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="out" busKey={id} moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="OUT" size="md" />
       </div>
 
       <ModuleIO
         moduleId={id}
         onEnable={() => update('enabled', true)}
         busRef={busRef}
-        outputs={[id]}
+        outputs={[]}
         inputs={[
           { label: 'rate', active: false },
           { label: 'depth', active: false },

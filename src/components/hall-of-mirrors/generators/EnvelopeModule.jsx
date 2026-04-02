@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
-import Divider from '../../atoms/Divider'
 import ExpressionInput from './ExpressionInput'
 import ModuleIO from './ModuleIO'
+import JackSocket from './JackSocket'
 
 // States: 0=IDLE, 1=ATTACK, 2=DECAY, 3=SUSTAIN, 4=RELEASE
 const IDLE = 0, ATTACK = 1, DECAY = 2, SUSTAIN = 3, RELEASE = 4
@@ -55,6 +55,8 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
   const stateRef = useRef(IDLE)
   const stateTimeRef = useRef(0)
   const releaseFromRef = useRef(0)
+  const adsrRef = useRef({ attack, decay, sustain, release })
+  adsrRef.current = { attack, decay, sustain, release }
 
   useEffect(() => {
     if (!enabled) {
@@ -76,72 +78,50 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
       return
     }
 
-    // Initialize bus keys
     if (busRef?.current) {
       if (!(id in busRef.current)) busRef.current[id] = 0
       if (!(`${id}_eoc` in busRef.current)) busRef.current[`${id}_eoc`] = 0
     }
 
     let lastTime = performance.now() / 1000
-    const susLevel = sustain * 100
 
     const tick = () => {
       const now = performance.now() / 1000
       const dt = now - lastTime
       lastTime = now
+      const { attack, decay, sustain, release } = adsrRef.current
+      const susLevel = sustain * 100
 
       stateTimeRef.current += dt
       const st = stateTimeRef.current
       let val = valueRef.current
       let eoc = 0
-
       const state = stateRef.current
 
       if (state === ATTACK) {
         val = attack > 0 ? Math.min(100, (st / attack) * 100) : 100
-        if (st >= attack) {
-          stateRef.current = DECAY
-          stateTimeRef.current = 0
-          val = 100
-        }
+        if (st >= attack) { stateRef.current = DECAY; stateTimeRef.current = 0; val = 100 }
       } else if (state === DECAY) {
         val = decay > 0 ? 100 - (100 - susLevel) * Math.min(1, st / decay) : susLevel
-        if (st >= decay) {
-          stateRef.current = SUSTAIN
-          stateTimeRef.current = 0
-          val = susLevel
-        }
+        if (st >= decay) { stateRef.current = SUSTAIN; stateTimeRef.current = 0; val = susLevel }
       } else if (state === SUSTAIN) {
         val = susLevel
-        // Sustain holds until gate drops — handled by trigger/gate logic below
       } else if (state === RELEASE) {
         val = release > 0 ? releaseFromRef.current * Math.max(0, 1 - st / release) : 0
-        if (st >= release) {
-          stateRef.current = IDLE
-          stateTimeRef.current = 0
-          val = 0
-          eoc = 100
-        }
+        if (st >= release) { stateRef.current = IDLE; stateTimeRef.current = 0; val = 0; eoc = 100 }
       }
-      // IDLE: val stays at 0
 
       valueRef.current = val
-
-      if (busRef?.current) {
-        busRef.current[id] = Math.round(val)
-        busRef.current[`${id}_eoc`] = eoc
-      }
+      if (busRef?.current) { busRef.current[id] = Math.round(val); busRef.current[`${id}_eoc`] = eoc }
       if (valRef.current) valRef.current.textContent = Math.round(val)
-
       drawOscilloscope(canvasRef.current, stateRef, valueRef)
-
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [enabled, attack, decay, sustain, release, id, busRef])
+  }, [enabled, id, busRef])
 
-  // Trigger handler — called by ExpressionInput on rising edge
+  // Trigger handler -- called by ExpressionInput on rising edge
   const handleTrigger = useCallback(() => {
     if (!enabled) return
     const state = stateRef.current
@@ -151,7 +131,7 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
     }
   }, [enabled, retrigger])
 
-  // Gate value handler — when gate drops below threshold, start release
+  // Gate value handler -- when gate drops below threshold, start release
   const handleGateValue = useCallback((val) => {
     if (!enabled) return
     if (stateRef.current === SUSTAIN && val <= 50) {
@@ -164,20 +144,22 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
   const update = useCallback((key, val) => onChange({ ...config, [key]: val }), [config, onChange])
 
   return (
-    <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between kol-helper-xs px-3 border-b border-fg-08" style={{ height: '29px' }}>
-        <span className="flex items-center gap-3">
+    <div className="flex flex-col h-full border-r border-fg-08">
+      {/* Header -- 20px */}
+      <div className="flex items-center justify-between px-2 border-b border-fg-08 shrink-0" style={{ height: '20px', fontFamily: 'monospace', fontSize: '9px' }}>
+        <span className="flex items-center gap-1.5">
           <span className="cursor-pointer select-none" onClick={() => update('enabled', !enabled)}>
-            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
+            <div className={`rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ width: '6px', height: '6px' }} />
           </span>
-          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>{label}</span>
+          <span className="text-fg-96">{label}</span>
         </span>
-        <span className="text-fg-32 kol-helper-xxs">{id}</span>
+        <span ref={valRef} className="text-fg-32" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {enabled ? '0' : '—'}
+        </span>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col gap-3 p-3">
+      {/* Controls -- flex-1 */}
+      <div className="flex-1 flex flex-col p-2 gap-1.5 overflow-hidden">
         {/* Trigger & Gate inputs */}
         <ExpressionInput
           label="Trigger"
@@ -195,8 +177,8 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
         />
 
         {/* Retrigger toggle */}
-        <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
-          <span className="text-fg-64">Retrigger</span>
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">RETRIG</span>
           <span
             className={`cursor-pointer select-none ${retrigger ? 'text-fg-96' : 'text-fg-32'}`}
             onClick={() => update('retrigger', !retrigger)}
@@ -205,44 +187,45 @@ export default function EnvelopeModule({ id, label, config, onChange, busRef }) 
           </span>
         </div>
 
-        <Divider />
-
-        {/* ADSR Knobs */}
-        <div className="flex items-center justify-around">
-          <RotaryDial label="ATK" value={Math.round((attack - 0.01) / 1.99 * 100)} onChange={(v) => update('attack', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={5} busRef={busRef} />
-          <RotaryDial label="DEC" value={Math.round((decay - 0.01) / 1.99 * 100)} onChange={(v) => update('decay', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={15} busRef={busRef} />
-          <RotaryDial label="SUS" value={Math.round(sustain * 100)} onChange={(v) => update('sustain', v / 100)} size={36} defaultValue={70} busRef={busRef} />
-          <RotaryDial label="REL" value={Math.round((release - 0.01) / 1.99 * 100)} onChange={(v) => update('release', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={36} defaultValue={25} busRef={busRef} />
+        {/* ADSR Knobs -- 2x2 grid */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-1">
+          <div className="flex items-center justify-around w-full">
+            <RotaryDial label="ATK" value={Math.round((attack - 0.01) / 1.99 * 100)} onChange={(v) => update('attack', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={32} defaultValue={5} busRef={busRef} />
+            <RotaryDial label="DEC" value={Math.round((decay - 0.01) / 1.99 * 100)} onChange={(v) => update('decay', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={32} defaultValue={15} busRef={busRef} />
+          </div>
+          <div className="flex items-center justify-around w-full">
+            <RotaryDial label="SUS" value={Math.round(sustain * 100)} onChange={(v) => update('sustain', v / 100)} size={32} defaultValue={70} busRef={busRef} />
+            <RotaryDial label="REL" value={Math.round((release - 0.01) / 1.99 * 100)} onChange={(v) => update('release', Math.round((v / 100 * 1.99 + 0.01) * 100) / 100)} size={32} defaultValue={25} busRef={busRef} />
+          </div>
         </div>
 
-        <Divider />
-
-        {/* Oscilloscope */}
+        {/* Scope canvas -- full width x 40px */}
         <canvas
           ref={canvasRef}
-          width={252}
-          height={52}
-          style={{ width: '100%', height: '52px', borderRadius: '3px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block' }}
+          width={200}
+          height={40}
+          style={{ width: '100%', height: '40px', borderRadius: '2px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block', flexShrink: 0 }}
         />
+      </div>
 
-        {/* Output row */}
-        <div className="flex items-center justify-between kol-helper-xs">
-          <span className="text-fg-32">Output</span>
-          <span ref={valRef} className="text-fg-64" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {enabled ? '0' : '—'}
-          </span>
-        </div>
+      {/* Inputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="in" moduleId={id} configKey="triggerExpr" onExprChange={(v) => update('triggerExpr', v)} busRef={busRef} active={!!triggerExpr} label="TRIG" size="md" />
+        <JackSocket type="in" moduleId={id} configKey="gateExpr" onExprChange={(v) => update('gateExpr', v)} busRef={busRef} active={!!gateExpr} label="GATE" size="md" />
+      </div>
+
+      {/* Outputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="out" busKey={id} moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="ENV" size="md" />
+        <JackSocket type="out" busKey={`${id}_eoc`} moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="EOC" size="md" />
       </div>
 
       <ModuleIO
         moduleId={id}
         onEnable={() => update('enabled', true)}
         busRef={busRef}
-        outputs={[id, `${id}_eoc`]}
-        inputs={[
-          { label: 'trigger', active: !!triggerExpr, configKey: 'triggerExpr', onExprChange: (v) => update('triggerExpr', v) },
-          { label: 'gate', active: !!gateExpr, configKey: 'gateExpr', onExprChange: (v) => update('gateExpr', v) },
-        ]}
+        outputs={[]}
+        inputs={[]}
       />
     </div>
   )

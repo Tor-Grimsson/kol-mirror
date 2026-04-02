@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
-import Divider from '../../atoms/Divider'
 import ExpressionInput from './ExpressionInput'
 import ModuleIO from './ModuleIO'
 
@@ -15,12 +14,13 @@ export default function MixerModule({ id = 'mix1', label = 'MIXER', config, onCh
 
   const rafRef = useRef(null)
   const valRef = useRef(null)
+  const dotRef = useRef(null)
   const inputVals = useRef([0, 0, 0, 0])
 
   useEffect(() => {
     if (!enabled) {
       if (busRef?.current) busRef.current[id] = 0
-      if (valRef.current) valRef.current.textContent = '—'
+      if (valRef.current) valRef.current.textContent = '\u2014'
       return
     }
 
@@ -45,6 +45,11 @@ export default function MixerModule({ id = 'mix1', label = 'MIXER', config, onCh
       if (busRef?.current) busRef.current[id] = Math.round(output)
       if (valRef.current) valRef.current.textContent = Math.round(output)
 
+      // Pulse dot with output signal
+      if (dotRef.current) {
+        dotRef.current.style.opacity = output > 5 ? 1 : (enabled ? 0.6 : 0.15)
+      }
+
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
@@ -52,6 +57,10 @@ export default function MixerModule({ id = 'mix1', label = 'MIXER', config, onCh
   }, [enabled, in1Expr, in2Expr, in3Expr, in4Expr, level1, level2, level3, level4, master, mode, id, busRef])
 
   const update = useCallback((key, val) => onChange?.({ ...config, [key]: val }), [config, onChange])
+
+  const modeIdx = MIX_MODES.indexOf(mode)
+  const prevMode = () => update('mode', MIX_MODES[(modeIdx - 1 + MIX_MODES.length) % MIX_MODES.length])
+  const nextMode = () => update('mode', MIX_MODES[(modeIdx + 1) % MIX_MODES.length])
 
   const inputs = [
     { expr: in1Expr, key: 'in1Expr', level: level1, levelKey: 'level1', idx: 0 },
@@ -61,26 +70,26 @@ export default function MixerModule({ id = 'mix1', label = 'MIXER', config, onCh
   ]
 
   return (
-    <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between kol-helper-xs px-3 border-b border-fg-08" style={{ height: '29px' }}>
-        <span className="flex items-center gap-3">
-          <span className="cursor-pointer select-none" onClick={() => update('enabled', !enabled)}>
-            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
-          </span>
-          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>{label}</span>
+    <div className="flex flex-col h-full bg-surface-secondary border-r border-fg-08">
+      {/* Header - 20px */}
+      <div className="flex items-center justify-between px-2 border-b border-fg-08" style={{ height: '20px', minHeight: '20px' }}>
+        <span className="flex items-center gap-1.5">
+          <span ref={dotRef} className="cursor-pointer select-none"
+            onClick={() => update('enabled', !enabled)}
+            style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#e74c3c', outline: '6px solid transparent', outlineOffset: '0', opacity: 1, boxShadow: enabled ? '0 0 6px 2px #e74c3c' : 'none' }}
+          />
+          <span className="text-fg-96" style={{ fontSize: '9px', fontFamily: 'var(--kol-font-mono)' }}>{label}</span>
         </span>
-        <span className="text-fg-32 kol-helper-xxs">{id}</span>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col gap-2 p-3">
-        {/* 4 input rows */}
+      {/* Controls - flex-1, vertical stack */}
+      <div className="flex flex-col gap-0.5 flex-1 py-1 px-1" style={{ overflow: 'hidden' }}>
+        {/* 4 input rows: expression + small level knob */}
         {inputs.map((inp, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className="flex-1">
+          <div key={i} className="flex items-center gap-1">
+            <div className="flex-1" style={{ minWidth: 0 }}>
               <ExpressionInput
-                label={`In ${i + 1}`}
+                label={`${i + 1}`}
                 expr={inp.expr}
                 onExprChange={(v) => update(inp.key, v)}
                 busRef={busRef}
@@ -99,49 +108,28 @@ export default function MixerModule({ id = 'mix1', label = 'MIXER', config, onCh
           </div>
         ))}
 
-        <Divider />
-
-        {/* Mode buttons */}
-        <div className="flex items-center gap-1">
-          {MIX_MODES.map(m => (
-            <button
-              key={m}
-              className={`flex-1 kol-helper-xxs py-0.5 rounded-sm cursor-pointer border ${
-                mode === m
-                  ? 'bg-[#e74c3c] text-fg-96 border-[#e74c3c]'
-                  : 'bg-transparent text-fg-32 border-fg-08 hover:text-fg-64'
-              }`}
-              onClick={() => update('mode', m)}
-            >
-              {m}
-            </button>
-          ))}
+        {/* Mix mode selector */}
+        <div className="flex items-center gap-0.5 w-full justify-center" style={{ fontSize: '8px', fontFamily: 'var(--kol-font-mono)' }}>
+          <span className="cursor-pointer text-fg-32 hover:text-fg-64 select-none" onClick={prevMode}>{'\u2039'}</span>
+          <span className="text-fg-96" style={{ width: '28px', textAlign: 'center' }}>{mode}</span>
+          <span className="cursor-pointer text-fg-32 hover:text-fg-64 select-none" onClick={nextMode}>{'\u203a'}</span>
         </div>
 
-        {/* Master */}
-        <div className="flex items-center justify-between">
-          <span className="text-fg-64 kol-helper-xs">Master</span>
+        {/* Master knob */}
+        <div className="flex items-center justify-center">
           <RotaryDial
-            label=""
+            label="Mst"
             value={master}
             onChange={(v) => update('master', v)}
-            size={36}
+            size={28}
             defaultValue={100}
             busRef={busRef}
+            variant="dense"
           />
-        </div>
-
-        <Divider />
-
-        {/* Output */}
-        <div className="flex items-center justify-between kol-helper-xs">
-          <span className="text-fg-32">Output</span>
-          <span ref={valRef} className="text-fg-64" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {enabled ? '0' : '—'}
-          </span>
         </div>
       </div>
 
+      {/* I/O at bottom */}
       <ModuleIO
         moduleId={id}
         onEnable={() => update('enabled', true)}

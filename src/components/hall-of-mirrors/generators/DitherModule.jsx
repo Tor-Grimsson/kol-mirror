@@ -1,13 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
-import Divider from '../../atoms/Divider'
 import ModuleIO from './ModuleIO'
-import { renderDither, MODE_OPTIONS, SHAPE_OPTIONS, DEFAULT_PARAMS } from './ditherEngine'
+import JackSocket from './JackSocket'
+import { renderDither, SHAPE_OPTIONS } from './ditherEngine'
 
 const PREVIEW_W = 252
 const PREVIEW_H = 200
 
-// Subset of modes grouped for button rows
+// Subset of modes grouped
 const MODE_GROUPS = {
   halftone: ['halftone', 'inv_halftone', 'flat', 'checker', 'posterize'],
   transform: ['rotation', 'stretch_v', 'stretch_h', 'crosshatch', 'flow'],
@@ -16,13 +16,17 @@ const MODE_GROUPS = {
   organic: ['interference', 'bio', 'eraser'],
 }
 
+const GROUP_KEYS = Object.keys(MODE_GROUPS)
+const GROUP_LABELS = { halftone: 'HALT', transform: 'TRNS', glitch: 'GLTC', video: 'VID', organic: 'ORG' }
+
 export default function DitherModule({ id = 'dither1', label = 'DITHER', config, onChange, busRef }) {
   const {
     mode = 'halftone', shape = 'circle',
     cellSize = 10, baseScale = 0.9, gap = 1,
     contrast = 0, intensity = 1.0,
     useColor = true, monoColor = '#ffffff', bgColor = '#111111',
-    enabled = false, modeGroup = 'halftone', preview = true,
+    enabled = false, modeGroup = 'halftone',
+    inputExpr = '',
   } = config || {}
 
   const canvasRef = useRef(null)
@@ -77,6 +81,7 @@ export default function DitherModule({ id = 'dither1', label = 'DITHER', config,
           contrast, intensity, useColor, monoColor, bgColor,
         })
       }
+      if (busRef?.current) busRef.current[`${id}_out`] = enabled ? 100 : 0
       if (valRef.current) valRef.current.textContent = `${mode}/${shape}`
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -88,109 +93,103 @@ export default function DitherModule({ id = 'dither1', label = 'DITHER', config,
 
   const currentModes = MODE_GROUPS[modeGroup] || MODE_GROUPS.halftone
 
+  // Mode group selector
+  const grpIdx = GROUP_KEYS.indexOf(modeGroup)
+  const cycleGroup = (dir) => {
+    const next = (grpIdx + dir + GROUP_KEYS.length) % GROUP_KEYS.length
+    const newGroup = GROUP_KEYS[next]
+    update('modeGroup', newGroup)
+    // Also set mode to first of new group
+    const modes = MODE_GROUPS[newGroup]
+    if (modes && modes.length) onChange?.({ ...config, modeGroup: newGroup, mode: modes[0] })
+  }
+
+  // Mode within group selector
+  const modeIdx = currentModes.indexOf(mode)
+  const cycleMode = (dir) => {
+    const next = (modeIdx + dir + currentModes.length) % currentModes.length
+    update('mode', currentModes[next])
+  }
+
+  // Shape selector
+  const shapeList = SHAPE_OPTIONS.slice(0, 12)
+  const shpIdx = shapeList.findIndex(s => s.value === shape)
+  const cycleShape = (dir) => {
+    const next = (shpIdx + dir + shapeList.length) % shapeList.length
+    update('shape', shapeList[next].value)
+  }
+
   return (
-    <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between kol-helper-xs px-3 border-b border-fg-08" style={{ height: '29px' }}>
-        <span className="flex items-center gap-3">
+    <div className="flex flex-col h-full border-r border-fg-08">
+      {/* Header -- 20px */}
+      <div className="flex items-center justify-between px-2 border-b border-fg-08 shrink-0" style={{ height: '20px', fontFamily: 'monospace', fontSize: '9px' }}>
+        <span className="flex items-center gap-1.5">
           <span className="cursor-pointer select-none" onClick={() => update('enabled', !enabled)}>
-            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
+            <div className={`rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ width: '6px', height: '6px' }} />
           </span>
-          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>{label}</span>
+          <span className="text-fg-96">{label}</span>
         </span>
-        <span className="flex items-center gap-2">
-          <span
-            className={`cursor-pointer select-none kol-helper-xxs ${preview ? 'text-fg-32' : 'text-fg-16'}`}
-            onClick={() => update('preview', !preview)}
-          >
-            {preview ? '◉' : '◎'}
-          </span>
+        <span ref={valRef} className="text-fg-32" style={{ fontVariantNumeric: 'tabular-nums', fontSize: '8px' }}>
+          {enabled ? `${mode}/${shape}` : '—'}
         </span>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col gap-2 p-3">
-        {/* Preview */}
-        <canvas
-          ref={canvasRef}
-          width={PREVIEW_W}
-          height={PREVIEW_H}
-          style={{ width: '100%', height: preview ? `${PREVIEW_H}px` : '6px', borderRadius: '3px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block', overflow: 'hidden', transition: 'height 0.15s' }}
-        />
+      {/* Hidden canvas -- still renders for processing */}
+      <canvas
+        ref={canvasRef}
+        width={PREVIEW_W}
+        height={PREVIEW_H}
+        style={{ display: 'none' }}
+      />
 
-        {/* Mode group tabs */}
-        <div className="flex items-center gap-1">
-          {Object.keys(MODE_GROUPS).map(g => (
-            <button
-              key={g}
-              className={`flex-1 kol-helper-xxs py-0.5 rounded-sm cursor-pointer border ${
-                modeGroup === g
-                  ? 'bg-[#e74c3c] text-fg-96 border-[#e74c3c]'
-                  : 'bg-transparent text-fg-24 border-fg-08 hover:text-fg-64'
-              }`}
-              style={{ fontSize: '8px', textTransform: 'uppercase' }}
-              onClick={() => update('modeGroup', g)}
-            >
-              {g.slice(0, 4)}
-            </button>
-          ))}
+      {/* Controls -- flex-1 */}
+      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
+        {/* Mode group selector */}
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">GRP</span>
+          <span className="flex items-center gap-1">
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleGroup(-1)}>{'\u2039'}</span>
+            <span className="text-fg-96" style={{ minWidth: '32px', textAlign: 'center' }}>{GROUP_LABELS[modeGroup] || modeGroup}</span>
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleGroup(1)}>{'\u203a'}</span>
+          </span>
         </div>
 
-        {/* Mode buttons within group */}
-        <div className="flex items-center gap-1 flex-wrap">
-          {currentModes.map(m => (
-            <button
-              key={m}
-              className={`kol-helper-xxs py-0.5 px-1 rounded-sm cursor-pointer border ${
-                mode === m
-                  ? 'bg-fg-96 text-surface-primary border-fg-96'
-                  : 'bg-transparent text-fg-32 border-fg-08 hover:text-fg-64'
-              }`}
-              style={{ fontSize: '8px' }}
-              onClick={() => update('mode', m)}
-            >
-              {m.replace('_', ' ')}
-            </button>
-          ))}
+        {/* Mode within group selector */}
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">MODE</span>
+          <span className="flex items-center gap-1">
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleMode(-1)}>{'\u2039'}</span>
+            <span className="text-fg-96" style={{ minWidth: '56px', textAlign: 'center', fontSize: '8px' }}>{mode.replace('_', ' ')}</span>
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleMode(1)}>{'\u203a'}</span>
+          </span>
         </div>
 
-        {/* Shape selector — compact scrollable row */}
-        <div className="flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          <span className="text-fg-24 kol-helper-xxs shrink-0">SHP</span>
-          {SHAPE_OPTIONS.slice(0, 12).map(s => (
-            <button
-              key={s.value}
-              className={`shrink-0 kol-helper-xxs py-0.5 px-1 rounded-sm cursor-pointer border ${
-                shape === s.value
-                  ? 'bg-fg-96 text-surface-primary border-fg-96'
-                  : 'bg-transparent text-fg-24 border-fg-08 hover:text-fg-64'
-              }`}
-              style={{ fontSize: '7px' }}
-              onClick={() => update('shape', s.value)}
-            >
-              {s.value.slice(0, 4)}
-            </button>
-          ))}
+        {/* Shape selector */}
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">SHP</span>
+          <span className="flex items-center gap-1">
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleShape(-1)}>{'\u2039'}</span>
+            <span className="text-fg-96" style={{ minWidth: '40px', textAlign: 'center' }}>{shapeList[shpIdx]?.value?.slice(0, 6) || shape}</span>
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleShape(1)}>{'\u203a'}</span>
+          </span>
         </div>
 
-        <Divider />
-
-        {/* Knobs row 1 */}
-        <div className="flex items-center justify-around">
-          <RotaryDial label="Cell" value={Math.round((cellSize - 4) / 36 * 100)} onChange={(v) => update('cellSize', Math.round(v / 100 * 36 + 4))} size={36} defaultValue={17} busRef={busRef} />
-          <RotaryDial label="Scale" value={Math.round(baseScale / 3 * 100)} onChange={(v) => update('baseScale', Math.round(v / 100 * 3 * 100) / 100)} size={36} defaultValue={30} busRef={busRef} />
-          <RotaryDial label="Gap" value={Math.round(gap / 20 * 100)} onChange={(v) => update('gap', Math.round(v / 100 * 20))} size={36} defaultValue={5} busRef={busRef} />
-        </div>
-
-        {/* Knobs row 2 */}
-        <div className="flex items-center justify-around">
-          <RotaryDial label="Ctrst" value={Math.round((contrast + 100) / 200 * 100)} onChange={(v) => update('contrast', Math.round(v / 100 * 200 - 100))} size={36} defaultValue={50} busRef={busRef} />
-          <RotaryDial label="Int" value={Math.round(intensity / 5 * 100)} onChange={(v) => update('intensity', Math.round(v / 100 * 5 * 100) / 100)} size={36} defaultValue={20} busRef={busRef} />
+        {/* Knobs -- vertical stack */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-1">
+          <div className="flex items-center justify-around w-full">
+            <RotaryDial label="Cell" value={Math.round((cellSize - 4) / 36 * 100)} onChange={(v) => update('cellSize', Math.round(v / 100 * 36 + 4))} size={32} defaultValue={17} busRef={busRef} />
+            <RotaryDial label="Scale" value={Math.round(baseScale / 3 * 100)} onChange={(v) => update('baseScale', Math.round(v / 100 * 3 * 100) / 100)} size={32} defaultValue={30} busRef={busRef} />
+          </div>
+          <div className="flex items-center justify-around w-full">
+            <RotaryDial label="Gap" value={Math.round(gap / 20 * 100)} onChange={(v) => update('gap', Math.round(v / 100 * 20))} size={32} defaultValue={5} busRef={busRef} />
+            <RotaryDial label="Ctrst" value={Math.round((contrast + 100) / 200 * 100)} onChange={(v) => update('contrast', Math.round(v / 100 * 200 - 100))} size={32} defaultValue={50} busRef={busRef} />
+          </div>
+          <RotaryDial label="Int" value={Math.round(intensity / 5 * 100)} onChange={(v) => update('intensity', Math.round(v / 100 * 5 * 100) / 100)} size={32} defaultValue={20} busRef={busRef} />
         </div>
 
         {/* Color toggle */}
-        <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
-          <span className="text-fg-64">Color</span>
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">COLOR</span>
           <span
             className={`cursor-pointer select-none ${useColor ? 'text-fg-96' : 'text-fg-32'}`}
             onClick={() => update('useColor', !useColor)}
@@ -198,18 +197,22 @@ export default function DitherModule({ id = 'dither1', label = 'DITHER', config,
             {useColor ? 'SOURCE' : 'MONO'}
           </span>
         </div>
+      </div>
 
-        {/* Output */}
-        <div className="flex items-center justify-between kol-helper-xs">
-          <span className="text-fg-32">Mode</span>
-          <span ref={valRef} className="text-fg-64" style={{ fontVariantNumeric: 'tabular-nums', fontSize: '9px' }}>
-            {enabled ? `${mode}/${shape}` : '—'}
-          </span>
-        </div>
+      {/* Inputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="in" moduleId={id} configKey="inputExpr" onExprChange={(v) => update('inputExpr', v)} busRef={busRef} active={!!inputExpr} label="IN" size="md" />
+      </div>
+
+      {/* Outputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="out" busKey={`${id}_out`} moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="OUT" size="md" />
       </div>
 
       <ModuleIO
         moduleId={id}
+        onEnable={() => update('enabled', true)}
+        busRef={busRef}
         outputs={[]}
         inputs={[]}
       />

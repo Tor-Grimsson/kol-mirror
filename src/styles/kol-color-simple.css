@@ -76,6 +76,36 @@
   --kol-border-default: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
   --kol-border-focus: color-mix(in srgb, var(--kol-accent-primary) 70%, var(--kol-surface-on-primary));
   --kol-focus-ring: var(--kol-accent-primary);
+
+  /* ---------------------------------------------------------------------------
+   * OPACITY HEX (pre-calculated solid colors per theme)
+   * --------------------------------------------------------------------------- */
+
+  --kol-opacity-hex-01: #fcfbfb;
+  --kol-opacity-hex-02: #f4f4f5;
+  --kol-opacity-hex-04: #ebebeb;
+  --kol-opacity-hex-08: #dbdbdb;
+  --kol-opacity-hex-12: #a3a3a4;
+  --kol-opacity-hex-16: #5b5b5d;
+  --kol-opacity-hex-24: #363639;
+  --kol-opacity-hex-32: #2e2e30;
+  --kol-opacity-hex-64: #242427;
+  --kol-opacity-hex-80: #1b1b1e;
+  --kol-opacity-hex-88: #171719;
+  --kol-opacity-hex-96: #111112;
+
+  --kol-opacity-hex-inverse-01: #111112;
+  --kol-opacity-hex-inverse-02: #171719;
+  --kol-opacity-hex-inverse-04: #1b1b1e;
+  --kol-opacity-hex-inverse-08: #242427;
+  --kol-opacity-hex-inverse-12: #2e2e30;
+  --kol-opacity-hex-inverse-16: #363639;
+  --kol-opacity-hex-inverse-24: #5b5b5d;
+  --kol-opacity-hex-inverse-32: #a3a3a4;
+  --kol-opacity-hex-inverse-64: #dbdbdb;
+  --kol-opacity-hex-inverse-80: #ebebeb;
+  --kol-opacity-hex-inverse-88: #f4f4f5;
+  --kol-opacity-hex-inverse-96: #fcfbfb;
 }
 
 /* =============================================================================
@@ -96,6 +126,32 @@
 
   --kol-surface-inverse: #FCFBF8;
   --kol-surface-on-inverse: #0E0E11;
+
+  --kol-opacity-hex-01: #111112;
+  --kol-opacity-hex-02: #171719;
+  --kol-opacity-hex-04: #1b1b1e;
+  --kol-opacity-hex-08: #242427;
+  --kol-opacity-hex-12: #2e2e30;
+  --kol-opacity-hex-16: #363639;
+  --kol-opacity-hex-24: #5b5b5d;
+  --kol-opacity-hex-32: #a3a3a4;
+  --kol-opacity-hex-64: #dbdbdb;
+  --kol-opacity-hex-80: #ebebeb;
+  --kol-opacity-hex-88: #f4f4f5;
+  --kol-opacity-hex-96: #fcfbfb;
+
+  --kol-opacity-hex-inverse-01: #fcfbfb;
+  --kol-opacity-hex-inverse-02: #f4f4f5;
+  --kol-opacity-hex-inverse-04: #ebebeb;
+  --kol-opacity-hex-inverse-08: #dbdbdb;
+  --kol-opacity-hex-inverse-12: #a3a3a4;
+  --kol-opacity-hex-inverse-16: #5b5b5d;
+  --kol-opacity-hex-inverse-24: #363639;
+  --kol-opacity-hex-inverse-32: #2e2e30;
+  --kol-opacity-hex-inverse-64: #242427;
+  --kol-opacity-hex-inverse-80: #1b1b1e;
+  --kol-opacity-hex-inverse-88: #171719;
+  --kol-opacity-hex-inverse-96: #111112;
 }
 
 /* =============================================================================
@@ -115,6 +171,32 @@
 
     --kol-surface-inverse: #FCFBF8;
     --kol-surface-on-inverse: #0E0E11;
+
+    --kol-opacity-hex-01: #111112;
+    --kol-opacity-hex-02: #171719;
+    --kol-opacity-hex-04: #1b1b1e;
+    --kol-opacity-hex-08: #242427;
+    --kol-opacity-hex-12: #2e2e30;
+    --kol-opacity-hex-16: #363639;
+    --kol-opacity-hex-24: #5b5b5d;
+    --kol-opacity-hex-32: #a3a3a4;
+    --kol-opacity-hex-64: #dbdbdb;
+    --kol-opacity-hex-80: #ebebeb;
+    --kol-opacity-hex-88: #f4f4f5;
+    --kol-opacity-hex-96: #fcfbfb;
+
+    --kol-opacity-hex-inverse-01: #fcfbfb;
+    --kol-opacity-hex-inverse-02: #f4f4f5;
+    --kol-opacity-hex-inverse-04: #ebebeb;
+    --kol-opacity-hex-inverse-08: #dbdbdb;
+    --kol-opacity-hex-inverse-12: #a3a3a4;
+    --kol-opacity-hex-inverse-16: #5b5b5d;
+    --kol-opacity-hex-inverse-24: #363639;
+    --kol-opacity-hex-inverse-32: #2e2e30;
+    --kol-opacity-hex-inverse-64: #242427;
+    --kol-opacity-hex-inverse-80: #1b1b1e;
+    --kol-opacity-hex-inverse-88: #171719;
+    --kol-opacity-hex-inverse-96: #111112;
   }
 }
 
@@ -198,7 +280,35 @@
  * These are the heavily-used utility classes
  */
 
-/* Background Opacity */
+/* Background Opacity (solid hex) */
+.bg-opacity-hex-01 { background-color: var(--kol-opacity-hex-01); }
+.bg-opacity-hex-02 { background-color: var(--kol-opacity-hex-02); }
+.bg-opacity-hex-04 { background-color: var(--kol-opacity-hex-04); }
+.bg-opacity-hex-08 { background-color: var(--kol-opacity-hex-08); }
+.bg-opacity-hex-12 { background-color: var(--kol-opacity-hex-12); }
+.bg-opacity-hex-16 { background-color: var(--kol-opacity-hex-16); }
+.bg-opacity-hex-24 { background-color: var(--kol-opacity-hex-24); }
+.bg-opacity-hex-32 { background-color: var(--kol-opacity-hex-32); }
+.bg-opacity-hex-64 { background-color: var(--kol-opacity-hex-64); }
+.bg-opacity-hex-80 { background-color: var(--kol-opacity-hex-80); }
+.bg-opacity-hex-88 { background-color: var(--kol-opacity-hex-88); }
+.bg-opacity-hex-96 { background-color: var(--kol-opacity-hex-96); }
+
+/* Border Opacity (solid hex) */
+.border-opacity-hex-01 { border-color: var(--kol-opacity-hex-01); }
+.border-opacity-hex-02 { border-color: var(--kol-opacity-hex-02); }
+.border-opacity-hex-04 { border-color: var(--kol-opacity-hex-04); }
+.border-opacity-hex-08 { border-color: var(--kol-opacity-hex-08); }
+.border-opacity-hex-12 { border-color: var(--kol-opacity-hex-12); }
+.border-opacity-hex-16 { border-color: var(--kol-opacity-hex-16); }
+.border-opacity-hex-24 { border-color: var(--kol-opacity-hex-24); }
+.border-opacity-hex-32 { border-color: var(--kol-opacity-hex-32); }
+.border-opacity-hex-64 { border-color: var(--kol-opacity-hex-64); }
+.border-opacity-hex-80 { border-color: var(--kol-opacity-hex-80); }
+.border-opacity-hex-88 { border-color: var(--kol-opacity-hex-88); }
+.border-opacity-hex-96 { border-color: var(--kol-opacity-hex-96); }
+
+/* Background Opacity (transparent mix) */
 .bg-fg-02 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 2%, transparent); }
 .bg-fg-04 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 4%, transparent); }
 .bg-fg-08 { background-color: color-mix(in srgb, var(--kol-surface-on-primary, currentColor) 8%, transparent); }

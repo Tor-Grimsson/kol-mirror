@@ -1,7 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
-import Dropdown from '../../molecules/Dropdown'
-import Divider from '../../atoms/Divider'
 import ModuleIO from './ModuleIO'
 
 const SIGNAL_SOURCES = [
@@ -17,71 +15,16 @@ const OUTPUT_KEYS = ['mult1_a', 'mult1_b', 'mult1_c']
 const OUTPUT_LABELS = ['A', 'B', 'C']
 const OUTPUT_COLORS = ['#e74c3c', '#3498db', '#2ecc71']
 
-function drawOscilloscope(canvas, busRef, inputKey, outputs, enabled) {
-  if (!canvas) return
-  const ctx = canvas.getContext('2d')
-  const w = canvas.width
-  const h = canvas.height
-  ctx.clearRect(0, 0, w, h)
-
-  if (!enabled) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(0, h / 2)
-    ctx.lineTo(w, h / 2)
-    ctx.stroke()
-    return
-  }
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)'
-  ctx.lineWidth = 1
-  for (let i = 1; i < 4; i++) {
-    const y = Math.round(h * i / 4) + 0.5
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke()
-  }
-
-  const bus = busRef?.current
-  if (!bus) return
-
-  const inputVal = bus[inputKey] || 0
-
-  // Draw input level as a dim horizontal bar
-  const inputY = (1 - inputVal / 100) * (h - 2) + 1
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)'
-  ctx.lineWidth = 1
-  ctx.setLineDash([2, 2])
-  ctx.beginPath()
-  ctx.moveTo(0, inputY)
-  ctx.lineTo(w, inputY)
-  ctx.stroke()
-  ctx.setLineDash([])
-
-  // Draw output levels as colored horizontal bars
-  outputs.forEach((out, i) => {
-    const val = bus[OUTPUT_KEYS[i]] || 0
-    const y = (1 - val / 100) * (h - 2) + 1
-    ctx.strokeStyle = OUTPUT_COLORS[i]
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(w, y)
-    ctx.stroke()
-  })
-}
-
 export default function MultiplesModule({ id, label, config, onChange, busRef }) {
   const { input = 'lfo1', outputs = [{ scale: 1, offset: 0 }, { scale: 0.5, offset: 50 }, { scale: -1, offset: 100 }], enabled = false } = config
   const rafRef = useRef(null)
-  const canvasRef = useRef(null)
+  const dotRef = useRef(null)
   const valRefs = [useRef(null), useRef(null), useRef(null)]
 
   useEffect(() => {
     if (!enabled) {
       OUTPUT_KEYS.forEach(key => { if (busRef) busRef.current[key] = 0 })
       valRefs.forEach(ref => { if (ref.current) ref.current.textContent = '\u2014' })
-      drawOscilloscope(canvasRef.current, busRef, input, outputs, false)
       return
     }
     const tick = () => {
@@ -93,7 +36,11 @@ export default function MultiplesModule({ id, label, config, onChange, busRef })
           bus[OUTPUT_KEYS[i]] = val
           if (valRefs[i].current) valRefs[i].current.textContent = val
         })
-        drawOscilloscope(canvasRef.current, busRef, input, outputs, true)
+
+        // Pulse dot with input signal
+        if (dotRef.current) {
+          dotRef.current.style.opacity = inputVal > 5 ? 1 : 0.6
+        }
       }
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -108,74 +55,51 @@ export default function MultiplesModule({ id, label, config, onChange, busRef })
     onChange({ ...config, outputs: next })
   }, [config, outputs, onChange])
 
+  const srcIdx = SIGNAL_SOURCES.findIndex(s => s.value === input)
+  const prevSrc = () => update('input', SIGNAL_SOURCES[(srcIdx - 1 + SIGNAL_SOURCES.length) % SIGNAL_SOURCES.length].value)
+  const nextSrc = () => update('input', SIGNAL_SOURCES[(srcIdx + 1) % SIGNAL_SOURCES.length].value)
+  const srcLabel = SIGNAL_SOURCES.find(s => s.value === input)?.label || input
+
   return (
-    <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between kol-helper-xs px-3 border-b border-fg-08" style={{ height: '29px' }}>
-        <span className="flex items-center gap-3">
-          <span className="cursor-pointer select-none" onClick={() => update('enabled', !enabled)}>
-            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
-          </span>
-          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>{label}</span>
+    <div className="flex flex-col h-full bg-surface-secondary border-r border-fg-08">
+      {/* Header - 20px */}
+      <div className="flex items-center justify-between px-2 border-b border-fg-08" style={{ height: '20px', minHeight: '20px' }}>
+        <span className="flex items-center gap-1.5">
+          <span ref={dotRef} className="cursor-pointer select-none"
+            onClick={() => update('enabled', !enabled)}
+            style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#e74c3c', outline: '6px solid transparent', outlineOffset: '0', opacity: 1, boxShadow: enabled ? '0 0 6px 2px #e74c3c' : 'none' }}
+          />
+          <span className="text-fg-96" style={{ fontSize: '9px', fontFamily: 'var(--kol-font-mono)' }}>{label}</span>
         </span>
-        <span className="text-fg-32 kol-helper-xxs">{id}</span>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col gap-3 p-3">
-        {/* Input selector */}
-        <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
-          <span className="text-fg-64">Input</span>
-          <Dropdown options={SIGNAL_SOURCES} value={input} onChange={(v) => update('input', v)} variant="minimal" size="md" />
+      {/* Controls - flex-1, vertical stack */}
+      <div className="flex flex-col items-center gap-1 flex-1 py-1 px-1" style={{ overflow: 'hidden' }}>
+        {/* Input source selector */}
+        <div className="flex items-center gap-0.5 w-full justify-center" style={{ fontSize: '8px', fontFamily: 'var(--kol-font-mono)' }}>
+          <span className="cursor-pointer text-fg-32 hover:text-fg-64 select-none" onClick={prevSrc}>{'\u2039'}</span>
+          <span className="text-fg-96" style={{ width: '36px', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }}>{srcLabel}</span>
+          <span className="cursor-pointer text-fg-32 hover:text-fg-64 select-none" onClick={nextSrc}>{'\u203a'}</span>
         </div>
 
-        <Divider />
-
-        {/* Output rows */}
+        {/* 3 outputs: colored dot + scale knob */}
         {outputs.map((out, i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 kol-helper-xxs">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: OUTPUT_COLORS[i] }} />
-              <span className="text-fg-64">Out {OUTPUT_LABELS[i]}</span>
-              <span className="text-fg-32 ml-auto kol-helper-xxs">{OUTPUT_KEYS[i]}</span>
-            </div>
-            <div className="flex items-center justify-around">
-              <RotaryDial
-                label="Scale"
-                value={Math.round((out.scale + 2) / 4 * 100)}
-                onChange={(v) => updateOutput(i, 'scale', Math.round((v / 100 * 4 - 2) * 100) / 100)}
-                size={36}
-                defaultValue={75}
-                busRef={busRef}
-              />
-              <RotaryDial
-                label="Offset"
-                value={Math.round((out.offset + 100) / 200 * 100)}
-                onChange={(v) => updateOutput(i, 'offset', Math.round(v / 100 * 200 - 100))}
-                size={36}
-                defaultValue={50}
-                busRef={busRef}
-              />
-              <div className="flex flex-col items-center">
-                <span ref={valRefs[i]} className="text-fg-64 kol-helper-xs" style={{ fontVariantNumeric: 'tabular-nums', width: '28px', textAlign: 'right' }}>
-                  {enabled ? '0' : '\u2014'}
-                </span>
-              </div>
-            </div>
+          <div key={i} className="flex items-center gap-1 w-full">
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: OUTPUT_COLORS[i], flexShrink: 0 }} />
+            <RotaryDial
+              label={OUTPUT_LABELS[i]}
+              value={Math.round((out.scale + 2) / 4 * 100)}
+              onChange={(v) => updateOutput(i, 'scale', Math.round((v / 100 * 4 - 2) * 100) / 100)}
+              size={28}
+              defaultValue={75}
+              busRef={busRef}
+              variant="dense"
+            />
           </div>
         ))}
-
-        <Divider />
-
-        {/* Oscilloscope canvas */}
-        <canvas
-          ref={canvasRef}
-          width={252}
-          height={52}
-          style={{ width: '100%', height: '52px', borderRadius: '3px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block' }}
-        />
       </div>
 
+      {/* I/O at bottom */}
       <ModuleIO
         moduleId={id}
         onEnable={() => update('enabled', true)}

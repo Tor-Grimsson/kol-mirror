@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
-import Divider from '../../atoms/Divider'
 import ModuleIO from './ModuleIO'
+import JackSocket from './JackSocket'
 
 const ALGORITHMS = ['noise', 'grad', 'ptrn', 'wave', 'clr']
 const ALG_LABELS = { noise: 'NOISE', grad: 'GRAD', ptrn: 'PTRN', wave: 'WAVE', clr: 'CLR' }
@@ -157,7 +157,7 @@ export default function GeneratorModule({ id = 'gen1', label = 'GEN', config, on
     algorithm = 'noise', subType = 'linear',
     p1 = 20, p2 = 1, p3 = 3, p4 = 0.5,
     h = 0, s = 100, l = 50,
-    enabled = false, preview = true,
+    enabled = false,
   } = config || {}
 
   const canvasRef = useRef(null)
@@ -222,137 +222,127 @@ export default function GeneratorModule({ id = 'gen1', label = 'GEN', config, on
   const paramLabels = PARAM_LABELS[algorithm] || []
   const subTypes = SUB_TYPES[algorithm]
 
+  // Algorithm selector
+  const algIdx = ALGORITHMS.indexOf(algorithm)
+  const cycleAlg = (dir) => {
+    const next = (algIdx + dir + ALGORITHMS.length) % ALGORITHMS.length
+    update('algorithm', ALGORITHMS[next])
+  }
+
+  // Sub-type selector
+  const stList = subTypes || []
+  const stIdx = stList.findIndex(st => st.v === subType)
+  const cycleSubType = (dir) => {
+    if (!stList.length) return
+    const next = (stIdx + dir + stList.length) % stList.length
+    update('subType', stList[next].v)
+  }
+
   return (
-    <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between kol-helper-xs px-3 border-b border-fg-08" style={{ height: '29px' }}>
-        <span className="flex items-center gap-3">
+    <div className="flex flex-col h-full border-r border-fg-08">
+      {/* Header -- 20px */}
+      <div className="flex items-center justify-between px-2 border-b border-fg-08 shrink-0" style={{ height: '20px', fontFamily: 'monospace', fontSize: '9px' }}>
+        <span className="flex items-center gap-1.5">
           <span className="cursor-pointer select-none" onClick={() => update('enabled', !enabled)}>
-            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
+            <div className={`rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ width: '6px', height: '6px' }} />
           </span>
-          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>{label}</span>
+          <span className="text-fg-96">{label}</span>
         </span>
-        <span className="flex items-center gap-2">
-          <span
-            className={`cursor-pointer select-none kol-helper-xxs ${preview ? 'text-fg-32' : 'text-fg-16'}`}
-            onClick={() => update('preview', !preview)}
-          >
-            {preview ? '◉' : '◎'}
-          </span>
-          <span className="text-fg-32 kol-helper-xxs">{id}</span>
+        <span ref={valRef} className="text-fg-32" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {enabled ? '0' : '—'}
         </span>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col gap-2 p-3">
-        {/* Preview — hidden when preview off, canvas still renders for signal output */}
-        <canvas
-          ref={canvasRef}
-          width={W}
-          height={H}
-          style={{ width: '100%', height: preview ? `${H}px` : '6px', borderRadius: '3px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block', overflow: 'hidden', transition: 'height 0.15s' }}
-        />
+      {/* Hidden canvas -- still renders for signal output */}
+      <canvas
+        ref={canvasRef}
+        width={W}
+        height={H}
+        style={{ display: 'none' }}
+      />
 
-        {/* Algorithm buttons */}
-        <div className="flex items-center gap-1">
-          {ALGORITHMS.map(a => (
-            <button
-              key={a}
-              className={`flex-1 kol-helper-xxs py-0.5 rounded-sm cursor-pointer border ${
-                algorithm === a
-                  ? 'bg-fg-96 text-surface-primary border-fg-96'
-                  : 'bg-transparent text-fg-32 border-fg-08 hover:text-fg-64'
-              }`}
-              style={{ fontSize: '8px' }}
-              onClick={() => update('algorithm', a)}
-            >
-              {ALG_LABELS[a]}
-            </button>
-          ))}
-        </div>
-
-        {/* Sub-type buttons */}
-        {subTypes && (
-          <div className="flex items-center gap-1">
-            {subTypes.map(st => (
-              <button
-                key={st.v}
-                className={`flex-1 kol-helper-xxs py-0.5 rounded-sm cursor-pointer border ${
-                  subType === st.v
-                    ? 'bg-[#e74c3c] text-fg-96 border-[#e74c3c]'
-                    : 'bg-transparent text-fg-24 border-fg-08 hover:text-fg-64'
-                }`}
-                style={{ fontSize: '8px' }}
-                onClick={() => update('subType', st.v)}
-              >
-                {st.l}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <Divider />
-
-        {/* Knobs — algorithm-specific */}
-        {algorithm === 'clr' ? (
-          <div className="flex items-center justify-around">
-            <RotaryDial label="H" value={Math.round(h / 360 * 100)} onChange={(v) => update('h', Math.round(v / 100 * 360))} size={36} defaultValue={0} busRef={busRef} />
-            <RotaryDial label="S" value={s} onChange={(v) => update('s', v)} size={36} defaultValue={100} busRef={busRef} />
-            <RotaryDial label="L" value={l} onChange={(v) => update('l', v)} size={36} defaultValue={50} busRef={busRef} />
-          </div>
-        ) : (
-          <div className="flex items-center justify-around">
-            {paramLabels[0] && (
-              <RotaryDial
-                label={paramLabels[0]}
-                value={algorithm === 'noise' ? Math.round(p1 / 100 * 100) : algorithm === 'wave' ? Math.round(p1 / 50 * 100) : algorithm === 'ptrn' ? Math.round(p1 / 100 * 100) : Math.round(p1 / 360 * 100)}
-                onChange={(v) => update('p1', algorithm === 'noise' ? Math.round(v / 100 * 100) : algorithm === 'wave' ? Math.round(v / 100 * 50) : algorithm === 'ptrn' ? Math.max(4, Math.round(v / 100 * 100)) : Math.round(v / 100 * 360))}
-                size={36} defaultValue={20} busRef={busRef}
-              />
-            )}
-            {paramLabels[1] && (
-              <RotaryDial
-                label={paramLabels[1]}
-                value={algorithm === 'ptrn' ? Math.round(p2 / 360 * 100) : Math.round(p2 / 10 * 100)}
-                onChange={(v) => update('p2', algorithm === 'ptrn' ? Math.round(v / 100 * 360) : Math.round(v / 100 * 10 * 10) / 10)}
-                size={36} defaultValue={10} busRef={busRef}
-              />
-            )}
-            {paramLabels[2] && (
-              <RotaryDial
-                label={paramLabels[2]}
-                value={algorithm === 'noise' ? Math.round((p3 - 1) / 5 * 100) : algorithm === 'wave' ? Math.round(p3 / 360 * 100) : Math.round(p3 * 100)}
-                onChange={(v) => update('p3', algorithm === 'noise' ? Math.round(v / 100 * 5) + 1 : algorithm === 'wave' ? Math.round(v / 100 * 360) : Math.round(v) / 100)}
-                size={36} defaultValue={33} busRef={busRef}
-              />
-            )}
-            {paramLabels[3] && (
-              <RotaryDial
-                label={paramLabels[3]}
-                value={Math.round(p4 * 100)}
-                onChange={(v) => update('p4', Math.round(v) / 100)}
-                size={36} defaultValue={50} busRef={busRef}
-              />
-            )}
-          </div>
-        )}
-
-        <Divider />
-
-        {/* Output */}
-        <div className="flex items-center justify-between kol-helper-xs">
-          <span className="text-fg-32">Luma</span>
-          <span ref={valRef} className="text-fg-64" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {enabled ? '0' : '—'}
+      {/* Controls -- flex-1 */}
+      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
+        {/* Algorithm selector */}
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">ALG</span>
+          <span className="flex items-center gap-1">
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleAlg(-1)}>{'\u2039'}</span>
+            <span className="text-fg-96" style={{ minWidth: '40px', textAlign: 'center' }}>{ALG_LABELS[algorithm]}</span>
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleAlg(1)}>{'\u203a'}</span>
           </span>
         </div>
+
+        {/* Sub-type selector */}
+        {subTypes && (
+          <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+            <span className="text-fg-32">TYPE</span>
+            <span className="flex items-center gap-1">
+              <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleSubType(-1)}>{'\u2039'}</span>
+              <span className="text-fg-96" style={{ minWidth: '28px', textAlign: 'center' }}>{stList[stIdx]?.l || subType}</span>
+              <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleSubType(1)}>{'\u203a'}</span>
+            </span>
+          </div>
+        )}
+
+        {/* Knobs -- vertical stack */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-1">
+          {algorithm === 'clr' ? (
+            <>
+              <RotaryDial label="H" value={Math.round(h / 360 * 100)} onChange={(v) => update('h', Math.round(v / 100 * 360))} size={32} defaultValue={0} busRef={busRef} />
+              <RotaryDial label="S" value={s} onChange={(v) => update('s', v)} size={32} defaultValue={100} busRef={busRef} />
+              <RotaryDial label="L" value={l} onChange={(v) => update('l', v)} size={32} defaultValue={50} busRef={busRef} />
+            </>
+          ) : (
+            <>
+              {paramLabels[0] && (
+                <RotaryDial
+                  label={paramLabels[0]}
+                  value={algorithm === 'noise' ? Math.round(p1 / 100 * 100) : algorithm === 'wave' ? Math.round(p1 / 50 * 100) : algorithm === 'ptrn' ? Math.round(p1 / 100 * 100) : Math.round(p1 / 360 * 100)}
+                  onChange={(v) => update('p1', algorithm === 'noise' ? Math.round(v / 100 * 100) : algorithm === 'wave' ? Math.round(v / 100 * 50) : algorithm === 'ptrn' ? Math.max(4, Math.round(v / 100 * 100)) : Math.round(v / 100 * 360))}
+                  size={32} defaultValue={20} busRef={busRef}
+                />
+              )}
+              {paramLabels[1] && (
+                <RotaryDial
+                  label={paramLabels[1]}
+                  value={algorithm === 'ptrn' ? Math.round(p2 / 360 * 100) : Math.round(p2 / 10 * 100)}
+                  onChange={(v) => update('p2', algorithm === 'ptrn' ? Math.round(v / 100 * 360) : Math.round(v / 100 * 10 * 10) / 10)}
+                  size={32} defaultValue={10} busRef={busRef}
+                />
+              )}
+              {paramLabels[2] && (
+                <RotaryDial
+                  label={paramLabels[2]}
+                  value={algorithm === 'noise' ? Math.round((p3 - 1) / 5 * 100) : algorithm === 'wave' ? Math.round(p3 / 360 * 100) : Math.round(p3 * 100)}
+                  onChange={(v) => update('p3', algorithm === 'noise' ? Math.round(v / 100 * 5) + 1 : algorithm === 'wave' ? Math.round(v / 100 * 360) : Math.round(v) / 100)}
+                  size={32} defaultValue={33} busRef={busRef}
+                />
+              )}
+              {paramLabels[3] && (
+                <RotaryDial
+                  label={paramLabels[3]}
+                  value={Math.round(p4 * 100)}
+                  onChange={(v) => update('p4', Math.round(v) / 100)}
+                  size={32} defaultValue={50} busRef={busRef}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Outputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="out" busKey={`${id}_luma`} moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="LUMA" size="md" />
+        <JackSocket type="out" busKey={`${id}_density`} moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="DENS" size="md" />
       </div>
 
       <ModuleIO
         moduleId={id}
         onEnable={() => update('enabled', true)}
         busRef={busRef}
-        outputs={[`${id}_luma`, `${id}_density`]}
+        outputs={[]}
         inputs={[]}
       />
     </div>

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import RotaryDial from '../RotaryDial'
-import Divider from '../../atoms/Divider'
 import ExpressionInput from './ExpressionInput'
 import ModuleIO from './ModuleIO'
+import JackSocket from './JackSocket'
 
 const OUTPUT_KEYS = ['math1_ch1', 'math1_ch2', 'math1_sum', 'math1_inv', 'math1_eor', 'math1_eoc']
 
@@ -187,70 +187,76 @@ export default function MathsModule({ id = 'math1', label = 'MATHS', config, onC
   const update = useCallback((key, val) => onChange?.({ ...config, [key]: val }), [config, onChange])
 
   return (
-    <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between kol-helper-xs px-3 border-b border-fg-08" style={{ height: '29px' }}>
-        <span className="flex items-center gap-3">
+    <div className="flex flex-col h-full border-r border-fg-08">
+      {/* Header -- 20px */}
+      <div className="flex items-center justify-between px-2 border-b border-fg-08 shrink-0" style={{ height: '20px', fontFamily: 'monospace', fontSize: '9px' }}>
+        <span className="flex items-center gap-1.5">
           <span className="cursor-pointer select-none" onClick={() => update('enabled', !enabled)}>
-            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
+            <div className={`rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ width: '6px', height: '6px' }} />
           </span>
-          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>{label}</span>
+          <span className="text-fg-96">{label}</span>
         </span>
-        <span className="text-fg-32 kol-helper-xxs">{id}</span>
+        <span ref={valRef} className="text-fg-32" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {enabled ? '0|0' : '—'}
+        </span>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col gap-3 p-3">
+      {/* Controls -- flex-1 */}
+      <div className="flex-1 flex flex-col p-2 gap-1 overflow-hidden">
         {/* Ch1 */}
-        <div className="kol-helper-xxs text-[#e74c3c]">CH 1</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '8px' }} className="text-[#e74c3c]">CH 1</div>
         <ExpressionInput label="Signal" expr={ch1SignalExpr} onExprChange={(v) => update('ch1SignalExpr', v)} busRef={busRef} onValue={(v) => { ch1SignalRef.current = v }} />
         <ExpressionInput label="Trigger" expr={ch1TriggerExpr} onExprChange={(v) => update('ch1TriggerExpr', v)} busRef={busRef} onTrigger={() => { ch1TrigRef.current = true }} />
         <div className="flex items-center justify-around">
-          <RotaryDial label="Rise" value={Math.round(ch1Rise / 5 * 100)} onChange={(v) => update('ch1Rise', Math.round(v / 100 * 5 * 100) / 100)} size={36} defaultValue={10} busRef={busRef} />
-          <RotaryDial label="Fall" value={Math.round(ch1Fall / 5 * 100)} onChange={(v) => update('ch1Fall', Math.round(v / 100 * 5 * 100) / 100)} size={36} defaultValue={10} busRef={busRef} />
+          <RotaryDial label="Rise" value={Math.round(ch1Rise / 5 * 100)} onChange={(v) => update('ch1Rise', Math.round(v / 100 * 5 * 100) / 100)} size={32} defaultValue={10} busRef={busRef} />
+          <RotaryDial label="Fall" value={Math.round(ch1Fall / 5 * 100)} onChange={(v) => update('ch1Fall', Math.round(v / 100 * 5 * 100) / 100)} size={32} defaultValue={10} busRef={busRef} />
         </div>
 
-        <Divider />
+        {/* Divider line */}
+        <div className="border-t border-fg-08 my-0.5" />
 
         {/* Ch2 */}
-        <div className="kol-helper-xxs text-[#3498db]">CH 2</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '8px' }} className="text-[#3498db]">CH 2</div>
         <ExpressionInput label="Signal" expr={ch2SignalExpr} onExprChange={(v) => update('ch2SignalExpr', v)} busRef={busRef} onValue={(v) => { ch2SignalRef.current = v }} />
         <ExpressionInput label="Trigger" expr={ch2TriggerExpr} onExprChange={(v) => update('ch2TriggerExpr', v)} busRef={busRef} onTrigger={() => { ch2TrigRef.current = true }} />
         <div className="flex items-center justify-around">
-          <RotaryDial label="Rise" value={Math.round(ch2Rise / 5 * 100)} onChange={(v) => update('ch2Rise', Math.round(v / 100 * 5 * 100) / 100)} size={36} defaultValue={10} busRef={busRef} />
-          <RotaryDial label="Fall" value={Math.round(ch2Fall / 5 * 100)} onChange={(v) => update('ch2Fall', Math.round(v / 100 * 5 * 100) / 100)} size={36} defaultValue={10} busRef={busRef} />
+          <RotaryDial label="Rise" value={Math.round(ch2Rise / 5 * 100)} onChange={(v) => update('ch2Rise', Math.round(v / 100 * 5 * 100) / 100)} size={32} defaultValue={10} busRef={busRef} />
+          <RotaryDial label="Fall" value={Math.round(ch2Fall / 5 * 100)} onChange={(v) => update('ch2Fall', Math.round(v / 100 * 5 * 100) / 100)} size={32} defaultValue={10} busRef={busRef} />
         </div>
 
-        <Divider />
-
-        {/* Oscilloscope */}
+        {/* Scope canvas -- full width x 40px (dual trace) */}
         <canvas
           ref={canvasRef}
-          width={252}
-          height={52}
-          style={{ width: '100%', height: '52px', borderRadius: '3px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block' }}
+          width={200}
+          height={40}
+          style={{ width: '100%', height: '40px', borderRadius: '2px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block', flexShrink: 0, marginTop: 'auto' }}
         />
+      </div>
 
-        {/* Output */}
-        <div className="flex items-center justify-between kol-helper-xs">
-          <span className="text-fg-32">Ch1|Ch2</span>
-          <span ref={valRef} className="text-fg-64" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {enabled ? '0|0' : '—'}
-          </span>
-        </div>
+      {/* Inputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="in" moduleId={id} configKey="ch1SignalExpr" onExprChange={(v) => update('ch1SignalExpr', v)} busRef={busRef} active={!!ch1SignalExpr} label="1:SIG" size="md" />
+        <JackSocket type="in" moduleId={id} configKey="ch1TriggerExpr" onExprChange={(v) => update('ch1TriggerExpr', v)} busRef={busRef} active={!!ch1TriggerExpr} label="1:TRG" size="md" />
+        <JackSocket type="in" moduleId={id} configKey="ch2SignalExpr" onExprChange={(v) => update('ch2SignalExpr', v)} busRef={busRef} active={!!ch2SignalExpr} label="2:SIG" size="md" />
+        <JackSocket type="in" moduleId={id} configKey="ch2TriggerExpr" onExprChange={(v) => update('ch2TriggerExpr', v)} busRef={busRef} active={!!ch2TriggerExpr} label="2:TRG" size="md" />
+      </div>
+
+      {/* Outputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="out" busKey="math1_ch1" moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="CH1" size="sm" />
+        <JackSocket type="out" busKey="math1_ch2" moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="CH2" size="sm" />
+        <JackSocket type="out" busKey="math1_sum" moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="SUM" size="sm" />
+        <JackSocket type="out" busKey="math1_inv" moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="INV" size="sm" />
+        <JackSocket type="out" busKey="math1_eor" moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="EOR" size="sm" />
+        <JackSocket type="out" busKey="math1_eoc" moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="EOC" size="sm" />
       </div>
 
       <ModuleIO
         moduleId={id}
         onEnable={() => update('enabled', true)}
         busRef={busRef}
-        outputs={OUTPUT_KEYS}
-        inputs={[
-          { label: 'ch1_sig', active: !!ch1SignalExpr, configKey: 'ch1SignalExpr', onExprChange: (v) => update('ch1SignalExpr', v) },
-          { label: 'ch1_trg', active: !!ch1TriggerExpr, configKey: 'ch1TriggerExpr', onExprChange: (v) => update('ch1TriggerExpr', v) },
-          { label: 'ch2_sig', active: !!ch2SignalExpr, configKey: 'ch2SignalExpr', onExprChange: (v) => update('ch2SignalExpr', v) },
-          { label: 'ch2_trg', active: !!ch2TriggerExpr, configKey: 'ch2TriggerExpr', onExprChange: (v) => update('ch2TriggerExpr', v) },
-        ]}
+        outputs={[]}
+        inputs={[]}
       />
     </div>
   )

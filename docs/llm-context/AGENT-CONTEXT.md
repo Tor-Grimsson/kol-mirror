@@ -44,6 +44,33 @@
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
 - Old hall page components still exist (dead code)
 
+### Recent Changes (2026-04-01, session 12)
+- **Architecture rethink**: Signal path is pure math, not pixels. Layered model: L1 (JS numbers) → L2 (math functions) → L3 (vector generators) → L4 (Canvas2D display) → L5 (shaders, future). 3D wireframe also math-only (projection, no GPU).
+- **Project reorganized**: Sessions 10-11 modules archived into `src/videomodulo/arc-case/case-01/02/03/` (self-contained). Active work at `src/videomodulo/modules/` with category folders (utility, control, math, generators, effects).
+- **SPA routing**: Removed Vite MPA (multiple HTML files). Single `index.html`, `react-router-dom`. Routes: `/` (main app), `/index` (archive list), `/index/case-*` (archived cases), `/videomodulo` (active work).
+- **Eurorack case component**: `Case.jsx` with spec-accurate aspect ratios (1U=12:1, 3U=4:1). Rails with 104 threaded holes behind modules (z-index layering). Side panels. `Module.jsx` wrapper with screw holes and safe content zone (py-3 dead zone for rails). `eurorack.js` shared constants.
+- **Design system**: Added `--kol-opacity-hex-*` scale (solid hex colors per theme) to `kol-color-simple.css` with `.bg-opacity-hex-*` and `.border-opacity-hex-*` utility classes.
+- **Docs reorganized**: `docs/video-modulo/` now contains research, mixer plan, and `base-architecture.md`.
+- **Pages pattern**: `MirrorPlayground.jsx` and `VideoModuloIndex.jsx` moved to `src/pages/`.
+
+### Recent Changes (2026-04-01, session 11)
+- **Video Modulo standalone page**: `/videomodulo/` and `/videomodulo/case-02/` as separate Vite MPA entry points
+- **36 modules built**: Clock, Gate, Logic, Mult, S&H, Mixer, LFO×2, Sequencer, Envelope, Maths, Generator×2, Dither (23 modes from kol-radar), Geometry 3D (Three.js), Monitor×2, Mult2HP, + 20 video processing modules (RGB Split/Mix, VCA, Key, Ramp, Fader, Luma, Waveshaper, Slew, Inverter, Quantizer, Noise, Clock Div, Comparator, Delay, Sample, Scale/Offset, Rectifier, Switch, Video Mix Console)
+- **Dynamic signal bus**: `useSignalBus.js` — no hardcoded keys, `register`/`unregister`/`getKeys`
+- **Dynamic expression engine**: `compile(expr, busKeys)` generates variable bindings from actual bus state
+- **Patch cable system**: `usePatchRouting.jsx` context, `PatchCableOverlay.jsx` SVG catenary curves, `JackSocket.jsx` draggable 3.5mm jack sockets with category color coding (amber=timing, red=signal, blue=video, purple=utility). Drag from output → release near input to connect. ESC cancels. Click connected input to disconnect.
+- **Eurorack rack layout**: `RackRow.jsx` with 1U/3U heights, aluminum rails, HP-based widths. Case frame with side panels. Two cases.
+- **Module shelf**: slide-out panel listing all available modules by category with HP sizes
+- **JackSocket component**: eurorack-style jack sockets with signal-strength glow animation, category coloring, drag-to-connect
+- **ModuleIO component**: compact jack socket footer for modules, outputs on left, inputs on right
+- **ExpressionInput component**: text field for trigger/clock/sync signals with rising edge detection
+- **Dither engine**: copied from kol-radar (ditherEngine.js), 23 modes, 21 shapes
+- **Three.js dependency**: `three@0.183.2` added for Geometry3DModule
+- **Research documentation**: `docs/video-synth-research/` — war-book.md, signal-flow.md, key-modules.md, modulation-operators.md, cookbook.md, architecture-plan.md, module-reference.md, module-audit.md
+
+- **CRITICAL ISSUE**: No video bus — all modules pass scalar values (0-100), not canvas frames. Generators render to hidden canvases but output only luma/density scalars. Monitor shows oscilloscope traces, not video. The #1 priority is implementing `useVideoBus` so generators publish canvases and the monitor displays them.
+- **Patching partially working**: drag-to-connect works but hit detection inconsistent at small jack sizes. Disconnect via click on connected input works after fix to removeConnection.
+
 ### Recent Changes (2026-03-31, session 10)
 - **Chunks 3-9 complete**: Bus pipeline, return-to-channel, feedback, generators, canvas FX, modulators, modular extensions
 - **Bus rendering**: compositeBuses() composites channels into 6 bus OffscreenCanvases. BusLayer renders at returnLevel opacity with CSS FX + blend.
@@ -181,8 +208,19 @@
 - `src/hooks/useMirrorState.js` — All state, EMPTY_CHANNEL (sends, feedback, canvasFx), generatorState, undo/redo
 - `src/hooks/useFrameBuffer.js` — Channel/bus/feedback OffscreenCanvases, captureAll, compositeBuses, applyFeedback, processChannelFx, getChannelFrame (int + string keys)
 - `src/hooks/useCanvasFx.js` — CANVAS_FX_DEFS (6 pixel processors), applyCanvasFx()
-- `src/hooks/useSignalBus.js` — Shared signal bus (lfo1/2, seq1, gate1, env1, sh1, mult1_a/b/c)
-- `src/hooks/useExpressionValue.js` — Expression compile(), wave helpers, bus variable access
+- `src/hooks/useSignalBus.js` — Dynamic signal bus, register/unregister/getKeys, no hardcoded keys
+- `src/hooks/useExpressionValue.js` — Expression compile(expr, busKeys), wave helpers, dynamic bus variable access
+- `src/hooks/usePatchRouting.jsx` — Patch cable routing context: pendingOutput, connections, jack registration, drag-to-connect
+- `src/videomodulo/SynthWorkspace.jsx` — Case 1 rack: timing + generators + video modules
+- `src/videomodulo/Case2Workspace.jsx` — Case 2 rack: video processing + console + monitor
+- `src/videomodulo/RackRow.jsx` — Eurorack row component with 1U/3U heights, aluminum rails
+- `src/videomodulo/ModuleShelf.jsx` — Module library panel
+- `src/components/hall-of-mirrors/generators/JackSocket.jsx` — 3.5mm jack socket with drag, glow, color coding
+- `src/components/hall-of-mirrors/generators/ModuleIO.jsx` — Module I/O footer with jack sockets
+- `src/components/hall-of-mirrors/generators/ExpressionInput.jsx` — Text input for trigger/clock/sync with rising edge
+- `src/components/hall-of-mirrors/generators/PatchCableOverlay.jsx` — SVG catenary patch cables
+- `src/components/hall-of-mirrors/generators/ditherEngine.js` — 23-mode dither engine from kol-radar
+- `docs/video-synth-research/` — War book, signal flow, key modules, modulation operators, cookbook, architecture plan, module reference, module audit
 - `src/hooks/usePixiApp.js` — Pixi lifecycle, renderCost, textureVersion
 - `src/hooks/useChannelRecorder.js` — Recording state machine
 - `src/hooks/useDomCaptureCanvas.js` — DOM capture for Displacement/Movement

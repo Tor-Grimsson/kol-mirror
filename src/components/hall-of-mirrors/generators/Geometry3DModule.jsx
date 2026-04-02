@@ -1,11 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react'
 import * as THREE from 'three'
 import RotaryDial from '../RotaryDial'
-import Divider from '../../atoms/Divider'
 import ModuleIO from './ModuleIO'
+import JackSocket from './JackSocket'
 
 const GEOMETRIES = ['ico', 'box', 'tor', 'oct', 'sph', 'cyl']
+const GEO_LABELS = { ico: 'ICO', box: 'BOX', tor: 'TOR', oct: 'OCT', sph: 'SPH', cyl: 'CYL' }
 const RENDER_MODES = ['wire', 'solid', 'point']
+const RMODE_LABELS = { wire: 'WIRE', solid: 'SOLID', point: 'POINT' }
 const W = 252, H = 200
 
 function createGeometry(type, radius, detail) {
@@ -26,7 +28,7 @@ export default function Geometry3DModule({ id = 'geo1', label = 'GEO 3D', config
     geometry = 'ico', renderMode = 'wire', detail = 1,
     rotateX = 1, rotateY = 0.5, rotateZ = 0,
     scale = 50, color = '#ffffff', bgColor = '#111111',
-    enabled = false, preview = true,
+    enabled = false,
   } = config || {}
 
   const canvasRef = useRef(null)
@@ -144,111 +146,91 @@ export default function Geometry3DModule({ id = 'geo1', label = 'GEO 3D', config
 
   const update = useCallback((key, val) => onChange?.({ ...config, [key]: val }), [config, onChange])
 
+  // Geometry selector
+  const geoIdx = GEOMETRIES.indexOf(geometry)
+  const cycleGeo = (dir) => {
+    const next = (geoIdx + dir + GEOMETRIES.length) % GEOMETRIES.length
+    update('geometry', GEOMETRIES[next])
+  }
+
+  // Render mode selector
+  const rmIdx = RENDER_MODES.indexOf(renderMode)
+  const cycleRM = (dir) => {
+    const next = (rmIdx + dir + RENDER_MODES.length) % RENDER_MODES.length
+    update('renderMode', RENDER_MODES[next])
+  }
+
   return (
-    <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ width: '280px', borderRadius: '4px' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between kol-helper-xs px-3 border-b border-fg-08" style={{ height: '29px' }}>
-        <span className="flex items-center gap-3">
+    <div className="flex flex-col h-full border-r border-fg-08">
+      {/* Header -- 20px */}
+      <div className="flex items-center justify-between px-2 border-b border-fg-08 shrink-0" style={{ height: '20px', fontFamily: 'monospace', fontSize: '9px' }}>
+        <span className="flex items-center gap-1.5">
           <span className="cursor-pointer select-none" onClick={() => update('enabled', !enabled)}>
-            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
+            <div className={`rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ width: '6px', height: '6px' }} />
           </span>
-          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>{label}</span>
+          <span className="text-fg-96">{label}</span>
         </span>
-        <span className="flex items-center gap-2">
-          <span
-            className={`cursor-pointer select-none kol-helper-xxs ${preview ? 'text-fg-32' : 'text-fg-16'}`}
-            onClick={() => update('preview', !preview)}
-          >
-            {preview ? '◉' : '◎'}
-          </span>
-          <span className="text-fg-32 kol-helper-xxs">{id}</span>
+        <span ref={valRef} className="text-fg-32" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {enabled ? '0' : '—'}
         </span>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col gap-2 p-3">
-        {/* Canvas */}
+      {/* Three.js canvas */}
+      <div style={{ width: '100%', flexShrink: 0, padding: '2px' }}>
         <canvas
           ref={canvasRef}
           width={W}
           height={H}
-          style={{ width: '100%', height: preview ? `${H}px` : '6px', borderRadius: '3px', backgroundColor: 'var(--kol-surface-tertiary)', display: 'block', overflow: 'hidden', transition: 'height 0.15s' }}
+          style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '2px' }}
         />
+      </div>
 
-        {/* Geometry buttons */}
-        <div className="flex items-center gap-1">
-          {GEOMETRIES.map(g => (
-            <button
-              key={g}
-              className={`flex-1 kol-helper-xxs py-0.5 rounded-sm cursor-pointer border uppercase ${
-                geometry === g
-                  ? 'bg-fg-96 text-surface-primary border-fg-96'
-                  : 'bg-transparent text-fg-32 border-fg-08 hover:text-fg-64'
-              }`}
-              style={{ fontSize: '8px' }}
-              onClick={() => update('geometry', g)}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-
-        {/* Render mode */}
-        <div className="flex items-center gap-1">
-          {RENDER_MODES.map(m => (
-            <button
-              key={m}
-              className={`flex-1 kol-helper-xxs py-0.5 rounded-sm cursor-pointer border uppercase ${
-                renderMode === m
-                  ? 'bg-[#e74c3c] text-fg-96 border-[#e74c3c]'
-                  : 'bg-transparent text-fg-32 border-fg-08 hover:text-fg-64'
-              }`}
-              style={{ fontSize: '8px' }}
-              onClick={() => update('renderMode', m)}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-
-        <Divider />
-
-        {/* Knobs row 1 */}
-        <div className="flex items-center justify-around">
-          <RotaryDial label="Detail" value={Math.round(detail / 4 * 100)} onChange={(v) => update('detail', Math.round(v / 100 * 4))} size={36} defaultValue={25} busRef={busRef} />
-          <RotaryDial label="Scale" value={scale} onChange={(v) => update('scale', v)} size={36} defaultValue={50} busRef={busRef} />
-        </div>
-
-        {/* Knobs row 2 — rotation */}
-        <div className="flex items-center justify-around">
-          <RotaryDial label="RotX" value={Math.round((rotateX + 5) / 10 * 100)} onChange={(v) => update('rotateX', Math.round((v / 100 * 10 - 5) * 100) / 100)} size={36} defaultValue={60} busRef={busRef} />
-          <RotaryDial label="RotY" value={Math.round((rotateY + 5) / 10 * 100)} onChange={(v) => update('rotateY', Math.round((v / 100 * 10 - 5) * 100) / 100)} size={36} defaultValue={55} busRef={busRef} />
-          <RotaryDial label="RotZ" value={Math.round((rotateZ + 5) / 10 * 100)} onChange={(v) => update('rotateZ', Math.round((v / 100 * 10 - 5) * 100) / 100)} size={36} defaultValue={50} busRef={busRef} />
-        </div>
-
-        <Divider />
-
-        {/* Output */}
-        <div className="flex items-center justify-between kol-helper-xs">
-          <span className="text-fg-32">Phase</span>
-          <span ref={valRef} className="text-fg-64" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {enabled ? '0' : '—'}
+      {/* Controls -- flex-1 */}
+      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
+        {/* Geometry selector */}
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">GEO</span>
+          <span className="flex items-center gap-1">
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleGeo(-1)}>{'\u2039'}</span>
+            <span className="text-fg-96" style={{ minWidth: '28px', textAlign: 'center' }}>{GEO_LABELS[geometry] || geometry}</span>
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleGeo(1)}>{'\u203a'}</span>
           </span>
         </div>
+
+        {/* Render mode selector */}
+        <div className="flex items-center justify-between" style={{ fontFamily: 'monospace', fontSize: '9px' }}>
+          <span className="text-fg-32">REND</span>
+          <span className="flex items-center gap-1">
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleRM(-1)}>{'\u2039'}</span>
+            <span className="text-fg-96" style={{ minWidth: '36px', textAlign: 'center' }}>{RMODE_LABELS[renderMode] || renderMode}</span>
+            <span className="cursor-pointer select-none text-fg-32 hover:text-fg-64" onClick={() => cycleRM(1)}>{'\u203a'}</span>
+          </span>
+        </div>
+
+        {/* Knobs -- vertical stack */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-1">
+          <RotaryDial label="Detail" value={Math.round(detail / 4 * 100)} onChange={(v) => update('detail', Math.round(v / 100 * 4))} size={32} defaultValue={25} busRef={busRef} />
+          <RotaryDial label="Scale" value={scale} onChange={(v) => update('scale', v)} size={32} defaultValue={50} busRef={busRef} />
+          <div className="flex items-center justify-around w-full">
+            <RotaryDial label="RotX" value={Math.round((rotateX + 5) / 10 * 100)} onChange={(v) => update('rotateX', Math.round((v / 100 * 10 - 5) * 100) / 100)} size={32} defaultValue={60} busRef={busRef} />
+            <RotaryDial label="RotY" value={Math.round((rotateY + 5) / 10 * 100)} onChange={(v) => update('rotateY', Math.round((v / 100 * 10 - 5) * 100) / 100)} size={32} defaultValue={55} busRef={busRef} />
+            <RotaryDial label="RotZ" value={Math.round((rotateZ + 5) / 10 * 100)} onChange={(v) => update('rotateZ', Math.round((v / 100 * 10 - 5) * 100) / 100)} size={32} defaultValue={50} busRef={busRef} />
+          </div>
+        </div>
+      </div>
+
+      {/* Outputs */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <JackSocket type="out" busKey={id} moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="OUT" size="md" />
+        <JackSocket type="out" busKey={`${id}_phase`} moduleId={id} onEnable={() => update('enabled', true)} busRef={busRef} label="PHASE" size="md" />
       </div>
 
       <ModuleIO
         moduleId={id}
         onEnable={() => update('enabled', true)}
         busRef={busRef}
-        outputs={[id, `${id}_phase`]}
-        inputs={[
-          { label: 'detail', active: false },
-          { label: 'scale', active: false },
-          { label: 'rotX', active: false },
-          { label: 'rotY', active: false },
-          { label: 'rotZ', active: false },
-        ]}
+        outputs={[]}
+        inputs={[]}
       />
     </div>
   )

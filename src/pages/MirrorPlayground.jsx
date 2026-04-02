@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useMirrorState } from '../../hooks/useMirrorState'
-import MobileHeader from './MobileHeader'
-import MobileDrawer from './MobileDrawer'
-import MirrorSidebar from './MirrorSidebar'
-import MirrorViewport from './MirrorViewport'
+import { useMirrorState } from '../hooks/useMirrorState'
+import MobileHeader from '../components/mirror/MobileHeader'
+import MobileDrawer from '../components/mirror/MobileDrawer'
+import MirrorSidebar from '../components/mirror/MirrorSidebar'
+import MirrorViewport from '../components/mirror/MirrorViewport'
 
 export default function MirrorPlayground() {
   const state = useMirrorState()
