@@ -2,6 +2,55 @@
 
 36 modules documented. For each module: what it is in real video synthesis, how we implemented it, what works, what's broken, and how to fix it.
 
+## Table of Contents
+
+### Timing
+1. [CLK — Master Clock](#1-clk--master-clock)
+2. [GATE — Trigger-to-Gate Converter](#2-gate--trigger-to-gate-converter)
+3. [CDIV — Clock Divider](#3-cdiv--clock-divider)
+4. [SEQ — Step Sequencer](#4-seq--step-sequencer)
+
+### Control
+5. [LFO — Low Frequency Oscillator (×2)](#5-6-lfo--low-frequency-oscillator-2)
+7. [ENV — ADSR Envelope](#7-env--adsr-envelope)
+8. [S&H — Sample & Hold](#8-sh--sample--hold)
+9. [MATHS — Dual Function Generator](#9-maths--dual-function-generator)
+
+### Sources
+10. [NOISE — Noise Source](#10-noise--noise-source)
+11. [RAMP — Ramp Generator](#11-ramp--ramp-generator)
+12. [GEN — Unified Pattern Generator (×2)](#12-13-gen--unified-pattern-generator-2)
+14. [DITHER — Dither/Halftone Engine](#14-dither--ditherhalftone-engine)
+15. [GEO — Three.js 3D Geometry](#15-geo--threejs-3d-geometry)
+
+### Display
+16. [MON — Monitor / Oscilloscope (×2)](#16-17-mon--monitor--oscilloscope-2)
+
+### Logic / Utility
+18. [LOGIC — Boolean Logic Gate](#18-logic--boolean-logic-gate)
+19. [MULT — Signal Multiplier/Splitter](#19-mult--signal-multipliersplitter)
+20. [MIX — Signal Mixer](#20-mix--signal-mixer)
+21. [PM — Passive Dual Mult](#21-pm--passive-dual-mult)
+
+### Video Processing
+22. [RGB — RGB Channel Splitter](#22-rgb--rgb-channel-splitter)
+23. [RGBMIX — RGB Channel Mixer](#23-rgbmix--rgb-channel-mixer)
+24. [VCA — Voltage Controlled Amplifier](#24-vca--voltage-controlled-amplifier)
+25. [KEY — Threshold Key Generator](#25-key--threshold-key-generator)
+27. [FADE — Video Crossfader](#27-fade--video-crossfader)
+28. [LUMA — Luminance Extractor](#28-luma--luminance-extractor)
+29. [WSHP — Waveshaper](#29-wshp--waveshaper)
+30. [SLEW — Slew Limiter](#30-slew--slew-limiter)
+31. [INV — Inverter / Offset](#31-inv--inverter--offset)
+32. [QUANT — Quantizer](#32-quant--quantizer)
+33. [CMP — Comparator](#33-cmp--comparator)
+34. [DLY — Signal Delay](#34-dly--signal-delay)
+35. [SMP — Sample (on trigger)](#35-smp--sample-on-trigger)
+36. [S/O — Scale & Offset](#36-so--scale--offset)
+37. [RECT — Rectifier](#37-rect--rectifier)
+38. [SW — Signal Switch](#38-sw--signal-switch)
+39. [CONSOLE — Video Mix Console](#39-console--video-mix-console)
+
 ---
 
 ## TIMING MODULES

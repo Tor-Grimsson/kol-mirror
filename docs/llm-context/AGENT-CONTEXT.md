@@ -44,6 +44,29 @@
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
 - Old hall page components still exist (dead code)
 
+### Recent Changes (2026-04-02, session 14)
+- **Phases 4-5 complete**: Monitor upgraded (scope trace, wireframe edges, waveform polyline, pen input). OutputModule (16HP, 4-layer compositing). Reference patch with initial connections. PatchModule save/load/clear. Frame timing in render loop.
+- **19 new modules built**: 1U: Mult, Noise, Attenuator (attenuverter + CV), VCA. 3U small: Logic, Comparator, ClockDivider, Switch, Quantizer, ScaleOffset. 3U medium: S&H, RingMod, Waveshaper, Ramp, Delay, Reverb. 3U large: Mixer, Maths, SMX3 color matrix.
+- **Pen module**: New signal type `pen`. Controls draw style (thickness/dash/gap/opacity/cap) with CV inputs. Patched into Monitor or Output pen jack. Replaces lo-fi toggle.
+- **RGB Oscillator**: 8HP, per-channel osc toggle (off = constant brightness), per-channel clr toggle (off = scalar, on = color output).
+- **Dropdown control**: Overlay select via createPortal, used by PatchModule.
+- **patches.js**: Named patch presets loaded by PatchModule. `initialConnections` prop on PatchRoutingProvider.
+- **Jack differentiation**: Input jacks have white donut inner ring. Stacked layout (inputs above divider, outputs below) on 3U 4HP modules. Horizontal layout on all 1U modules.
+- **Sequencer**: 12HP, step length (1-32, default 8), follow playhead toggle.
+- **Module disable**: Monitor + Output fully disabled when off.
+- **Documentation**: `docs/video-modulo/components/` — control.md, math.md, generators.md, display.md, utility.md. Architecture README + phase docs updated.
+- **31 total modules** across control (10), math (12), generators (6), display (2), utility (1). 6 shared controls.
+
+### Recent Changes (2026-04-02, session 13)
+- **Video Modulo Phase 1-3 built**: Centralized render loop (Kahn's topo sort, 1-frame cycle delay), module registry, port-based patch routing, typed signal system (scalar/color/points).
+- **9 modules**: Clock (4HP), LFO (6HP, WaveSelect icons), Envelope (6HP, ADSR + cycle + clk), Sequencer (8HP, 32 steps/4 pages), Constant (4HP), RGB Oscillator (6HP, per-channel in→knob→out + color out), Waveform (6HP, CV inputs + clk), Wireframe (8HP, geometry selector + rotation/scale/res/fov), Monitor (12HP, pass-through).
+- **Shared controls**: Knob (24px fixed), Selector, WaveSelect (2x2 icon grid), ModuleHeader (red dot + name), Toggle (sm 8px / md 12px, horizontal variant).
+- **Icon system**: `src/videomodulo/icons/` with Icon.jsx loader + svg/ folder. 4 waveform SVGs.
+- **Patch cables**: Orange wires, red jacks, signal-proportional glow (handles scalar/color/points), drag-to-connect, click-to-disconnect.
+- **Documentation**: `docs/video-modulo/` reorganized — concept/ (moved base-architecture + mixer plan), architecture/ (README + conventions + 7 phase docs with file trees). TOCs added to research MDs.
+- **Layout**: 3 rack rows (1U blank, 3U control modules, 3U generators). 2px gap between modules. Module panels bg-surface-secondary. Screw holes removed.
+- **Self-contained**: Video Modulo imports nothing from Hall of Mirrors. Own hooks, controls, icons, patch infrastructure.
+
 ### Recent Changes (2026-04-01, session 12)
 - **Architecture rethink**: Signal path is pure math, not pixels. Layered model: L1 (JS numbers) → L2 (math functions) → L3 (vector generators) → L4 (Canvas2D display) → L5 (shaders, future). 3D wireframe also math-only (projection, no GPU).
 - **Project reorganized**: Sessions 10-11 modules archived into `src/videomodulo/arc-case/case-01/02/03/` (self-contained). Active work at `src/videomodulo/modules/` with category folders (utility, control, math, generators, effects).

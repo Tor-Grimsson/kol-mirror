@@ -2,6 +2,39 @@
 
 Classic patches, famous effects, and useful recipes.
 
+## Table of Contents
+
+- [Basic Recipes](#basic-recipes)
+  - [1. Horizontal Bars](#1-horizontal-bars)
+  - [2. Vertical Bars](#2-vertical-bars)
+  - [3. Centered Circle](#3-centered-circle)
+  - [4. Stripes](#4-stripes)
+  - [5. Checkerboard](#5-checkerboard)
+  - [6. Color Bars](#6-color-bars)
+- [Classic Effects](#classic-effects)
+  - [7. Solarization](#7-solarization)
+  - [8. Posterization](#8-posterization)
+  - [9. Feedback Loop](#9-feedback-loop)
+  - [10. Luma Key](#10-luma-key)
+  - [11. Raster Manipulation](#11-raster-manipulation)
+- [Advanced Patches](#advanced-patches)
+  - [12. Animated Geometric Tunnel](#12-animated-geometric-tunnel)
+  - [13. RGB Phase Animation](#13-rgb-phase-animation)
+  - [14. Glitch Displacement](#14-glitch-displacement)
+  - [15. CRT Scanline Effect](#15-crt-scanline-effect)
+  - [16. Kaleidoscope](#16-kaleidoscope)
+  - [17. VHS Tracking Error](#17-vhs-tracking-error)
+  - [18. Wipe Transition](#18-wipe-transition)
+- [Kraftwerk-Style Patches](#kraftwerk-style-patches)
+  - [19. Wireframe Grid](#19-wireframe-grid)
+  - [20. Rotating 3D Wireframe](#20-rotating-3d-wireframe)
+  - [21. Neon Typography](#21-neon-typography)
+- [Video + Audio Patches](#video--audio-patches)
+  - [22. Audio-Reactive Brightness](#22-audio-reactive-brightness)
+  - [23. Frequency-to-Color](#23-frequency-to-color)
+  - [24. Oscilloscope Art](#24-oscilloscope-art)
+- [Tips](#tips)
+
 ## Basic Recipes
 
 ### 1. Horizontal Bars

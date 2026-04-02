@@ -46,7 +46,7 @@ export function RackRow({ height = '3u', children }) {
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1 }}><Rail /></div>
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1 }}><Rail /></div>
       {/* Layer 2: modules/panels — cover rails where they exist */}
-      <div className="relative flex flex-row" style={{ width: '100%', height: '100%', zIndex: 2 }}>
+      <div className="relative flex flex-row" style={{ width: '100%', height: '100%', zIndex: 2, gap: 2 }}>
         {children}
       </div>
     </div>

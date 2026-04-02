@@ -2,6 +2,32 @@
 
 Status of every module as of 2026-04-01 end of session.
 
+## Table of Contents
+
+- [Signal Modules (Case 1)](#signal-modules-case-1)
+  - [CLK (ClockModule.jsx)](#clk-clockmodulejsx--8hp-3u)
+  - [GATE (GateModule.jsx)](#gate-gatemodulejsx--8hp-1u)
+  - [LOGIC (LogicModule.jsx)](#logic-logicmodulejsx--8hp-1u)
+  - [MULT (MultiplesModule.jsx)](#mult-multiplesmodulejsx--6hp-1u)
+  - [S&H (RandomSHModule.jsx)](#sh-randomshmodulejsx--6hp-1u)
+  - [MIX (MixerModule.jsx)](#mix-mixermodulejsx--16hp-1u)
+  - [LFO (LFOModule.jsx)](#lfo-lfomodulejsx--12hp-3u-2)
+  - [SEQ (SequencerModule.jsx)](#seq-sequencermodulejsx--16hp-3u)
+  - [ENV (EnvelopeModule.jsx)](#env-envelopemodulejsx--12hp-3u)
+  - [MATHS (MathsModule.jsx)](#maths-mathsmodulejsx--16hp-3u)
+  - [GEN (GeneratorModule.jsx)](#gen-generatormodulejsx--12hp-3u-2)
+  - [DITHER (DitherModule.jsx)](#dither-dithermodulejsx--16hp-3u)
+  - [GEO (Geometry3DModule.jsx)](#geo-geometry3dmodulejsx--16hp-3u)
+  - [MON (MonitorModule.jsx)](#mon-monitormodulejsx--16hp-3u)
+  - [PM (Mult2HPModule.jsx)](#pm-mult2hpmodulejsx--2hp-any-row)
+- [Video Processing Modules (Case 2)](#video-processing-modules-case-2--all-20)
+  - [Common issues across all 20](#common-issues-across-all-20)
+  - [Individual notes](#individual-notes)
+- [Summary](#summary)
+  - [What works](#what-works)
+  - [What doesn't work](#what-doesnt-work)
+  - [Priority fix](#priority-fix)
+
 ## Signal Modules (Case 1)
 
 ### CLK (ClockModule.jsx) — 8HP, 3U

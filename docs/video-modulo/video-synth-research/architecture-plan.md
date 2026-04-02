@@ -1,5 +1,24 @@
 # Video Modulo — Architecture Plan
 
+## Table of Contents
+
+- [What We Learned](#what-we-learned)
+  - [Two Signal Domains](#two-signal-domains)
+  - [What Needs to Change](#what-needs-to-change)
+- [The Plan](#the-plan)
+  - [Phase 1: Video Bus](#phase-1-video-bus)
+  - [Phase 2: Generator Output](#phase-2-generator-output)
+  - [Phase 3: Monitor Input](#phase-3-monitor-input)
+  - [Phase 4: Video Processors](#phase-4-video-processors)
+  - [Phase 5: Ramp Generator (Proper)](#phase-5-ramp-generator-proper)
+  - [Phase 6: Compositing](#phase-6-compositing)
+- [Module Categories (Revised)](#module-categories-revised)
+  - [Control Signal Modules (scalar bus)](#control-signal-modules-scalar-bus)
+  - [Video Signal Modules (video bus)](#video-signal-modules-video-bus)
+  - [Hybrid Modules](#hybrid-modules)
+- [Implementation Order](#implementation-order)
+- [Sources](#sources)
+
 ## What We Learned
 
 The fundamental problem with our current system: **modules pass scalar values (one number per frame) on a signal bus, but video is spatial — it needs a value at every pixel position.**

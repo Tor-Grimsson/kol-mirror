@@ -1,5 +1,16 @@
 # Video Synthesis — Signal Flow
 
+## Table of Contents
+
+- [The Fundamental Principle](#the-fundamental-principle)
+- [Voltage Standards](#voltage-standards)
+- [Signal Flow: Generation -> Processing -> Display](#signal-flow-generation--processing--display)
+  - [Step by step](#step-by-step)
+- [Three Frequency Domains](#three-frequency-domains)
+- [How Ramps Become Shapes](#how-ramps-become-shapes)
+- [How Colors Are Created](#how-colors-are-created)
+- [Key Insight for Our System](#key-insight-for-our-system)
+
 ## The Fundamental Principle
 
 **It's all just voltage.** In modular video synthesis, every signal — whether it represents brightness, color, position, shape, or timing — is the same thing: a voltage between 0V and 1V. There is no distinction between "video" and "control voltage." A ramp generator's output IS the video when you display it, and IS a control voltage when you feed it to another module's CV input.

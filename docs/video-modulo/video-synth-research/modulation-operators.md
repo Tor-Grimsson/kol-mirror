@@ -4,6 +4,19 @@ Reference: LZX Videomancer's 39 modulation operator types, organized into 7 cate
 
 Source: [LZX Videomancer Modulation Guide](https://docs.lzxindustries.net/docs/instruments/videomancer/modulation-operators)
 
+## Table of Contents
+
+- [Categories](#categories)
+  - [1. Oscillators (5 types)](#1-oscillators-5-types)
+  - [2. External Input (3 types)](#2-external-input-3-types)
+  - [3. Envelopes & Followers (7 types)](#3-envelopes--followers-7-types)
+  - [4. Random & Chaos (5 types)](#4-random--chaos-5-types)
+  - [5. Sequencing & Rhythm (5 types)](#5-sequencing--rhythm-5-types)
+  - [6. Spatial (2 types)](#6-spatial-2-types)
+  - [7. Physics (2 types)](#7-physics-2-types)
+- [Linear vs Boolean Modes](#linear-vs-boolean-modes)
+- [Per-Line Rendering](#per-line-rendering)
+
 ## Categories
 
 ### 1. Oscillators (5 types)

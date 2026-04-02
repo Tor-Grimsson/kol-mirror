@@ -1,5 +1,16 @@
 # Video Synthesis — Key Module Types
 
+## Table of Contents
+
+- [Ramp Generator](#ramp-generator)
+- [Comparator / Key Generator](#comparator--key-generator)
+- [VCO (Voltage Controlled Oscillator)](#vco-voltage-controlled-oscillator)
+- [RGB Encoder](#rgb-encoder)
+- [Video Math (Processor)](#video-math-processor)
+- [Video Mixer / Fader](#video-mixer--fader)
+- [Waveshaper](#waveshaper)
+- [Monitor / Output](#monitor--output)
+
 ## Ramp Generator
 
 **What it does:** Produces a linear voltage sweep synchronized to the screen. Horizontal ramp = gradient left-to-right. Vertical ramp = gradient top-to-bottom.
