@@ -44,6 +44,23 @@
 - **PixiImageFilterCanvas**: Not migrated to shared infrastructure.
 - Old hall page components still exist (dead code)
 
+### Recent Changes (2026-04-05, session 16)
+- **RadialGen module**: 12HP 3U. Ported from kol-radial. Shape presets (default/circle/triangle/rect/star/hex/random), 6 CvKnob params, internal LFO with wave select, symmetry X/Y, fill/grid/aspectLock toggles. Points output with metadata.
+- **ModulatorGen module**: 14HP 3U. Ported from kol-modulator. Breathing concentric circles. CvSlider UI for shape params, breath section with freeze toggle. Quantize and absolute mode toggles.
+- **PerfModule**: 4HP 1U. Real frame time monitoring (ms, fps, module count).
+- **Console mixing fixed**: Channel faders control canvas draw opacity. Send × return opacity for wet signal. Master strip with fader, s1/s2, bg input, on/off. `applyPen` multiplies globalAlpha instead of replacing.
+- **Sequencer redesign**: 16HP 3U. Buchla-style stepped vertical faders with spanning lines, solid grooves, 10 snap positions. 3-position FlipToggle per step (on/skip/off) with color LEDs. IconSelect page nav (A/B/C/D). CvKnob for length.
+- **New controls**: CvKnob (jack + knob pair), CvSlider (jack + slider pair), Slider (replaces Fader, direction prop for horizontal/vertical).
+- **LED component**: sm/md sizes, optional onClick with hit area overlay. Used in ModuleHeader.
+- **FlipToggle**: positions={3} prop for 3-state toggle.
+- **Sidebar**: Show/hide with [Hide]/[Show]. Modules catalog removed (in workbench). Preset resize with drag handle.
+- **Power module**: 4HP. Mute-all toggle via CasePower context. useModuleEnabled hook on all 35 modules.
+- **Keybindings**: Cmd+/-/0 (zoom), Cmd+H (sidebar), Cmd+E (edit), Cmd+M (mute all).
+- **Patch cables**: Zoom-corrected positioning (divide by CSS zoom factor).
+- **Transform**: Preserves signal metadata (strokeWidth, fill, grid, aspectLock, opacity).
+- **drawPoints**: Supports strokeWidth, fill, grid, aspectLock, opacity from signal metadata.
+- **37 total modules** across control (10), math (14), generators (9 +RadialGen +ModulatorGen), display (3), utility (3 +PerfModule). 10 shared controls (+CvKnob +CvSlider +Slider).
+
 ### Recent Changes (2026-04-02, session 15)
 - **Sidebar**: 3-tab (Presets, Case, Modules). Lock/unlock footer on all tabs. Module catalog with 1U/3U labels. Case row management. Preset loading replaces rack modules + connections.
 - **Rack state system**: `useRackState` hook manages rows, modules with HP offsets, parked modules, edit mode. Dynamic rendering from state. `moduleRegistry.js` maps 34 module types.
