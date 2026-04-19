@@ -25,6 +25,7 @@ dist-ssr
 
 a_torg
 .claude
+docs/
 
 # Playwright
 /test-results/
