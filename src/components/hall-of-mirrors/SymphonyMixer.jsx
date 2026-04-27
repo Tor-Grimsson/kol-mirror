@@ -11,7 +11,6 @@ import ChannelWireDiagram from './ChannelWireDiagram'
 import MasterModule from './MasterModule'
 import RoutingMatrix from './RoutingMatrix'
 import ExpressionReference from './ExpressionReference'
-import GeneratorTab from './generators/GeneratorTab'
 import Dropdown from '../molecules/Dropdown'
 import processImageUpload from '../../utils/processImageUpload'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
@@ -647,11 +646,13 @@ function Channel({
           const dispItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Displacement')) || []
           const moveItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Movement')) || []
           const copyItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Copies')) || []
+          const genItems = items?.filter(i => i.type === 'generator') || []
           const loadGroups = [
             { key: 'memory', label: 'Memory', items: memoryItems },
             { key: 'displacement', label: 'Displacement', items: dispItems },
             { key: 'movement', label: 'Movement', items: moveItems },
             { key: 'copies', label: 'Copies', items: copyItems },
+            { key: 'generators', label: 'Generators', items: genItems },
           ]
           return (
             <div className="flex flex-col gap-2">
@@ -813,7 +814,7 @@ function Channel({
         })()}
 
         {shelfTab === 'params' && controls && params && (() => {
-          const ROWS_PER_COL = 7
+          const ROWS_PER_COL = 14
           const tabControls = controls.filter(c => c.type === 'tabs')
           const filtered = filterControlsByTab(controls, params)
           const pages = []
@@ -1165,9 +1166,6 @@ export default function SymphonyMixer({
   onAddRecSlot,
   onUploadRecSlot,
   onUpdateRecSlotTrim,
-  busRef,
-  generatorState,
-  onGeneratorChange,
 }) {
   const [masterFxOpen, setMasterFxOpen] = useState(false)
   const [fxOpenAll, setFxOpenAll] = useState({ open: false, tick: 0 })
@@ -1210,7 +1208,6 @@ export default function SymphonyMixer({
       <div className="flex items-center gap-6 pb-2 mb-1 border-b border-fg-08">
         {[
           { key: 'channels', label: 'Channels', icon: 'settings-01' },
-          { key: 'generators', label: 'Generators', icon: 'atomic-molecule' },
           { key: 'output', label: 'Output', icon: 'circle' },
           { key: 'expressions', label: 'Expressions', icon: 'wave' },
         ].map(tab => (
@@ -1341,26 +1338,6 @@ export default function SymphonyMixer({
           onMasterChange={onMasterChange}
         />
       </div>
-      )}
-      {mixerTab === 'generators' && generatorState && (
-        <GeneratorTab
-          generatorState={generatorState}
-          onGeneratorChange={onGeneratorChange}
-          busRef={busRef}
-          onLoadGenerator={(variantId, params) => {
-            const targetCh = channels.findIndex(ch => ch.enabled)
-            const idx = targetCh >= 0 ? targetCh : 0
-            onChannelUpdate(idx, {
-              variantId,
-              slotIndex: null,
-              params: { ...params, animate: true },
-              enabled: true,
-              intensity: 100,
-              baseIntensity: 100,
-              name: `Generator: ${variantId.replace('gen-', '')}`,
-            })
-          }}
-        />
       )}
       {mixerTab === 'expressions' && <ExpressionReference />}
       </div>{/* close relative wrapper */}

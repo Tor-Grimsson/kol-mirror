@@ -23,9 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
-a_torg
-.claude
+a_torg/
+.claude/
 docs/
+LLM_RULES.md
 
 # Playwright
 /test-results/

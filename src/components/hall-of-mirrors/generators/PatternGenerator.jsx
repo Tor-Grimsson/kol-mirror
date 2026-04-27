@@ -7,14 +7,19 @@ export default function PatternGenerator({
   spacing = 20,
   angle = 0,
   duty = 0.5,
-  speed = 1,
+  motion = true,
+  scrollSpeed = 0,
   color = '#ffffff',
+  bgColor = 'transparent',
   animate = true,
   onCanvasReady,
 }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
   const readyFired = useRef(false)
+  const tRef = useRef(0)
+  const onCanvasReadyRef = useRef(onCanvasReady)
+  useEffect(() => { onCanvasReadyRef.current = onCanvasReady })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -22,17 +27,21 @@ export default function PatternGenerator({
     canvas.width = width
     canvas.height = height
 
-    if (!readyFired.current && onCanvasReady) {
+    if (!readyFired.current && onCanvasReadyRef.current) {
       readyFired.current = true
-      onCanvasReady(canvas)
+      onCanvasReadyRef.current(canvas)
     }
 
     const ctx = canvas.getContext('2d')
-    let t = 0
 
-    const render = () => {
+    const render = (t) => {
       ctx.clearRect(0, 0, width, height)
-      const offset = t * speed * 30
+      if (bgColor && bgColor !== 'transparent') {
+        ctx.fillStyle = bgColor
+        ctx.fillRect(0, 0, width, height)
+      }
+
+      const offset = t * scrollSpeed * 30
       const rad = angle * Math.PI / 180
 
       ctx.save()
@@ -40,7 +49,6 @@ export default function PatternGenerator({
       ctx.rotate(rad)
       ctx.translate(-width / 2, -height / 2)
 
-      // Expand draw area to cover rotated canvas
       const diag = Math.sqrt(width * width + height * height)
       const ox = (diag - width) / 2
       const oy = (diag - height) / 2
@@ -49,14 +57,14 @@ export default function PatternGenerator({
 
       if (pattern === 'stripes') {
         const stripeWidth = spacing * duty
-        const startX = -ox + (offset % spacing)
+        const startX = -ox + ((offset % spacing) + spacing) % spacing
         for (let x = startX; x < width + ox; x += spacing) {
           ctx.fillRect(x, -oy, stripeWidth, height + oy * 2)
         }
       } else if (pattern === 'dots') {
         const radius = (spacing * duty) / 2
-        const startX = -ox + (offset % spacing)
-        const startY = -oy + (offset % spacing)
+        const startX = -ox + ((offset % spacing) + spacing) % spacing
+        const startY = -oy + ((offset % spacing) + spacing) % spacing
         for (let x = startX; x < width + ox; x += spacing) {
           for (let y = startY; y < height + oy; y += spacing) {
             ctx.beginPath()
@@ -65,16 +73,15 @@ export default function PatternGenerator({
           }
         }
       } else if (pattern === 'checker') {
-        const cellW = spacing
-        const cellH = spacing
-        const startX = -ox + (offset % (cellW * 2))
-        const startY = -oy + (offset % (cellH * 2))
-        for (let x = startX; x < width + ox; x += cellW) {
-          for (let y = startY; y < height + oy; y += cellH) {
-            const col = Math.floor((x - startX) / cellW)
-            const row = Math.floor((y - startY) / cellH)
+        const cell = spacing
+        const startX = -ox + ((offset % (cell * 2)) + cell * 2) % (cell * 2)
+        const startY = -oy + ((offset % (cell * 2)) + cell * 2) % (cell * 2)
+        for (let x = startX; x < width + ox; x += cell) {
+          for (let y = startY; y < height + oy; y += cell) {
+            const col = Math.floor((x - startX) / cell)
+            const row = Math.floor((y - startY) / cell)
             if ((col + row) % 2 === 0) {
-              ctx.fillRect(x, y, cellW * duty, cellH * duty)
+              ctx.fillRect(x, y, cell * duty, cell * duty)
             }
           }
         }
@@ -83,19 +90,21 @@ export default function PatternGenerator({
       ctx.restore()
     }
 
-    if (!animate) {
-      render()
+    if (!animate || !motion || scrollSpeed === 0) {
+      render(tRef.current)
       return
     }
 
+    let t = tRef.current
     const tick = () => {
       t += 0.016
-      render()
+      tRef.current = t
+      render(t)
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [width, height, pattern, spacing, angle, duty, speed, color, animate, onCanvasReady])
+  }, [width, height, pattern, spacing, angle, duty, motion, scrollSpeed, color, bgColor, animate])
 
   return (
     <canvas

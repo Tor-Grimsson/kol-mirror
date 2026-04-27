@@ -2,6 +2,7 @@ import Slider from '../atoms/Slider'
 import Dropdown from '../molecules/Dropdown'
 import Divider from '../atoms/Divider'
 import Icon from '../icons/Icon'
+import ColorPicker from '../atoms/ColorPicker'
 import { getActiveTab } from '../../data/mirrorVariants'
 
 export default function VariantControls({ controls, params, onParamChange, rowHeight = 24, disabledKeys = null }) {
@@ -120,6 +121,19 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
             >
               <span>{ctrl.label}</span>
               <span>[{currentLabel}]</span>
+            </div>
+          )
+        }
+
+        if (ctrl.type === 'color') {
+          return (
+            <div key={ctrl.key} className="flex items-center justify-between" style={{ height: `${rowHeight}px`, gap: '12px', ...frozenStyle }}>
+              <span className="kol-helper-xs text-fg-96 shrink-0">{ctrl.label}</span>
+              <ColorPicker
+                color={params[ctrl.key] ?? ctrl.default}
+                onChange={(c) => onParamChange(ctrl.key, c)}
+                defaultValue={ctrl.default}
+              />
             </div>
           )
         }

@@ -5,14 +5,22 @@ export default function GradientGenerator({
   height = 256,
   type = 'linear',
   angle = 0,
-  speed = 1,
-  colors = ['#000000', '#ffffff'],
+  motion = true,
+  rotateSpeed = 0,
+  cycleSpeed = 0,
+  color1 = '#000000',
+  color2 = '#ff00ff',
+  color3 = '#ffffff',
+  radialRadius = 70,
   animate = true,
   onCanvasReady,
 }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
   const readyFired = useRef(false)
+  const tRef = useRef(0)
+  const onCanvasReadyRef = useRef(onCanvasReady)
+  useEffect(() => { onCanvasReadyRef.current = onCanvasReady })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -20,30 +28,29 @@ export default function GradientGenerator({
     canvas.width = width
     canvas.height = height
 
-    if (!readyFired.current && onCanvasReady) {
+    if (!readyFired.current && onCanvasReadyRef.current) {
       readyFired.current = true
-      onCanvasReady(canvas)
+      onCanvasReadyRef.current(canvas)
     }
 
     const ctx = canvas.getContext('2d')
-    let t = 0
-    const safeColors = colors && colors.length >= 2 ? colors : ['#000000', '#ffffff']
+    const stops = [color1, color2, color3]
 
-    const render = () => {
-      const offset = t * speed * 0.02
+    const render = (t) => {
+      const rotateOffset = t * rotateSpeed
+      const cycleOffset = t * cycleSpeed
       let gradient
 
       if (type === 'radial') {
         const cx = width / 2
         const cy = height / 2
-        const r = Math.max(width, height) * 0.7
+        const r = Math.max(width, height) * (radialRadius / 100)
         gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
       } else if (type === 'conic' && typeof ctx.createConicGradient === 'function') {
-        const rad = ((angle + offset * 360) % 360) * Math.PI / 180
+        const rad = ((angle + rotateOffset) % 360) * Math.PI / 180
         gradient = ctx.createConicGradient(rad, width / 2, height / 2)
       } else {
-        // linear
-        const rad = ((angle + offset * 360) % 360) * Math.PI / 180
+        const rad = ((angle + rotateOffset) % 360) * Math.PI / 180
         const len = Math.max(width, height)
         const cx = width / 2
         const cy = height / 2
@@ -52,30 +59,33 @@ export default function GradientGenerator({
         gradient = ctx.createLinearGradient(cx - dx, cy - dy, cx + dx, cy + dy)
       }
 
-      for (let i = 0; i < safeColors.length; i++) {
-        const stop = i / (safeColors.length - 1)
-        // Shift stops for animation
-        const shifted = (stop + offset) % 1
-        gradient.addColorStop(shifted, safeColors[i])
+      const N = stops.length
+      for (let i = 0; i < N; i++) {
+        const base = i / (N - 1)
+        let pos = base + cycleOffset
+        pos = ((pos % 1) + 1) % 1
+        gradient.addColorStop(pos, stops[i])
       }
 
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, width, height)
     }
 
-    if (!animate) {
-      render()
+    if (!animate || !motion || (rotateSpeed === 0 && cycleSpeed === 0)) {
+      render(tRef.current)
       return
     }
 
+    let t = tRef.current
     const tick = () => {
       t += 0.016
-      render()
+      tRef.current = t
+      render(t)
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [width, height, type, angle, speed, colors, animate, onCanvasReady])
+  }, [width, height, type, angle, motion, rotateSpeed, cycleSpeed, color1, color2, color3, radialRadius, animate])
 
   return (
     <canvas

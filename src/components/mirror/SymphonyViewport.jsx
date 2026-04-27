@@ -1,12 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, buildChannelFxStyle, CHANNEL_FX_DEFS, getDefaultFxParams } from '../../data/mirrorVariants'
+import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, GENERATOR_VARIANTS, buildChannelFxStyle, CHANNEL_FX_DEFS, getDefaultFxParams } from '../../data/mirrorVariants'
 import { CSS_BLEND_MODES, ALL_VECTORS, loadVectorSvg } from '../hall-of-mirrors/SymphonyMixer'
-import { GENERATOR_TYPES } from '../hall-of-mirrors/generators'
 import useImageTiers from '../../hooks/useImageTiers'
 import useChannelRecorder from '../../hooks/useChannelRecorder'
 import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
 import useFrameBuffer, { resolveRenderOrder } from '../../hooks/useFrameBuffer'
-import useSignalBus from '../../hooks/useSignalBus'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import ChannelLayer from './ChannelLayer'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
@@ -136,7 +134,6 @@ export default function SymphonyViewport({ state }) {
 
   // Frame buffer for cross-channel routing
   const frameBuffer = useFrameBuffer(channels.length)
-  const signalBus = useSignalBus()
   const renderOrder = resolveRenderOrder(channels)
 
   // Refs for stable access in rAF loop (avoids stale closures)
@@ -420,12 +417,12 @@ export default function SymphonyViewport({ state }) {
       }))
     ),
     { id: 'sep-gen', name: '—', empty: true, type: 'separator' },
-    ...GENERATOR_TYPES.map(g => ({
-      id: `gen:${g.id}`,
-      name: `Generator: ${g.label}`,
+    ...GENERATOR_VARIANTS.map(g => ({
+      id: `gen:${g.id.replace('gen-', '')}`,
+      name: `Generator: ${g.title}`,
       empty: false,
       type: 'generator',
-      variantId: `gen-${g.id}`,
+      variantId: g.id,
     })),
   ]
 
@@ -517,11 +514,12 @@ export default function SymphonyViewport({ state }) {
     }
 
     if (item.type === 'generator') {
-      const genDef = GENERATOR_TYPES.find(g => `gen-${g.id}` === item.variantId)
+      const genDef = findVariant(item.variantId)
+      const defaults = genDef?.controls ? getDefaultParams(genDef.controls) : {}
       updateChannel(channel, {
         variantId: item.variantId,
         slotIndex: null,
-        params: { ...genDef?.params, animate: true },
+        params: { ...defaults, animate: true },
         enabled: true,
         intensity: 100,
         baseIntensity: 100,
@@ -759,9 +757,6 @@ export default function SymphonyViewport({ state }) {
           onAddRecSlot={handleAddRecSlot}
           onUploadRecSlot={handleUploadRecSlot}
           onUpdateRecSlotTrim={handleUpdateRecSlotTrim}
-          busRef={signalBus.busRef}
-          generatorState={state.generatorState}
-          onGeneratorChange={(updates) => state.setGeneratorState(prev => ({ ...prev, ...updates }))}
         />
       </div>
     </div>

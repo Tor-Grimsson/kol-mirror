@@ -182,9 +182,83 @@ export const MOVEMENT_VARIANTS = [
   { id: 'breathing-harmonica', title: 'Breathing Harmonica', intensityKeys: ['amount'], controls: movementControls('harmonica') },
 ]
 
+export const GENERATOR_VARIANTS = [
+  { id: 'gen-noise', title: 'Noise', controls: [
+    { key: 'noiseType', type: 'binary', label: 'Type', options: [
+      { value: 'smooth', label: 'Clouds' },
+      { value: 'snow', label: 'TV Snow' },
+    ], default: 'smooth' },
+    { key: 'colorMode', type: 'binary', label: 'Color', options: [
+      { value: 'mono', label: 'Mono' },
+      { value: 'color', label: 'Color' },
+    ], default: 'mono' },
+    { type: 'divider' },
+    { key: 'scale', type: 'slider', label: 'Scale', min: 1, max: 100, step: 1, default: 20 },
+    { key: 'detail', type: 'slider', label: 'Detail', min: 1, max: 6, step: 1, default: 3 },
+    { key: 'brightness', type: 'slider', label: 'Brightness', min: -50, max: 50, step: 1, default: 0 },
+    { key: 'contrast', type: 'slider', label: 'Contrast', min: 50, max: 300, step: 5, default: 100 },
+    { type: 'divider' },
+    { key: 'motion', type: 'toggle', label: 'Motion', default: true },
+    { key: 'speed', type: 'slider', label: 'Speed', min: 0, max: 5, step: 0.1, default: 1 },
+    { key: 'direction', type: 'select', label: 'Direction', options: [
+      { value: 'evolve', label: 'Evolve' },
+      { value: 'left', label: 'Left' },
+      { value: 'right', label: 'Right' },
+      { value: 'up', label: 'Up' },
+      { value: 'down', label: 'Down' },
+      { value: 'drift', label: 'Drift' },
+    ], default: 'evolve' },
+    { type: 'divider' },
+    { key: 'fgColor', type: 'color', label: 'Foreground', default: '#ffffff' },
+    { key: 'bgColor', type: 'color', label: 'Background', default: '#000000' },
+  ] },
+  { id: 'gen-gradient', title: 'Gradient', controls: [
+    { key: 'type', type: 'select', label: 'Type', options: [
+      { value: 'linear', label: 'Linear' },
+      { value: 'radial', label: 'Radial' },
+      { value: 'conic', label: 'Conic' },
+    ], default: 'linear' },
+    { key: 'angle', type: 'slider', label: 'Angle', min: 0, max: 360, step: 1, default: 0 },
+    { key: 'radialRadius', type: 'slider', label: 'Radius', min: 10, max: 200, step: 1, default: 70 },
+    { type: 'divider' },
+    { key: 'color1', type: 'color', label: 'Stop 1', default: '#000000' },
+    { key: 'color2', type: 'color', label: 'Stop 2', default: '#ff00ff' },
+    { key: 'color3', type: 'color', label: 'Stop 3', default: '#ffffff' },
+    { type: 'divider' },
+    { key: 'motion', type: 'toggle', label: 'Motion', default: false },
+    { key: 'rotateSpeed', type: 'slider', label: 'Rotate Spd', min: -180, max: 180, step: 1, default: 0 },
+    { key: 'cycleSpeed', type: 'slider', label: 'Cycle Spd', min: -2, max: 2, step: 0.05, default: 0 },
+  ] },
+  { id: 'gen-pattern', title: 'Pattern', controls: [
+    { key: 'pattern', type: 'select', label: 'Pattern', options: [
+      { value: 'stripes', label: 'Stripes' },
+      { value: 'dots', label: 'Dots' },
+      { value: 'checker', label: 'Checker' },
+    ], default: 'stripes' },
+    { key: 'spacing', type: 'slider', label: 'Spacing', min: 4, max: 100, step: 1, default: 20 },
+    { key: 'angle', type: 'slider', label: 'Angle', min: 0, max: 360, step: 1, default: 0 },
+    { key: 'duty', type: 'slider', label: 'Thickness', min: 0.05, max: 1, step: 0.05, default: 0.5 },
+    { type: 'divider' },
+    { key: 'motion', type: 'toggle', label: 'Motion', default: false },
+    { key: 'scrollSpeed', type: 'slider', label: 'Scroll Spd', min: -5, max: 5, step: 0.1, default: 0 },
+    { type: 'divider' },
+    { key: 'color', type: 'color', label: 'Color', default: '#ffffff' },
+    { key: 'bgColor', type: 'color', label: 'Background', default: '#000000' },
+  ] },
+  { id: 'gen-color-field', title: 'Color Field', controls: [
+    { key: 'color', type: 'color', label: 'Color', default: '#ff0000' },
+    { key: 'saturation', type: 'slider', label: 'Saturation', min: 0, max: 100, step: 1, default: 100 },
+    { type: 'divider' },
+    { key: 'motion', type: 'toggle', label: 'Motion', default: false },
+    { key: 'hueSpeed', type: 'slider', label: 'Hue Speed', min: -180, max: 180, step: 1, default: 0 },
+    { key: 'lightnessAmount', type: 'slider', label: 'Pulse Amt', min: 0, max: 50, step: 1, default: 0 },
+    { key: 'lightnessSpeed', type: 'slider', label: 'Pulse Spd', min: 0.1, max: 5, step: 0.1, default: 1 },
+  ] },
+]
+
 // --- Lookup helpers ---
 
-const ALL_VARIANTS = [...DISPLACEMENT_VARIANTS, ...COPIES_VARIANTS, ...MOVEMENT_VARIANTS]
+const ALL_VARIANTS = [...DISPLACEMENT_VARIANTS, ...COPIES_VARIANTS, ...MOVEMENT_VARIANTS, ...GENERATOR_VARIANTS]
 
 export function findVariant(variantId) {
   return ALL_VARIANTS.find(v => v.id === variantId) || null
@@ -200,6 +274,10 @@ export function isMovementVariant(variantId) {
 
 export function isPixiVariant(variantId) {
   return variantId && variantId.startsWith('pixi-')
+}
+
+export function isGeneratorVariant(variantId) {
+  return variantId && variantId.startsWith('gen-')
 }
 
 export function getDefaultParams(controls) {

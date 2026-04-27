@@ -23,12 +23,20 @@ export default function ColorFieldGenerator({
   width = 256,
   height = 256,
   color = '#ff0000',
+  saturation = null,
+  motion = true,
+  hueSpeed = 0,
+  lightnessAmount = 0,
+  lightnessSpeed = 1,
   animate = true,
   onCanvasReady,
 }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
   const readyFired = useRef(false)
+  const tRef = useRef(0)
+  const onCanvasReadyRef = useRef(onCanvasReady)
+  useEffect(() => { onCanvasReadyRef.current = onCanvasReady })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -36,37 +44,41 @@ export default function ColorFieldGenerator({
     canvas.width = width
     canvas.height = height
 
-    if (!readyFired.current && onCanvasReady) {
+    if (!readyFired.current && onCanvasReadyRef.current) {
       readyFired.current = true
-      onCanvasReady(canvas)
+      onCanvasReadyRef.current(canvas)
     }
 
     const ctx = canvas.getContext('2d')
 
-    if (!animate) {
-      ctx.fillStyle = color
-      ctx.fillRect(0, 0, width, height)
-      return
-    }
-
-    let [baseH, baseS, baseL] = [0, 100, 50]
+    let baseH = 0, baseS = 100, baseL = 50
     try {
       ;[baseH, baseS, baseL] = hexToHsl(color)
     } catch { /* use defaults */ }
+    const sat = saturation == null ? baseS : saturation
 
-    let t = 0
+    const renderAt = (t) => {
+      const h = (baseH + t * hueSpeed + 360) % 360
+      const l = baseL + (lightnessAmount > 0 ? Math.sin(t * lightnessSpeed * 2 * Math.PI) * lightnessAmount : 0)
+      ctx.fillStyle = `hsl(${h}, ${sat}%, ${Math.max(0, Math.min(100, l))}%)`
+      ctx.fillRect(0, 0, width, height)
+    }
+
+    if (!animate || !motion) {
+      renderAt(tRef.current)
+      return
+    }
+
+    let t = tRef.current
     const tick = () => {
       t += 0.016
-      // Cycle hue and pulse lightness
-      const h = (baseH + t * 30) % 360
-      const l = baseL + Math.sin(t * 2) * 15
-      ctx.fillStyle = `hsl(${h}, ${baseS}%, ${Math.max(0, Math.min(100, l))}%)`
-      ctx.fillRect(0, 0, width, height)
+      tRef.current = t
+      renderAt(t)
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [width, height, color, animate, onCanvasReady])
+  }, [width, height, color, saturation, motion, hueSpeed, lightnessAmount, lightnessSpeed, animate])
 
   return (
     <canvas
