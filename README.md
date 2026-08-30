@@ -5,18 +5,18 @@ Interactive image distortion playground built with React, PixiJS, and GSAP. Part
 ## Getting Started
 
 ```sh
-yarn install
-yarn dev
+pnpm install
+pnpm dev
 ```
 
 ## Scripts
 
 | Command | Description |
 |---|---|
-| `yarn dev` | Start dev server |
-| `yarn build` | Production build |
-| `yarn preview` | Preview production build |
-| `yarn lint` | Run ESLint |
+| `pnpm dev` | Start dev server |
+| `pnpm build` | Production build |
+| `pnpm preview` | Preview production build |
+| `pnpm lint` | Run ESLint |
 
 ## Tech Stack
 

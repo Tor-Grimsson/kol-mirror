@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "kind": "patch",
+  "name": "Monochrome",
+  "description": "Threshold and edge-detect into a flat two-tone read. Almost no colour, all structure.",
+  "tags": [
+    "monochrome",
+    "canvas-fx",
+    "graphic"
+  ],
+  "data": {
+    "channels": [
+      {
+        "variantId": "subtle-ripple",
+        "enabled": true,
+        "opacity": 100,
+        "intensity": 30,
+        "blendMode": "normal",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [
+          {
+            "type": "edge-detect",
+            "enabled": true,
+            "params": {
+              "threshold": 26,
+              "invert": 0
+            }
+          }
+        ],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": "gen-pattern",
+        "enabled": true,
+        "opacity": 65,
+        "intensity": 30,
+        "blendMode": "multiply",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [
+          {
+            "type": "threshold",
+            "enabled": true,
+            "params": {
+              "level": 48
+            }
+          }
+        ],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": null,
+        "enabled": false,
+        "opacity": 100,
+        "intensity": 30,
+        "blendMode": "normal",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      }
+    ],
+    "master": {
+      "enabled": true,
+      "inputs": [
+        0,
+        1,
+        null
+      ],
+      "opacity": 100,
+      "blendMode": "normal",
+      "fx": [],
+      "inserts": [],
+      "aux1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "aux2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      }
+    },
+    "canvas": {
+      "ratio": "16:9",
+      "layout": "row"
+    }
+  }
+}

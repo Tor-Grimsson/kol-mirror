@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { FlipIcon } from './ChannelPatchPanel'
+import { BLEND_OPTIONS } from './blendOptions'
 import { Icon } from '../icons'
 import Slider from '../atoms/Slider'
 import Divider from '../atoms/Divider'
@@ -7,11 +9,9 @@ import ColorPicker from '../atoms/ColorPicker'
 import RotaryDial from './RotaryDial'
 import ChannelMaster from '../mixer/ChannelMaster'
 import { CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
-import { CANVAS_FX_DEFS, MAX_CANVAS_FX, getDefaultCanvasFxParams } from '../../hooks/useCanvasFx'
+import { CANVAS_FX_DEFS, MAX_CANVAS_FX, getDefaultCanvasFxParams, fxCapability } from '../../hooks/useCanvasFx'
+import { gpuAvailable } from '../../hooks/gpuFx'
 
-const CSS_BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity']
-
-const BLEND_OPTIONS = CSS_BLEND_MODES.map(m => ({ value: m, label: m.charAt(0).toUpperCase() + m.slice(1).replace(/-./g, s => ' ' + s[1].toUpperCase()) }))
 
 // Read an FX param value from an FX array
 function readFx(fxArr, fxId, paramKey) {
@@ -120,7 +120,7 @@ function FxList({ fx, onFxChange }) {
       })}
       {fx.length < MAX_CHANNEL_FX && (
         <div
-          className="kol-helper-xs text-fg-96 cursor-pointer select-none"
+          className="kol-helper-12 text-fg-96 cursor-pointer select-none"
           style={{ height: '24px', lineHeight: '24px' }}
           onClick={() => onFxChange([...fx, { type: 'blur', enabled: true, params: getDefaultFxParams('blur') }])}
         >
@@ -132,54 +132,101 @@ function FxList({ fx, onFxChange }) {
 }
 
 
+/**
+ * CanvasFxList — the channel's FX rack: an ordered list of units, up to
+ * MAX_CANVAS_FX, duplicates allowed (two dithers at different cell sizes is a
+ * real patch). Each row picks its TYPE from the whole library and exposes ALL
+ * of that type's parameters — it used to show a fixed label and only the first
+ * param, so every unit added was a chromatic and the newer units (dither,
+ * ASCII, slitscan) had no way to be reached or controlled at all.
+ */
 function CanvasFxList({ fx, onFxChange }) {
+  const FX_OPTIONS = CANVAS_FX_DEFS.map(d => ({ value: d.id, label: d.label }))
   return (
     <div className="flex flex-col gap-1">
       {fx.map((fxItem, fi) => {
         const def = CANVAS_FX_DEFS.find(d => d.id === fxItem.type)
+        /* A unit with no implementation on the path this machine can take used
+           to sit here taking knob turns and producing nothing. It says so now. */
+        const cap = fxCapability(fxItem.type, { gpu: gpuAvailable() })
         const paramKeys = def ? Object.keys(def.params) : []
-        const primaryKey = paramKeys[0]
-        const primarySpec = def?.params[primaryKey]
+        const update = (patch) => {
+          const next = [...fx]
+          next[fi] = { ...next[fi], ...patch }
+          onFxChange(next)
+        }
         return (
-          <div key={fi} className="flex items-center gap-2" style={{ height: '24px' }}>
+          <div key={fi} className="flex flex-col gap-1" style={{ paddingBottom: 2 }}>
             <div
-              className={`w-2 h-2 rounded-full cursor-pointer shrink-0 ${fxItem.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
-              onClick={() => {
-                const next = [...fx]
-                next[fi] = { ...next[fi], enabled: !next[fi].enabled }
-                onFxChange(next)
-              }}
-            />
-            <span className="text-fg-64 shrink-0" style={{ width: '48px' }}>{def?.label || fxItem.type}</span>
-            {primarySpec && (
-              <Slider
-                label=""
-                min={primarySpec.min}
-                max={primarySpec.max}
-                step={primarySpec.step}
-                value={fxItem.params[primaryKey] ?? primarySpec.default}
-                onChange={(v) => {
-                  const next = [...fx]
-                  next[fi] = { ...next[fi], params: { ...next[fi].params, [primaryKey]: v } }
-                  onFxChange(next)
-                }}
-                formatValue={(v) => `${Math.round(v * 100) / 100}`}
-                className="flex-1"
-                variant="minimal"
-              />
-            )}
-            <span
-              className="text-fg-96 cursor-pointer select-none shrink-0 inline-flex"
-              onClick={() => onFxChange(fx.filter((_, i) => i !== fi))}
+              className="flex items-center gap-2"
+              style={{ height: '24px', opacity: cap.runs ? 1 : 0.4 }}
+              title={cap.reason || undefined}
             >
-              <Icon name="x" size={12} />
-            </span>
+              <div
+                className={`w-2 h-2 rounded-full cursor-pointer shrink-0 ${fxItem.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
+                onClick={() => update({ enabled: !fxItem.enabled })}
+                title={fxItem.enabled ? 'Bypass' : 'Enable'}
+              />
+              <Dropdown
+                options={FX_OPTIONS}
+                value={fxItem.type}
+                // Switching type takes that type's defaults — the old params
+                // belong to a different unit and would read as nonsense.
+                onChange={(v) => update({ type: v, params: getDefaultCanvasFxParams(v) })}
+                variant="minimal"
+                size="md"
+                rowHeight={24}
+                className="flex-1"
+              />
+              <span className="text-fg-32 shrink-0 kol-helper-10" title="Move up">
+                {fi > 0 && (
+                  <span className="cursor-pointer hover:text-fg-96" onClick={() => {
+                    const next = [...fx]
+                    ;[next[fi - 1], next[fi]] = [next[fi], next[fi - 1]]
+                    onFxChange(next)
+                  }}>↑</span>
+                )}
+              </span>
+              <span
+                className="text-fg-96 cursor-pointer select-none shrink-0 inline-flex"
+                onClick={() => onFxChange(fx.filter((_, i) => i !== fi))}
+                title="Remove"
+              >
+                <Icon name="x" size={12} />
+              </span>
+            </div>
+            {fxItem.enabled && paramKeys.map((key) => {
+              const spec = def.params[key]
+                const dead = !cap.runs || cap.deadParams.includes(key)
+                return (
+                <div
+                  key={key}
+                  className="flex items-center gap-2"
+                  style={{ height: '20px', paddingLeft: 16, opacity: dead ? 0.4 : 1 }}
+                  title={dead ? (cap.reason || `${key} exists only in the shader — no WebGL2`) : undefined}
+                >
+                  <span className="text-fg-32 shrink-0 kol-helper-10" style={{ width: '40px' }}>{key}</span>
+                  <Slider
+                    label=""
+                    min={spec.min}
+                    max={spec.max}
+                    step={spec.step}
+                    value={fxItem.params?.[key] ?? spec.default}
+                    onChange={(v) => update({ params: { ...fxItem.params, [key]: v } })}
+                    formatValue={(v) => `${Math.round(v * 100) / 100}`}
+                    className="flex-1"
+                    variant="minimal"
+                    defaultValue={spec.default}
+                  />
+                </div>
+              )
+            })}
           </div>
         )
       })}
       {fx.length < MAX_CANVAS_FX && (
         <div
-          className="kol-helper-xs text-fg-96 cursor-pointer select-none"
+          className="kol-helper-12 text-fg-96 cursor-pointer select-none"
           style={{ height: '24px', lineHeight: '24px' }}
           onClick={() => onFxChange([...fx, { type: 'chromatic', enabled: true, params: getDefaultCanvasFxParams('chromatic') }])}
         >
@@ -194,10 +241,19 @@ const SEND_KEYS = ['aux1', 'aux2', 'rtn1', 'rtn2', 'fx1', 'fx2']
 const SEND_LABELS = { aux1: 'AUX 1', aux2: 'AUX 2', rtn1: 'RTN 1', rtn2: 'RTN 2', fx1: 'FX 1', fx2: 'FX 2' }
 const BUS_KEYS = ['aux1', 'aux2', 'fx1', 'fx2']
 
-export default function MasterModule({ master, onMasterChange, channels = [], onChannelUpdate }) {
+/* `flipped` + `back`: the flip is the MODULE's, not the card's (user
+   2026-08-28: "only flip the front panel"). Wrapping the whole component in a
+   flip scene turned its bottom shelf over with it; the shelf is the module's
+   fixed furniture and stays put. */
+export default function MasterModule({ master, onMasterChange, channels = [], onChannelUpdate, onFlip, flipped = false, back = null }) {
   const [shelfOpen, setShelfOpen] = useState(false)
   const [shelfTab, setShelfTab] = useState('files')
-  const [bottomTab, setBottomTab] = useState('ch-0')
+  /* THE SLOTS (user, 2026-08-27: "channel 1 on the mixer and the channel 1
+     module just share a name, nothing else"). Everything on this module that
+     is per-strip goes through `master.inputs` — strip n is whatever channel is
+     patched into IN n, and nothing until then. */
+  const slots = (master.inputs || [null, null, null]).map((src, n) => ({ n, src, ch: src != null ? channels[src] : null }))
+  const [bottomTab, setBottomTab] = useState('in-0')
 
   const enabled = master.enabled ?? true
   const opacity = master.opacity ?? 100
@@ -214,24 +270,24 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
           <div className="flex items-center justify-between" style={{ height: '24px' }}>
             <span className="text-fg-96">Loaded Sources</span>
           </div>
-          {channels.map((ch, i) => (
-            <div key={i} className="flex items-center justify-between" style={{ height: '24px' }}>
-              <span className={ch.enabled ? 'text-fg-96' : 'text-fg-32'}>Ch {i + 1}</span>
-              <span className="text-fg-64 truncate" style={{ maxWidth: '160px' }}>{ch.customImageName || '—'}</span>
+          {slots.map(({ n, src, ch }) => (
+            <div key={n} className="flex items-center justify-between" style={{ height: '24px' }}>
+              <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · Ch ${src + 1}` : ''}</span>
+              <span className="text-fg-64 truncate" style={{ maxWidth: '160px' }}>{ch ? (ch.customImageName || '—') : 'No input'}</span>
             </div>
           ))}
-          {channels.some(ch => ch.recSlots?.some(s => s)) && (
+          {slots.some(({ ch }) => ch?.recSlots?.some(s => s)) && (
             <>
               <Divider className="my-1" />
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
                 <span className="text-fg-96">Recordings</span>
               </div>
-              {channels.map((ch, i) => {
-                const recs = (ch.recSlots || []).filter(s => s)
+              {slots.map(({ n, src, ch }) => {
+                const recs = (ch?.recSlots || []).filter(s => s)
                 if (!recs.length) return null
                 return (
-                  <div key={i} className="flex items-center justify-between" style={{ height: '24px' }}>
-                    <span className="text-fg-32">Ch {i + 1}</span>
+                  <div key={n} className="flex items-center justify-between" style={{ height: '24px' }}>
+                    <span className="text-fg-32">In {n + 1} · Ch {src + 1}</span>
                     <span className="text-fg-64">{recs.length} clip{recs.length > 1 ? 's' : ''}</span>
                   </div>
                 )
@@ -245,16 +301,16 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
     if (shelfTab === 'effects') {
       return (
         <div className="flex flex-col gap-3">
-          {channels.map((ch, i) => (
-            <div key={i} className="flex flex-col gap-1">
+          {slots.map(({ n, src, ch }) => (
+            <div key={n} className="flex flex-col gap-1">
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
-                <span className={ch.enabled ? 'text-fg-96' : 'text-fg-32'}>Ch {i + 1}</span>
-                <span className="text-fg-32">{((ch.fx || []).length + (ch.canvasFx || []).length) || 'No'} FX</span>
+                <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · Ch ${src + 1}` : ''}</span>
+                <span className="text-fg-32">{ch ? `${((ch.fx || []).length + (ch.canvasFx || []).length) || 'No'} FX` : 'No input'}</span>
               </div>
-              <FxList fx={ch.fx || []} onFxChange={(newFx) => onChannelUpdate(i, { fx: newFx })} />
-              {(ch.canvasFx || []).length > 0 && <Divider className="mt-1 mb-1" />}
-              <CanvasFxList fx={ch.canvasFx || []} onFxChange={(newFx) => onChannelUpdate(i, { canvasFx: newFx })} />
-              {i < channels.length - 1 && <Divider className="mt-1" />}
+              {ch && <FxList fx={ch.fx || []} onFxChange={(newFx) => onChannelUpdate(src, { fx: newFx })} />}
+              {ch && (ch.canvasFx || []).length > 0 && <Divider className="mt-1 mb-1" />}
+              {ch && <CanvasFxList fx={ch.canvasFx || []} onFxChange={(newFx) => onChannelUpdate(src, { canvasFx: newFx })} />}
+              {n < slots.length - 1 && <Divider className="mt-1" />}
             </div>
           ))}
           <Divider className="my-1" />
@@ -271,30 +327,35 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
     if (shelfTab === 'color') {
       return (
         <div className="flex flex-col gap-3">
-          {channels.map((ch, i) => (
-            <div key={i} className="flex flex-col gap-2">
+          {slots.map(({ n, src, ch }) => (
+            <div key={n} className="flex flex-col gap-2">
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
-                <span className={ch.enabled ? 'text-fg-96' : 'text-fg-32'}>Ch {i + 1}</span>
+                <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · Ch ${src + 1}` : ''}</span>
+                {!ch && <span className="text-fg-32">No input</span>}
               </div>
-              <div className="flex items-center justify-between" style={{ height: '24px' }}>
-                <span className="text-fg-32">Vector</span>
-                <ColorPicker color={ch.vectorColor === 'currentColor' ? '#ffffff' : ch.vectorColor} onChange={(c) => onChannelUpdate(i, { vectorColor: c })} />
-              </div>
-              <div className="flex items-center justify-between" style={{ height: '24px' }}>
-                <span className="text-fg-32">Background</span>
-                <ColorPicker color={ch.backgroundColor === 'transparent' ? '#000000' : ch.backgroundColor} onChange={(c) => onChannelUpdate(i, { backgroundColor: c })} />
-              </div>
-              <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
-                <span className="text-fg-32">Blend</span>
-                <Dropdown
-                  options={BLEND_OPTIONS}
-                  value={ch.blendMode || 'normal'}
-                  onChange={(v) => onChannelUpdate(i, { blendMode: v })}
-                  variant="minimal"
-                  size="md"
-                />
-              </div>
-              {i < channels.length - 1 && <Divider className="mt-1" />}
+              {ch && (
+                <>
+                  <div className="flex items-center justify-between" style={{ height: '24px' }}>
+                    <span className="text-fg-32">Vector</span>
+                    <ColorPicker color={ch.vectorColor === 'currentColor' ? '#ffffff' : ch.vectorColor} onChange={(c) => onChannelUpdate(src, { vectorColor: c })} />
+                  </div>
+                  <div className="flex items-center justify-between" style={{ height: '24px' }}>
+                    <span className="text-fg-32">Background</span>
+                    <ColorPicker color={ch.backgroundColor === 'transparent' ? '#000000' : ch.backgroundColor} onChange={(c) => onChannelUpdate(src, { backgroundColor: c })} />
+                  </div>
+                  <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
+                    <span className="text-fg-32">Blend</span>
+                    <Dropdown
+                      options={BLEND_OPTIONS}
+                      value={ch.blendMode || 'normal'}
+                      onChange={(v) => onChannelUpdate(src, { blendMode: v })}
+                      variant="minimal"
+                      size="md"
+                    />
+                  </div>
+                </>
+              )}
+              {n < slots.length - 1 && <Divider className="mt-1" />}
             </div>
           ))}
         </div>
@@ -315,7 +376,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
             formatValue={(v) => `${Math.round(v)}%`}
             variant="minimal"
           />
-          <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+          <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
             <span className="text-fg-32">Blend</span>
             <Dropdown
               options={BLEND_OPTIONS}
@@ -342,7 +403,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
                 <span className="text-fg-96">{label}</span>
                 <span
-                  className={`kol-helper-xs cursor-pointer select-none ${bus.enabled ? 'text-fg-96' : 'text-fg-32'}`}
+                  className={`kol-helper-12 cursor-pointer select-none ${bus.enabled ? 'text-fg-96' : 'text-fg-32'}`}
                   onClick={() => onMasterChange({ [key]: { ...bus, enabled: !bus.enabled } })}
                 >
                   {bus.enabled ? 'ON' : 'OFF'}
@@ -356,7 +417,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                 formatValue={(v) => `${Math.round(v)}%`}
                 variant="minimal"
               />
-              <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+              <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
                 <span className="text-fg-32">Blend</span>
                 <Dropdown
                   options={BLEND_OPTIONS}
@@ -369,7 +430,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
                 <span className="text-fg-32">Solo</span>
                 <span
-                  className={`kol-helper-xs cursor-pointer select-none ${bus.solo ? 'text-fg-96' : 'text-fg-32'}`}
+                  className={`kol-helper-12 cursor-pointer select-none ${bus.solo ? 'text-fg-96' : 'text-fg-32'}`}
                   onClick={() => onMasterChange({ [key]: { ...bus, solo: !bus.solo } })}
                 >
                   {bus.solo ? 'ON' : 'OFF'}
@@ -391,11 +452,12 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
   const renderBottomContent = () => {
     // All tabs show the same layout: 6 send knobs
     // Channel tabs use channel.sends, RTN/MST tabs use master bus sends (placeholder for now)
-    const chMatch = bottomTab.match(/^ch-(\d+)$/)
-    if (chMatch) {
-      const ci = parseInt(chMatch[1])
-      const ch = channels[ci]
-      if (!ch) return null
+    const inMatch = bottomTab.match(/^in-(\d+)$/)
+    if (inMatch) {
+      const slot = slots[parseInt(inMatch[1])]
+      if (!slot?.ch) return <span className="text-fg-32 self-center">No input — patch a channel into IN {parseInt(inMatch[1]) + 1}</span>
+      const ci = slot.src
+      const ch = slot.ch
       const sends = ch.sends || {}
       return (
         <div className="flex flex-row gap-4 flex-1 items-end" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
@@ -443,10 +505,14 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
   const mstKnobs = buildFxKnobs(masterFx, (newFx) => onMasterChange({ fx: newFx }))
 
   return (
-    <div className="flex flex-row items-stretch shrink-0" style={{ overflow: 'visible', maxHeight: '100%' }}>
-      <div className="flex flex-col shrink-0" style={{ maxHeight: '100%' }}>
+    <div className="flex flex-row items-stretch shrink-0" style={{ overflow: 'visible', height: '100%', maxHeight: '100%' }}>
+      <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%' }}>
+        {/* only THIS — header + panel — turns; the bottom shelf below is furniture */}
+        <div className="mirror-flip-scene flex flex-col" style={{ flex: 1, minHeight: 0 }}>
+        <div className={`mirror-flip-inner flex flex-col ${flipped ? 'is-flipped' : ''}`} style={{ flex: 1, minHeight: 0 }}>
+        <div className="mirror-flip-front flex flex-col" style={{ flex: 1, minHeight: 0 }}>
         {/* Header */}
-        <div className="flex items-center justify-between kol-helper-xs mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
+        <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
           <span className="flex items-center gap-3">
             <span className="cursor-pointer select-none flex items-center justify-center" style={{ width: '16px', height: '16px' }} onClick={() => onMasterChange({ enabled: !enabled })}>
               <div className="w-4 h-4 rounded-full border border-fg-48 flex items-center justify-center">
@@ -455,11 +521,14 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
             </span>
             <span className={`${enabled ? 'text-fg-96' : 'text-fg-32'}`}>Master Out</span>
           </span>
-          <span className="text-fg-96 cursor-pointer select-none" onClick={() => onMasterChange({
-            opacity: 100, blendMode: 'normal', fx: [],
-            rtn1: { ...rtn1, returnLevel: 0, fx: [], solo: false },
-            rtn2: { ...rtn2, returnLevel: 0, fx: [], solo: false },
-          })}>Reset</span>
+          <span className="flex items-center gap-3">
+            <span className="text-fg-96 cursor-pointer select-none" onClick={() => onMasterChange({
+              opacity: 100, blendMode: 'normal', fx: [],
+              rtn1: { ...rtn1, returnLevel: 0, fx: [], solo: false },
+              rtn2: { ...rtn2, returnLevel: 0, fx: [], solo: false },
+            })}>Reset</span>
+            <FlipIcon onFlip={onFlip} title="Flip to patch bay" />
+          </span>
         </div>
 
         {/* Card body */}
@@ -470,19 +539,24 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
           <div className="w-full flex items-stretch gap-4 flex-1">
             <div className="flex flex-col flex-1 gap-2">
               <div className="flex flex-row gap-4 flex-1 w-full">
-                {/* Ch 1-3: wired to actual channel state */}
-                {channels.map((ch, i) => (
+                {/* In 1-3: input slots — strip n drives whichever channel is
+                    patched into master IN n (the back's jacks); empty until then. */}
+                {slots.map(({ n, src, ch }) => {
+                  return ch ? (
                     <ChannelMaster
-                      key={`ch-${i}`}
-                      label={`Ch ${i + 1}`}
-                      knobs={buildChannelKnobs(ch, i, onChannelUpdate)}
+                      key={`in-${n}`}
+                      label={`Ch ${src + 1}`}
+                      knobs={buildChannelKnobs(ch, src, onChannelUpdate)}
                       faderValue={ch.opacity ?? 100}
-                      onFaderChange={(v) => onChannelUpdate(i, { opacity: v })}
+                      onFaderChange={(v) => onChannelUpdate(src, { opacity: v })}
                       enabled={ch.enabled}
-                      onEnabledChange={(v) => onChannelUpdate(i, { enabled: v })}
-                      onReset={() => onChannelUpdate(i, { opacity: 100, intensity: 30, fx: [], canvasFx: [] })}
+                      onEnabledChange={(v) => onChannelUpdate(src, { enabled: v })}
+                      onReset={() => onChannelUpdate(src, { opacity: 100, intensity: 30, fx: [], canvasFx: [] })}
                     />
-                ))}
+                  ) : (
+                    <ChannelMaster key={`in-${n}`} label={`In ${n + 1}`} knobs={[]} faderValue={0} enabled={false} />
+                  )
+                })}
                 <Divider variant="vertical" />
                 <ChannelMaster
                   label="RTN 1"
@@ -538,17 +612,23 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
           </div>
         </div>
 
+        </div>
+        <div className="mirror-flip-back" style={{ overflow: 'auto' }}>{back}</div>
+        </div>
+        </div>
+
         {/* Bottom section */}
         <div className="flex flex-col mx-2 border border-fg-08 border-t-0 bg-surface-tertiary" style={{ borderRadius: '0 0 4px 4px', height: '124px', paddingTop: '4px' }}>
-          <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 kol-helper-xs">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 kol-helper-12">
             <div className="flex items-center gap-3" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-              {channels.map((ch, i) => (
+              {slots.map(({ n, src }) => (
                 <span
-                  key={`ch-${i}`}
-                  className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === `ch-${i}` ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`}
-                  onClick={() => setBottomTab(`ch-${i}`)}
+                  key={`in-${n}`}
+                  className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === `in-${n}` ? 'text-fg-96' : src != null ? 'text-fg-32 hover:text-fg-64' : 'text-fg-16 hover:text-fg-48'}`}
+                  onClick={() => setBottomTab(`in-${n}`)}
+                  title={src != null ? `IN ${n + 1} ← Ch ${src + 1}` : `IN ${n + 1} — nothing patched`}
                 >
-                  {`CH${i + 1}`}
+                  {`IN${n + 1}`}
                 </span>
               ))}
               <span className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === 'rtn-1' ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`} onClick={() => setBottomTab('rtn-1')}>RTN1</span>
@@ -565,7 +645,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
       {/* Shelf — expands to the right */}
       {shelfOpen && (
         <div
-          className="flex flex-col px-4 pt-3 pb-4 border border-fg-08 kol-helper-xs relative self-stretch"
+          className="flex flex-col px-4 pt-3 pb-4 border border-fg-08 kol-helper-12 relative self-stretch"
           style={{ borderRadius: '0 4px 4px 0', backgroundColor: 'var(--kol-surface-tertiary)', width: '280px', marginLeft: '-12px', paddingLeft: '28px' }}
         >
           <div className="flex items-center gap-3 pb-2 mb-2 -mx-4 px-4 border-b border-fg-08">

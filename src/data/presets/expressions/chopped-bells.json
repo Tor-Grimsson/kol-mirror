@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kind": "expression",
+  "name": "Chopped bells",
+  "description": "A wave gated by a square, with fast bells underneath.",
+  "tags": [
+    "gated",
+    "pulse",
+    "bell"
+  ],
+  "data": {
+    "expr": "wave(t)*pulse(t*2, 0.5) + bell(t*4)*0.4"
+  }
+}

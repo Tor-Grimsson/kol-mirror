@@ -25,7 +25,7 @@ export default function VariantFrame({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div
-          className="kol-helper-s text-fg-64 cursor-help"
+          className="kol-helper-14 text-fg-64 cursor-help"
           onMouseEnter={() => setShowInfo(true)}
           onMouseLeave={() => setShowInfo(false)}
         >
@@ -33,13 +33,13 @@ export default function VariantFrame({
         </div>
         <div className="flex gap-2">
           <div
-            className={`kol-helper-xs cursor-pointer select-none ${isEnabled ? 'accentYellow' : 'text-fg-64'} hover:text-fg-96`}
+            className={`kol-helper-12 cursor-pointer select-none ${isEnabled ? 'accentYellow' : 'text-fg-64'} hover:text-fg-96`}
             onClick={onToggleEnabled}
           >
             [{isEnabled ? 'ON' : 'OFF'}]
           </div>
           <div
-            className={`kol-helper-xs cursor-pointer select-none ${isSelected ? 'accentYellowStrong' : 'text-fg-64'} hover:text-fg-96`}
+            className={`kol-helper-12 cursor-pointer select-none ${isSelected ? 'accentYellowStrong' : 'text-fg-64'} hover:text-fg-96`}
             onClick={onToggleSelect}
           >
             [{isSelected ? 'SELECT' : 'UNSELECT'}]
@@ -54,7 +54,7 @@ export default function VariantFrame({
       >
         {showInfo && info && (
           <div
-            className="absolute top-0 left-0 right-0 kol-helper-xs textAbsoluteWhite p-3 space-y-1 z-10"
+            className="absolute top-0 left-0 right-0 kol-helper-12 text-absolute-white p-3 space-y-1 z-10"
             style={{ backgroundColor: 'color-mix(in srgb, var(--kol-surface-primary) 60%, transparent)' }}
           >
             {info}
@@ -69,10 +69,10 @@ export default function VariantFrame({
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="kol-helper-xs text-fg-48 font-mono">
+        <div className="kol-helper-12 text-fg-48 font-mono">
           {stats}
         </div>
-        <label className="kol-helper-s textAbsoluteWhite cursor-pointer hover:opacity-80">
+        <label className="kol-helper-14 text-absolute-white cursor-pointer hover:opacity-80">
           <input
             type="file"
             accept="image/*"

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kind": "expression",
+  "name": "Glitch stairs",
+  "description": "Eight steps with noise on every tread.",
+  "tags": [
+    "step",
+    "noise",
+    "fast"
+  ],
+  "data": {
+    "expr": "step(t, 8)*0.7 + rand()*0.3"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kind": "expression",
+  "name": "Sawstack",
+  "description": "Three saws at 1×, 3× and 7× — additive harmonics.",
+  "tags": [
+    "saw",
+    "layered",
+    "harmonics"
+  ],
+  "data": {
+    "expr": "saw(t)*0.5 + saw(t*3)*0.3 + saw(t*7)*0.2"
+  }
+}

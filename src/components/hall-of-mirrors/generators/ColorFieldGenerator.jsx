@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { internalSize, SMOOTH_MAX } from './size'
 
 function hexToHsl(hex) {
   let r = parseInt(hex.slice(1, 3), 16) / 255
@@ -41,8 +42,10 @@ export default function ColorFieldGenerator({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.width = width
-    canvas.height = height
+    // Internal resolution, not canvas resolution — a colour field is a smooth wash — it upscales with no visible loss.
+    const [iw, ih] = internalSize(width, height, SMOOTH_MAX)
+    canvas.width = iw
+    canvas.height = ih
 
     if (!readyFired.current && onCanvasReadyRef.current) {
       readyFired.current = true
@@ -50,6 +53,10 @@ export default function ColorFieldGenerator({
     }
 
     const ctx = canvas.getContext('2d')
+    /* Draw in LOGICAL (canvas) coordinates into the smaller internal buffer:
+       one transform instead of rewriting every width/height in the draw code.
+       Set after the size assignment, which resets context state. */
+    ctx.setTransform(iw / Math.max(1, width), 0, 0, ih / Math.max(1, height), 0, 0)
 
     let baseH = 0, baseS = 100, baseL = 50
     try {

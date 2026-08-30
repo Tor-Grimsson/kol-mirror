@@ -1,32 +1,26 @@
-import React from 'react'
+import DSDivider from '@kolkrabbi/kol-component/atoms/Divider'
 
 /**
- * Divider - Horizontal or vertical divider line
+ * Divider — thin adapter over the DS Divider (@kolkrabbi/kol-component).
  *
- * Simple atom for creating separator lines
- * Uses bg-fg-08 for consistent 8% opacity across themes by default
- * Vertical variant includes wrapper div for proper flex behavior
+ * Horizontal is the DS component untouched. Vertical is mirror's own, and
+ * deliberately so: the DS re-ruled `variant="vertical"` to `align-self: center`
+ * at a fixed 16px — "the rule is centred on what it separates, not stretched to
+ * the row" — which is right for a toolbar separating type. Mirror's seven
+ * vertical rules separate FULL-HEIGHT MIXER COLUMNS (channel strips, routing
+ * matrix bays, master sends), so they stretch. Passing `height` per call site
+ * cannot express "as tall as the flex line".
  *
- * @param {Object} props
- * @param {string} props.variant - 'horizontal' or 'vertical' (default: 'horizontal')
- * @param {string} props.className - Additional classes
- * @param {string} props.opacity - Opacity level (01, 02, 04, 08, 12, 16, 24, 32, 48, 64, 80, 88, 96) (default: '08')
+ * Same seam as `atoms/Button`: DS behaviour, one documented local divergence.
  */
-const Divider = ({ variant = 'horizontal', className = '', opacity = '08', inverse = false }) => {
-  const isVertical = variant === 'vertical'
-  const opacityClass = inverse ? `bg-fg-inverse-${opacity}` : `bg-fg-${opacity}`
-
-  if (isVertical) {
-    return (
-      <div className={`self-stretch flex justify-center items-center ${className}`.trim()}>
-        <div className={opacityClass} style={{ width: '1px', height: '100%' }} />
-      </div>
-    )
+const Divider = ({ variant = 'horizontal', className = '', opacity = '08', inverse = false, ...props }) => {
+  if (variant !== 'vertical') {
+    return <DSDivider className={className} opacity={opacity} inverse={inverse} {...props} />
   }
-
+  const opacityClass = inverse ? `bg-fg-inverse-${opacity}` : `bg-fg-${opacity}`
   return (
-    <div className={className}>
-      <div className={`${opacityClass} h-px w-full`} />
+    <div className={`self-stretch flex justify-center items-center ${className}`.trim()}>
+      <div className={opacityClass} style={{ width: '1px', height: '100%' }} />
     </div>
   )
 }

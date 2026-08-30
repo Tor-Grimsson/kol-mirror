@@ -3,12 +3,16 @@ import { createPortal } from 'react-dom'
 import useExpressionValue from '../../hooks/useExpressionValue'
 import ModulationAssign from './ModulationAssign'
 
+/* tickSize is the dial's WHOLE rendered box and it is fixed per variant — pass a
+   `size` larger than it and the tick ring clips into fragments around the knob.
+   `master` exists so a genuinely big knob can still draw its full ring. */
 const DIAL_VARIANTS = {
   default: { knobRatio: 0.7, tickSize: 64 },
   dense: { knobRatio: 0.95, tickSize: 40 },
+  master: { knobRatio: 0.72, tickSize: 104 },
 }
 
-export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false, variant = 'default', defaultValue, modulationSource, onModulationAssign, busRef }) {
+export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, compact = false, variant = 'default', panel = false, defaultValue, modulationSource, onModulationAssign, busRef }) {
   const dragRef = useRef(null)
   const onChangeRef = useRef(onChange)
   const [editing, setEditing] = useState(false)
@@ -120,24 +124,27 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
           {ticks.map((t, i) => (
             <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
               stroke="currentColor" strokeWidth={t.major ? 1.5 : 0.75}
-              className="text-fg-32"
+              className={panel ? 'text-fg-08' : 'text-fg-32'}
             />
           ))}
           {/* Rotating knob + indicator */}
           <g style={{ transformOrigin: `${cx}px ${cy}px`, transform: `rotate(${angle}deg)` }}>
+            {/* `panel`: a DARK knob cylinder with a light index, the way the
+                knobs on a field monitor's control strip read. The default face
+                is near-white, which dominates a dark panel. */}
             <circle
               cx={cx}
               cy={cy}
               r={innerRadius}
               fill="currentColor"
-              className="text-fg-96"
+              className={panel ? 'text-fg-24' : 'text-fg-96'}
             />
             <line
               x1={cx}
               y1={cy}
               x2={cx}
               y2={cy - innerRadius + 4}
-              stroke="var(--kol-surface-primary)"
+              stroke={panel ? 'var(--kol-fg-72)' : 'var(--kol-surface-primary)'}
               strokeWidth={2}
               strokeLinecap="round"
             />
@@ -168,7 +175,7 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
         />,
         document.body
       )}
-      {label && <div className={`flex items-center justify-center gap-1 w-full ${variant === 'dense' ? 'kol-helper-xxxs' : ''}`} style={variant === 'dense' ? {} : { fontSize: '10px', fontFamily: 'var(--kol-font-family-mono)' }}>
+      {label && <div className={`flex items-center justify-center gap-1 w-full ${variant === 'dense' ? 'kol-helper-8' : ''}`} style={variant === 'dense' ? {} : { fontSize: '10px', fontFamily: 'var(--kol-font-family-mono)' }}>
         <span className="text-fg-64 uppercase">{label}</span>
         <span className="text-fg-96" style={{ width: '32px', textAlign: 'right', display: 'inline-block', overflow: 'hidden' }}>
           {editing ? (

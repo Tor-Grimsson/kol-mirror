@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "kind": "patch",
+  "name": "Cross Patch",
+  "description": "Channel two takes channel one as its source instead of the image — a cable, not a layer.",
+  "tags": [
+    "routing",
+    "cross-patch",
+    "chained"
+  ],
+  "data": {
+    "channels": [
+      {
+        "variantId": "heavy-distortion",
+        "enabled": true,
+        "opacity": 100,
+        "intensity": 30,
+        "blendMode": "normal",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": "pixi-morph",
+        "enabled": true,
+        "opacity": 80,
+        "intensity": 30,
+        "blendMode": "hard-light",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": 0,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": "breathing-harmonica",
+        "enabled": true,
+        "opacity": 40,
+        "intensity": 30,
+        "blendMode": "soft-light",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      }
+    ],
+    "master": {
+      "enabled": true,
+      "inputs": [
+        0,
+        1,
+        2
+      ],
+      "opacity": 80,
+      "blendMode": "normal",
+      "fx": [],
+      "inserts": [],
+      "aux1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "aux2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      }
+    },
+    "canvas": {
+      "ratio": "16:9",
+      "layout": "row"
+    }
+  }
+}

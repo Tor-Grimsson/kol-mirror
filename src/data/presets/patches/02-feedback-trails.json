@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "kind": "patch",
+  "name": "Feedback Trails",
+  "description": "Long decay on channel one, the other two riding over it. The classic video-synth smear.",
+  "tags": [
+    "feedback",
+    "trails",
+    "slow"
+  ],
+  "data": {
+    "channels": [
+      {
+        "variantId": "liquid-surface",
+        "enabled": true,
+        "opacity": 100,
+        "intensity": 30,
+        "blendMode": "normal",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": true,
+          "decay": 94,
+          "mix": 70,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": "breathing-stretch",
+        "enabled": true,
+        "opacity": 55,
+        "intensity": 30,
+        "blendMode": "lighten",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": null,
+        "enabled": false,
+        "opacity": 100,
+        "intensity": 30,
+        "blendMode": "normal",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      }
+    ],
+    "master": {
+      "enabled": true,
+      "inputs": [
+        0,
+        1,
+        null
+      ],
+      "opacity": 90,
+      "blendMode": "normal",
+      "fx": [],
+      "inserts": [],
+      "aux1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "aux2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      }
+    },
+    "canvas": {
+      "ratio": "16:9",
+      "layout": "row"
+    }
+  }
+}

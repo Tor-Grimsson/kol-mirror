@@ -57,6 +57,7 @@ export default function useImageTiers(imageSrc, { svgFillColor, recalcKey = 0 } 
       const blobUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent)
 
       const img = new Image()
+        img.crossOrigin = 'anonymous'
       img.onload = () => {
         if (cancelled) return
         const baseW = img.naturalWidth || 1024
@@ -88,6 +89,7 @@ export default function useImageTiers(imageSrc, { svgFillColor, recalcKey = 0 } 
     } else {
       // Raster data URL or external URL — high = original, mid = downscaled
       const img = new Image()
+        img.crossOrigin = 'anonymous'
       img.onload = () => {
         if (cancelled) return
         const midCanvas = document.createElement('canvas')

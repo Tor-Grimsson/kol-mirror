@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "kind": "patch",
+  "name": "Three Halls",
+  "description": "One variant from each hall stacked — displacement under movement under copies. The plainest full desk, and the one to start from.",
+  "tags": [
+    "starter",
+    "three-channel",
+    "stacked"
+  ],
+  "data": {
+    "channels": [
+      {
+        "variantId": "medium-wave",
+        "enabled": true,
+        "opacity": 100,
+        "intensity": 30,
+        "blendMode": "normal",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": "breathing-scale",
+        "enabled": true,
+        "opacity": 70,
+        "intensity": 30,
+        "blendMode": "screen",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": "pixi-slices",
+        "enabled": true,
+        "opacity": 60,
+        "intensity": 30,
+        "blendMode": "overlay",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      }
+    ],
+    "master": {
+      "enabled": true,
+      "inputs": [
+        0,
+        1,
+        2
+      ],
+      "opacity": 80,
+      "blendMode": "normal",
+      "fx": [],
+      "inserts": [],
+      "aux1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "aux2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      }
+    },
+    "canvas": {
+      "ratio": "16:9",
+      "layout": "row"
+    }
+  }
+}

@@ -1,58 +1,13 @@
-import { useState, useEffect } from 'react'
-import Icon from '../icons/Icon'
+// Deep import via the local patch (patches/@kolkrabbi__kol-framework.patch):
+// the framework barrel drags the kol-component barrel into the bundle.
+import ThemeToggle from '@kolkrabbi/kol-framework/src/ThemeToggle.jsx'
 
 /**
- * ThemeToggleButton Component
- *
- * Simple icon button that toggles between light and dark mode
- * Sets data-theme attribute on document root and persists to localStorage
+ * ThemeToggleButton — thin wrapper over the DS ThemeToggle (glyph-roll).
+ * Kept so the existing importer (the studio sidebar footer) keeps
+ * resolving; new code should use the DS ThemeToggle directly.
+ * Old hand-rolled implementation: _tmp/2026-08-12-ds-adoption/.
  */
 export default function ThemeToggleButton({ className = '' }) {
-  const [isDark, setIsDark] = useState(false)
-
-  // Initialize theme
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-
-    const initialIsDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
-    setIsDark(initialIsDark)
-
-    document.documentElement.setAttribute('data-theme', initialIsDark ? 'dark' : 'light')
-  }, [])
-
-  // Toggle theme
-  const toggleTheme = () => {
-    const newIsDark = !isDark
-    setIsDark(newIsDark)
-
-    document.documentElement.setAttribute('data-theme', newIsDark ? 'dark' : 'light')
-    localStorage.setItem('theme', newIsDark ? 'dark' : 'light')
-  }
-
-  return (
-    <button
-      onClick={toggleTheme}
-      aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-      className={`kol-btn kol-btn-control ${className}`}
-      style={{
-        width: '32px',
-        height: '32px',
-        padding: '8px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
-    >
-      <span
-        style={{
-          display: 'inline-flex',
-          transition: 'transform 0.3s ease',
-          transform: isDark ? 'rotate(180deg)' : 'rotate(0deg)'
-        }}
-      >
-        <Icon name="theme-toggle" size={16} />
-      </span>
-    </button>
-  )
+  return <ThemeToggle label={false} className={className} />
 }

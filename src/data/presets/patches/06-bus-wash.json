@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "kind": "patch",
+  "name": "Bus Wash",
+  "description": "Both live channels sent hard into AUX 1 and returned on RTN 1 — the send/return path, wired.",
+  "tags": [
+    "buses",
+    "send-return",
+    "routing"
+  ],
+  "data": {
+    "channels": [
+      {
+        "variantId": "animated-turbulence",
+        "enabled": true,
+        "opacity": 100,
+        "intensity": 30,
+        "blendMode": "normal",
+        "sends": {
+          "aux1": 80,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": "fine-grain",
+        "enabled": true,
+        "opacity": 60,
+        "intensity": 30,
+        "blendMode": "screen",
+        "sends": {
+          "aux1": 55,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      },
+      {
+        "variantId": null,
+        "enabled": false,
+        "opacity": 100,
+        "intensity": 30,
+        "blendMode": "normal",
+        "sends": {
+          "aux1": 0,
+          "aux2": 0,
+          "rtn1": 0,
+          "rtn2": 0,
+          "fx1": 0,
+          "fx2": 0
+        },
+        "routeFrom": null,
+        "routeSendLevels": {},
+        "canvasFx": [],
+        "fx": [],
+        "feedback": {
+          "enabled": false,
+          "decay": 80,
+          "mix": 50,
+          "freeze": false
+        }
+      }
+    ],
+    "master": {
+      "enabled": true,
+      "inputs": [
+        0,
+        1,
+        null
+      ],
+      "opacity": 80,
+      "blendMode": "normal",
+      "fx": [],
+      "inserts": [],
+      "aux1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "screen",
+        "solo": false
+      },
+      "aux2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "rtn1": {
+        "enabled": true,
+        "returnLevel": 70,
+        "fx": [],
+        "blendMode": "screen",
+        "solo": false
+      },
+      "rtn2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx1": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      },
+      "fx2": {
+        "enabled": true,
+        "returnLevel": 0,
+        "fx": [],
+        "blendMode": "normal",
+        "solo": false
+      }
+    },
+    "canvas": {
+      "ratio": "16:9",
+      "layout": "row"
+    }
+  }
+}

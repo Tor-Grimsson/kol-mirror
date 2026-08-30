@@ -1,5 +1,8 @@
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { getResponsiveImage, getDefaultParams, findVariant, DISPLACEMENT_VARIANTS, COPIES_VARIANTS, MOVEMENT_VARIANTS } from '../data/mirrorVariants'
+import { rasterDims } from '../utils/processImageUpload'
+import { applyPatch, buildPatchEntry } from './patchFile'
+import { addToLibrary } from './useLibraryStore'
 
 const FIRST_VARIANT = {
   displacement: DISPLACEMENT_VARIANTS[0]?.id,
@@ -36,12 +39,43 @@ export function useMirrorState() {
   // Per-variant params: { [variantId]: { key: value } }
   const [variantParams, setVariantParams] = useState({})
 
-  // Archive: 9 slots, each null or { variantId, params, imageSrc }
-  const [archiveSlots, setArchiveSlots] = useState(EMPTY_ARCHIVE)
+  // Archive: 9 slots, each null or { variantId, params, imageSrc }.
+  // Persisted to localStorage so the home page's memory row survives refresh.
+  const [archiveSlots, setArchiveSlots] = useState(() => {
+    try {
+      const raw = localStorage.getItem('mirror-archive')
+      if (raw) {
+        const arr = JSON.parse(raw)
+        if (Array.isArray(arr) && arr.length === 9) return arr
+      }
+    } catch { /* corrupt store — start fresh */ }
+    return EMPTY_ARCHIVE
+  })
+  useEffect(() => {
+    try {
+      // Data-URL images (custom uploads) can blow the ~5MB quota — persist the
+      // slot without them; loadSlotToHall falls back to the responsive default.
+      const safe = archiveSlots.map(s => s ? { ...s, imageSrc: s.imageSrc?.startsWith('data:') ? null : s.imageSrc } : null)
+      localStorage.setItem('mirror-archive', JSON.stringify(safe))
+    } catch { /* quota exceeded — skip persistence, keep session state */ }
+  }, [archiveSlots])
 
   const selectHall = useCallback((hall) => {
     setActiveHall(hall)
     setActiveVariant(FIRST_VARIANT[hall] || null)
+    setEditingSlot(null)
+  }, [])
+
+  // Open a specific variant in its hall — deep-link entry for the home page
+  // gallery (selectVariant's toggle semantics make it wrong for this).
+  const openVariant = useCallback((variantId) => {
+    const hallId = DISPLACEMENT_VARIANTS.some(v => v.id === variantId) ? 'displacement'
+      : MOVEMENT_VARIANTS.some(v => v.id === variantId) ? 'movement'
+      : COPIES_VARIANTS.some(v => v.id === variantId) ? 'copies'
+      : null
+    if (!hallId) return
+    setActiveHall(hallId)
+    setActiveVariant(variantId)
     setEditingSlot(null)
   }, [])
 
@@ -123,11 +157,13 @@ export function useMirrorState() {
         const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' })
         const url = URL.createObjectURL(blob)
         const img = new Image()
+        img.crossOrigin = 'anonymous'
         img.onload = () => {
           const canvas = document.createElement('canvas')
-          const RASTER_SCALE = 4
-          canvas.width = (img.naturalWidth || 1024) * RASTER_SCALE
-          canvas.height = (img.naturalHeight || 1024) * RASTER_SCALE
+          // Raster scale is the Settings knob, not a constant — see rasterDims.
+          const [rw, rh] = rasterDims(img.naturalWidth || 1024, img.naturalHeight || 1024)
+          canvas.width = rw
+          canvas.height = rh
           const ctx = canvas.getContext('2d')
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           URL.revokeObjectURL(url)
@@ -164,7 +200,8 @@ export function useMirrorState() {
     const imageSrc = customImages[activeVariant] || getResponsiveImage()
     setArchiveSlots(prev => {
       const next = [...prev]
-      next[slotIndex] = { variantId: activeVariant, params: { ...params }, imageSrc }
+      // savedAt orders the Library's RECENT view (newest slot first).
+      next[slotIndex] = { variantId: activeVariant, params: { ...params }, imageSrc, savedAt: Date.now() }
       return next
     })
   }, [activeVariant, variantParams, customImages])
@@ -201,7 +238,7 @@ export function useMirrorState() {
     const slot9 = slots[8]
     if (slot9 && slot9.variantId === 'pixi-kaleidoscope') {
       Object.assign(slot9.params, {
-        controlTab: 'main', mainEnabled: true, animate: true,
+        controlTab: 'main', mainEnabled: true, animate: false,
         blendMode: 'normal', segments: 14, zoom: 1.5, sourceOffsetX: -48, sourceOffsetY: 172,
         cutOffset: 224, segmentGap: 1.5, evenOffset: -1, speed: 0.3, mirrorMode: 'all-same',
         rotationDirection: 'clockwise', splitRotation: true, wedgeOffsetX: 0, wedgeOffsetY: 0, grabSegment: true, grabOutlineVisible: false,
@@ -236,6 +273,10 @@ export function useMirrorState() {
 
   // Symphony animate + canvas image + load mode + layout + aspect ratio
   const [symphonyAnimating, setSymphonyAnimating] = useState(false)
+  // Mixer visibility — global so the M shortcut can reach it (was local to SymphonyViewport)
+  const [symphonyMixerVisible, setSymphonyMixerVisible] = useState(true)
+  // Screen 2 — second canvas source: 'off' | '0' | '1' | '2' (channel index) | 'expr'
+  const [symphonyScreen2, setSymphonyScreen2] = useState('off')
   const [symphonyRestartKey, setSymphonyRestartKey] = useState(0)
   const [symphonyCanvasImage, setSymphonyCanvasImage] = useState(null)
   const [symphonyCanvasRaster, setSymphonyCanvasRaster] = useState(null)
@@ -246,6 +287,11 @@ export function useMirrorState() {
     return t === 'light' ? 'light' : 'dark'
   })
   const [symphonyLayout, setSymphonyLayout] = useState('row')
+  /* How the channel's units are ARRANGED — 'card' stacks them in one box (the
+     original), 'modular' puts each on the desk as its own module. Same units,
+     same state, two layouts: forking the state would guarantee drift, forking
+     the arrangement costs nothing. */
+  const [symphonyDeskMode, setSymphonyDeskMode] = useState('card')
   const [symphonyRatio, setSymphonyRatio] = useState('16:9')
   const [symphonyCustomWidth, setSymphonyCustomWidth] = useState(1024)
   const [symphonyCustomHeight, setSymphonyCustomHeight] = useState(600)
@@ -254,8 +300,10 @@ export function useMirrorState() {
   const [rasterRecalcCounter, setRasterRecalcCounter] = useState(0)
 
   // Symphony channel state — persists across navigation
+  // Nothing arrives on or patched (modular law, 2026-08-27) — patching a
+  // channel into a master input turns it on.
   const [symphonyChannels, setSymphonyChannels] = useState([
-    { ...EMPTY_CHANNEL, enabled: true },
+    { ...EMPTY_CHANNEL },
     { ...EMPTY_CHANNEL },
     { ...EMPTY_CHANNEL },
   ])
@@ -263,33 +311,14 @@ export function useMirrorState() {
   // Undo/redo history for channels
   const channelHistoryRef = useRef([])
   const channelFutureRef = useRef([])
-  const setSymphonyChannelsWithHistory = useCallback((updater) => {
-    setSymphonyChannels(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater
-      channelHistoryRef.current = [...channelHistoryRef.current.slice(-30), JSON.parse(JSON.stringify(prev))]
-      channelFutureRef.current = []
-      return next
-    })
-  }, [])
-  const symphonyUndo = useCallback(() => {
-    if (!channelHistoryRef.current.length) return
-    setSymphonyChannels(prev => {
-      channelFutureRef.current = [...channelFutureRef.current, JSON.parse(JSON.stringify(prev))]
-      return channelHistoryRef.current.pop()
-    })
-  }, [])
-  const symphonyRedo = useCallback(() => {
-    if (!channelFutureRef.current.length) return
-    setSymphonyChannels(prev => {
-      channelHistoryRef.current = [...channelHistoryRef.current, JSON.parse(JSON.stringify(prev))]
-      return channelFutureRef.current.pop()
-    })
-  }, [])
 
   // Master output — global FX chain applied to combined output
   const EMPTY_BUS = { enabled: true, returnLevel: 0, fx: [], blendMode: 'normal', solo: false }
   const [symphonyMaster, setSymphonyMaster] = useState({
     enabled: true,
+    // The three input slots — which channel feeds strip n. Nothing is patched
+    // until the user patches it (modular law, 2026-08-27).
+    inputs: [null, null, null],
     opacity: 80,
     blendMode: 'normal',
     fx: [],
@@ -302,14 +331,89 @@ export function useMirrorState() {
     fx2: { ...EMPTY_BUS },
   })
 
+  /* UNDO/REDO — one step covers CHANNELS AND MASTER together (2026-08-27).
+   * Patch state straddles both (`master.inputs` is half of every cable), so a
+   * channels-only snapshot let undo restore the channels and leave the inputs
+   * pointing at the old shape. Snapshots are also taken OUTSIDE the setState
+   * updater: pushing history from inside one ran twice under StrictMode and
+   * recorded duplicate steps, so the first undo appeared to do nothing.
+   */
+  const liveRef = useRef({ channels: symphonyChannels, master: symphonyMaster })
+  useEffect(() => { liveRef.current = { channels: symphonyChannels, master: symphonyMaster } }, [symphonyChannels, symphonyMaster])
+
+  const snap = () => JSON.parse(JSON.stringify(liveRef.current))
+  /* One user ACTION is one undo step. "Reloaded" randomises three channels with
+     three separate updates in the same tick; pushing each would make undo take
+     three presses to reverse one button. Consecutive identical snapshots (the
+     ref has not re-synced yet) collapse into one. */
+  const pushHistory = () => {
+    const s = JSON.stringify(liveRef.current)
+    const stack = channelHistoryRef.current
+    if (stack.length && JSON.stringify(stack[stack.length - 1]) === s) return
+    channelHistoryRef.current = [...stack.slice(-30), JSON.parse(s)]
+  }
+  const restore = (state) => { setSymphonyChannels(state.channels); setSymphonyMaster(state.master) }
+
+  const setSymphonyChannelsWithHistory = useCallback((updater) => {
+    pushHistory()
+    channelFutureRef.current = []
+    setSymphonyChannels(prev => (typeof updater === 'function' ? updater(prev) : updater))
+  }, [])
+
+  const symphonyUndo = useCallback(() => {
+    const prev = channelHistoryRef.current.pop()
+    if (!prev) return
+    channelFutureRef.current = [...channelFutureRef.current, snap()]
+    restore(prev)
+  }, [])
+
+  const symphonyRedo = useCallback(() => {
+    const next = channelFutureRef.current.pop()
+    if (!next) return
+    channelHistoryRef.current = [...channelHistoryRef.current, snap()]
+    restore(next)
+  }, [])
+
   // Currently selected channel tab in sidebar (null = none)
   const [symphonyEditChannel, setSymphonyEditChannel] = useState(null)
+
+  /* PATCHES — the whole desk in and out. Channels and master move together
+     because the patch straddles them (`master.inputs` is half of every cable),
+     and the canvas settings come along because a patch that renders at a
+     different aspect is not the same patch. */
+  const loadPatch = useCallback((entry) => {
+    const out = applyPatch(entry?.data, { emptyChannel: EMPTY_CHANNEL, master: symphonyMaster })
+    if (out.channels.length) setSymphonyChannels(out.channels)
+    setSymphonyMaster(out.master)
+    const c = out.canvas || {}
+    if (c.ratio) setSymphonyRatio(c.ratio)
+    if (c.layout) setSymphonyLayout(c.layout)
+    if (c.customWidth) setSymphonyCustomWidth(c.customWidth)
+    if (c.customHeight) setSymphonyCustomHeight(c.customHeight)
+    if (c.loadMode) setSymphonyLoadMode(c.loadMode)
+    if (c.rasterTheme) setSymphonyRasterTheme(c.rasterTheme)
+    setSymphonyScreen2(c.screen2 ?? 'off')
+    setActiveHall('symphony')
+    setSymphonyEditChannel(null)
+  }, [symphonyMaster])
+
+  const savePatch = useCallback((meta) => addToLibrary(buildPatchEntry({
+    channels: symphonyChannels,
+    master: symphonyMaster,
+    canvas: {
+      ratio: symphonyRatio, layout: symphonyLayout,
+      customWidth: symphonyCustomWidth, customHeight: symphonyCustomHeight,
+      loadMode: symphonyLoadMode, rasterTheme: symphonyRasterTheme, screen2: symphonyScreen2,
+    },
+  }, meta)), [symphonyChannels, symphonyMaster, symphonyRatio, symphonyLayout, symphonyCustomWidth, symphonyCustomHeight, symphonyLoadMode, symphonyRasterTheme, symphonyScreen2])
+
 
   return {
     activeHall,
     activeVariant,
     selectHall,
     selectVariant,
+    openVariant,
 
     getImageSrc,
     handleImageUpload,
@@ -347,6 +451,10 @@ export function useMirrorState() {
 
     symphonyAnimating,
     setSymphonyAnimating,
+    symphonyMixerVisible,
+    setSymphonyMixerVisible,
+    symphonyScreen2,
+    setSymphonyScreen2,
     symphonyRestartKey,
     setSymphonyRestartKey,
     symphonyCanvasImage,
@@ -361,6 +469,8 @@ export function useMirrorState() {
     setSymphonyRasterTheme,
     symphonyLayout,
     setSymphonyLayout,
+    symphonyDeskMode,
+    setSymphonyDeskMode,
     symphonyRatio,
     setSymphonyRatio,
     symphonyCustomWidth,
@@ -375,6 +485,9 @@ export function useMirrorState() {
 
     symphonyMaster,
     setSymphonyMaster,
+
+    loadPatch,
+    savePatch,
 
     symphonyEditChannel,
     setSymphonyEditChannel,

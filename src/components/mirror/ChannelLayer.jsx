@@ -9,6 +9,7 @@ import PixiRadialVariant from '../hall-of-mirrors/PixiRadialVariant'
 import PixiKaleidoscopeVariant from '../hall-of-mirrors/PixiKaleidoscopeVariant'
 import { isDisplacementVariant, isMovementVariant, isPixiVariant, scaleParamsByIntensity, findVariant, buildChannelFxStyle } from '../../data/mirrorVariants'
 import { GENERATOR_COMPONENTS } from '../hall-of-mirrors/generators'
+import { useTransportPlaying } from '../../hooks/transport'
 
 function ChannelVideo({ blobUrl, mark1, mark2, isPlaying = true, onTimeUpdate: onTimeUpdateCb, seekTo }) {
   const videoRef = useRef(null)
@@ -47,6 +48,7 @@ function ChannelVideo({ blobUrl, mark1, mark2, isPlaying = true, onTimeUpdate: o
     <video
       ref={videoRef}
       src={blobUrl}
+      crossOrigin="anonymous"
       autoPlay
       muted
       loop={mark1 == null && mark2 == null}
@@ -64,7 +66,10 @@ const PIXI_COMPONENTS = {
   'pixi-kaleidoscope': PixiKaleidoscopeVariant,
 }
 
-export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, restartKey = 0, imageFitMode, imageScale, rawParams = false, onParamChange, onCanvasReady, onPlayheadUpdate, seekTo, onRenderCost, getChannelFrame }) {
+export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSrc, defaultSvgSrc, isAnimating, restartKey = 0, imageFitMode, imageScale, rawParams = false, onParamChange, onCanvasReady, onPlayheadUpdate, seekTo, onRenderCost, getChannelFrame, forceCapture = false }) {
+  /* subscribed, not read: `transport.playing` sampled during render would be
+     stale the moment Space is pressed, since nothing would re-render this. */
+  const transportPlaying = useTransportPlaying()
   const pollTimerRef = useRef(null)
   const movementImgRef = useRef(null)
   const captureReadyFired = useRef(false)
@@ -103,7 +108,13 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   const resolvedImageSrc = routeFrom != null && routedSrc ? routedSrc : imageSrc
   const effectSrc = isNonPixi ? (resolvedImageSrc || rasterSrc) : (rasterSrc || resolvedImageSrc)
   const hasBusSends = channel.sends && Object.values(channel.sends).some(v => v > 0)
-  const captureActive = (!!channel.isArmedForRec || hasBusSends) && isNonPixi && channel.enabled
+  /* Canvas FX run on the capture BUFFER, so a DOM variant with an FX chain and
+     nothing else patched had no buffer to run on — the chain was live in the
+     rack and processed nothing. (Pixi/generators always register.) */
+  const hasCanvasFx = channel.canvasFx?.some(fx => fx.enabled)
+  // forceCapture: Screen 2 targets this channel — DOM variants need the
+  // capture canvas even without sends/arming (Pixi/generators always register)
+  const captureActive = (!!channel.isArmedForRec || hasBusSends || forceCapture || hasCanvasFx) && isNonPixi && channel.enabled
 
   // Determine filter ID for displacement capture
   const displacementFilterId = isDisplacementVariant(channel.variantId)
@@ -130,6 +141,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     variantType: isDisplacementVariant(channel.variantId) ? 'displacement' : 'movement',
     filterId: displacementFilterId,
     imgElementRef: movementImgRef,
+    channelIndex,
   })
 
   // When capture canvas is active, notify parent
@@ -179,7 +191,12 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     const GenComponent = GENERATOR_COMPONENTS[genType]
     if (!GenComponent) return null
 
-    const channelAnimate = channel.params?.animate ?? isAnimating
+    /* `params.animate` says this channel MAY move; the transport says whether it
+       does. The LOAD tab writes `animate: true` on every generator load, which
+       permanently shadowed `isAnimating` — so Space stopped the clock and the
+       five procedural generators, which never read the transport themselves,
+       carried on. Only Live Input checked it, and only inside its own loop. */
+    const channelAnimate = (channel.params?.animate ?? isAnimating) && transportPlaying
     // Use wrapper bounding rect for canvas dimensions, fallback to reasonable defaults
     const genWidth = wrapperSize.width > 0 ? wrapperSize.width : 512
     const genHeight = wrapperSize.height > 0 ? wrapperSize.height : 512

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kind": "expression",
+  "name": "Golden drift",
+  "description": "Sine at the golden ratio against cosine at pi — never quite repeats.",
+  "tags": [
+    "sin",
+    "drift",
+    "slow"
+  ],
+  "data": {
+    "expr": "sin(t*PHI)*30 + cos(t*PI)*20 + 50"
+  }
+}

@@ -1,4 +1,23 @@
-const RASTER_SCALE = 4
+import { getQuality } from '../hooks/renderQuality'
+
+/* The raster scale is a SETTING, not a constant (2026-08-27). At the old flat
+   4×, a 1024px SVG became a 4096² texture — ~67 MB of GPU memory per channel,
+   uploaded and sampled every frame, for detail no display can show. It is also
+   capped by area here, so a large source can't blow past the pixel budget. */
+export const rasterDims = (w, h) => {
+  const q = getQuality()
+  const scale = q.svgRasterScale ?? 2
+  let tw = Math.max(1, Math.round(w * scale))
+  let th = Math.max(1, Math.round(h * scale))
+  const cap = q.maxChannelPixels ?? 2073600
+  const px = tw * th
+  if (cap > 0 && px > cap) {
+    const k = Math.sqrt(cap / px)
+    tw = Math.max(1, Math.round(tw * k))
+    th = Math.max(1, Math.round(th * k))
+  }
+  return [tw, th]
+}
 
 /**
  * Process an uploaded image file and return imageSrc + rasterSrc.
@@ -30,10 +49,12 @@ export default function processImageUpload(file, { recolor = false } = {}) {
 
         // Rasterize
         const img = new Image()
+        img.crossOrigin = 'anonymous'
         img.onload = () => {
           const canvas = document.createElement('canvas')
-          canvas.width = (img.naturalWidth || 1024) * RASTER_SCALE
-          canvas.height = (img.naturalHeight || 1024) * RASTER_SCALE
+          const [rw, rh] = rasterDims(img.naturalWidth || 1024, img.naturalHeight || 1024)
+          canvas.width = rw
+          canvas.height = rh
           const ctx = canvas.getContext('2d')
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           URL.revokeObjectURL(svgUrl)

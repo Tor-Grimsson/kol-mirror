@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { internalSize, EDGED_MAX } from './size'
 
 export default function PatternGenerator({
   width = 256,
@@ -24,8 +25,10 @@ export default function PatternGenerator({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.width = width
-    canvas.height = height
+    // Internal resolution, not canvas resolution — patterns have hard edges, so this caps higher than the smooth generators.
+    const [iw, ih] = internalSize(width, height, EDGED_MAX)
+    canvas.width = iw
+    canvas.height = ih
 
     if (!readyFired.current && onCanvasReadyRef.current) {
       readyFired.current = true
@@ -33,6 +36,10 @@ export default function PatternGenerator({
     }
 
     const ctx = canvas.getContext('2d')
+    /* Draw in LOGICAL (canvas) coordinates into the smaller internal buffer:
+       one transform instead of rewriting every width/height in the draw code.
+       Set after the size assignment, which resets context state. */
+    ctx.setTransform(iw / Math.max(1, width), 0, 0, ih / Math.max(1, height), 0, 0)
 
     const render = (t) => {
       ctx.clearRect(0, 0, width, height)

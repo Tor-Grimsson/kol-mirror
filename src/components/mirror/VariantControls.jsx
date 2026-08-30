@@ -1,9 +1,45 @@
+import { useEffect, useState } from 'react'
 import Slider from '../atoms/Slider'
 import Dropdown from '../molecules/Dropdown'
 import Divider from '../atoms/Divider'
 import Icon from '../icons/Icon'
 import ColorPicker from '../atoms/ColorPicker'
 import { getActiveTab } from '../../data/mirrorVariants'
+
+/* DEVICE — the camera list, and the only control whose options are not written
+ * down anywhere: they are the machine's. A phone on Continuity Camera comes and
+ * goes with the phone, and labels stay blank until camera permission is granted
+ * — hence `devicechange`, which fires on the grant as well as on a plug. Until
+ * then "Default" is a real choice, so the picker is never empty.
+ */
+function DeviceControl({ ctrl, value, onChange, rowHeight, style }) {
+  const [devices, setDevices] = useState([])
+  useEffect(() => {
+    const md = navigator.mediaDevices
+    if (!md?.enumerateDevices) return undefined
+    const read = () => md.enumerateDevices()
+      .then((ds) => setDevices(ds
+        .filter((d) => d.kind === 'videoinput')
+        .map((d, i) => ({ value: d.deviceId, label: d.label || `Camera ${i + 1}` }))))
+      .catch(() => {})
+    read()
+    md.addEventListener?.('devicechange', read)
+    return () => md.removeEventListener?.('devicechange', read)
+  }, [])
+  return (
+    <div className="flex items-center justify-between" style={{ height: `${rowHeight}px`, gap: '12px', ...style }}>
+      <span className="kol-helper-12 text-fg-96 shrink-0">{ctrl.label}</span>
+      <Dropdown
+        options={[{ value: '', label: 'Default' }, ...devices]}
+        value={value ?? ''}
+        onChange={onChange}
+        variant="minimal"
+        size="md"
+        rowHeight={rowHeight}
+      />
+    </div>
+  )
+}
 
 export default function VariantControls({ controls, params, onParamChange, rowHeight = 24, disabledKeys = null }) {
   if (!controls || !params) return null
@@ -31,7 +67,7 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
                 return (
                   <div key={opt.value} className="flex items-center gap-2">
                     <span
-                      className={`kol-helper-xs cursor-pointer select-none ${isActive ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`}
+                      className={`kol-helper-12 cursor-pointer select-none ${isActive ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`}
                       onClick={() => onParamChange(ctrl.key, opt.value)}
                     >
                       [{opt.label}]
@@ -72,7 +108,7 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
           return (
             <div
               key={ctrl.key}
-              className="flex items-center justify-between kol-helper-xs text-fg-96 select-none"
+              className="flex items-center justify-between kol-helper-12 text-fg-96 select-none"
               style={{ height: `${rowHeight}px`, ...frozenStyle }}
             >
               <div className="flex items-center gap-2">
@@ -115,7 +151,7 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
           return (
             <div
               key={ctrl.key}
-              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
+              className="flex items-center justify-between kol-helper-12 text-fg-96 cursor-pointer select-none"
               style={{ height: `${rowHeight}px`, ...frozenStyle }}
               onClick={() => onParamChange(ctrl.key, other.value)}
             >
@@ -128,7 +164,7 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
         if (ctrl.type === 'color') {
           return (
             <div key={ctrl.key} className="flex items-center justify-between" style={{ height: `${rowHeight}px`, gap: '12px', ...frozenStyle }}>
-              <span className="kol-helper-xs text-fg-96 shrink-0">{ctrl.label}</span>
+              <span className="kol-helper-12 text-fg-96 shrink-0">{ctrl.label}</span>
               <ColorPicker
                 color={params[ctrl.key] ?? ctrl.default}
                 onChange={(c) => onParamChange(ctrl.key, c)}
@@ -138,10 +174,23 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
           )
         }
 
+        if (ctrl.type === 'device') {
+          return (
+            <DeviceControl
+              key={ctrl.key}
+              ctrl={ctrl}
+              value={params[ctrl.key]}
+              onChange={(v) => onParamChange(ctrl.key, v)}
+              rowHeight={rowHeight}
+              style={frozenStyle}
+            />
+          )
+        }
+
         if (ctrl.type === 'select') {
           return (
             <div key={ctrl.key} className="flex items-center justify-between" style={{ height: `${rowHeight}px`, gap: '12px', ...frozenStyle }}>
-              <span className="kol-helper-xs text-fg-96 shrink-0">{ctrl.label}</span>
+              <span className="kol-helper-12 text-fg-96 shrink-0">{ctrl.label}</span>
               <Dropdown
                 options={ctrl.options}
                 value={params[ctrl.key] ?? ctrl.default}

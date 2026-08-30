@@ -59,10 +59,10 @@ function CanvasFrame({ ratio, customWidth, customHeight, hallLabel, children }) 
   const ratioLabel = ratio === 'custom' ? `${customWidth}x${customHeight}` : ratio
 
   return (
-    <div className="absolute inset-0 bg-surface-primary flex flex-col p-4">
+    <div className="absolute inset-0 flex flex-col p-4">
       <div className="flex items-center justify-between shrink-0 mb-4">
-        <div className="kol-helper-s text-fg-64">{hallLabel} Canvas</div>
-        <div className="kol-helper-xs text-fg-32">[{ratioLabel}]</div>
+        <div className="kol-helper-14 text-fg-64">{hallLabel} Canvas</div>
+        <div className="kol-helper-12 text-fg-32">[{ratioLabel}]</div>
       </div>
       <div ref={containerRef} className="flex-1 flex items-start justify-start min-h-0">
         {frameSize.width > 0 && frameSize.height > 0 && (
@@ -184,7 +184,7 @@ export default function MirrorViewport({ state }) {
   const showDefault = !state.activeHall || (isVariantHall && !state.activeVariant)
 
   return (
-    <div className="absolute inset-0 bg-surface-primary overflow-hidden">
+    <div className="absolute inset-0 overflow-hidden">
       {showDefault && (
         <img
           src="/images/stack-hero-800.jpg"

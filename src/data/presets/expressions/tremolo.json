@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kind": "expression",
+  "name": "Tremolo",
+  "description": "A fast rectified sine, its amplitude riding a slow wave.",
+  "tags": [
+    "modulated",
+    "sin",
+    "wave"
+  ],
+  "data": {
+    "expr": "abs(sin(t*2))*wave(t*0.25)"
+  }
+}

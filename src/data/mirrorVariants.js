@@ -158,32 +158,94 @@ function movementControls(type) {
 // --- Variant definitions ---
 
 export const DISPLACEMENT_VARIANTS = [
-  { id: 'subtle-ripple', title: 'Subtle Ripple', intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.005, numOctaves: 1, scale: 10, seed: 1 }) },
-  { id: 'medium-wave', title: 'Medium Wave', intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.01, numOctaves: 2, scale: 20, seed: 2 }) },
-  { id: 'heavy-distortion', title: 'Heavy Distortion', intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.02, numOctaves: 3, scale: 40, seed: 3 }) },
-  { id: 'fine-grain', title: 'Fine Grain', intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.05, numOctaves: 4, scale: 15, seed: 4 }) },
-  { id: 'liquid-surface', title: 'Liquid Surface', intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.008, numOctaves: 2, scale: 30, seed: 5 }) },
-  { id: 'animated-turbulence', title: 'Animated Turbulence', intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.01, numOctaves: 2, scale: 25, seed: 6 }) },
-  { id: 'extreme-warp', title: 'Extreme Warp', intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.03, numOctaves: 4, scale: 60, seed: 7 }) },
-  { id: 'glass-refraction', title: 'Glass Refraction', intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.015, numOctaves: 3, scale: 35, seed: 8 }) },
+  { id: 'subtle-ripple', title: 'Subtle Ripple', tags: ['subtle', 'organic', 'slow'], intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.005, numOctaves: 1, scale: 10, seed: 1 }) },
+  { id: 'medium-wave', title: 'Medium Wave', tags: ['organic', 'wave', 'mid'], intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.01, numOctaves: 2, scale: 20, seed: 2 }) },
+  { id: 'heavy-distortion', title: 'Heavy Distortion', tags: ['heavy', 'harsh', 'distortion'], intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.02, numOctaves: 3, scale: 40, seed: 3 }) },
+  { id: 'fine-grain', title: 'Fine Grain', tags: ['subtle', 'texture', 'grain'], intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.05, numOctaves: 4, scale: 15, seed: 4 }) },
+  { id: 'liquid-surface', title: 'Liquid Surface', tags: ['organic', 'liquid', 'slow'], intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.008, numOctaves: 2, scale: 30, seed: 5 }) },
+  { id: 'animated-turbulence', title: 'Animated Turbulence', tags: ['organic', 'turbulence', 'motion'], intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.01, numOctaves: 2, scale: 25, seed: 6 }) },
+  { id: 'extreme-warp', title: 'Extreme Warp', tags: ['heavy', 'harsh', 'warp'], intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.03, numOctaves: 4, scale: 60, seed: 7 }) },
+  { id: 'glass-refraction', title: 'Glass Refraction', tags: ['optical', 'glass', 'refraction'], intensityKeys: ['scale', 'baseFrequency'], controls: displacementControls({ baseFrequency: 0.015, numOctaves: 3, scale: 35, seed: 8 }) },
 ]
 
 export const COPIES_VARIANTS = [
-  { id: 'pixi-slices', title: 'Slices', intensityKeys: ['tileScaleX'], component: 'PixiSliceVariant', controls: SLICE_CONTROLS },
-  { id: 'pixi-glitch', title: 'Glitch', intensityKeys: ['maxOffset'], component: 'PixiGlitchSliceVariant', controls: GLITCH_CONTROLS },
-  { id: 'pixi-morph', title: 'Morph', intensityKeys: ['scaleIntensity'], component: 'PixiMorphVariant', controls: MORPH_CONTROLS },
-  { id: 'pixi-radial', title: 'Radial', intensityKeys: ['radius'], component: 'PixiRadialVariant', controls: RADIAL_CONTROLS },
-  { id: 'pixi-kaleidoscope', title: 'Kaleidoscope', intensityKeys: ['zoom', 'segments'], component: 'PixiKaleidoscopeVariant', controls: KALEIDOSCOPE_CONTROLS },
+  { id: 'pixi-slices', title: 'Slices', tags: ['geometric', 'slice', 'glitch'], intensityKeys: ['tileScaleX'], component: 'PixiSliceVariant', controls: SLICE_CONTROLS },
+  { id: 'pixi-glitch', title: 'Glitch', tags: ['glitch', 'harsh', 'digital'], intensityKeys: ['maxOffset'], component: 'PixiGlitchSliceVariant', controls: GLITCH_CONTROLS },
+  { id: 'pixi-morph', title: 'Morph', tags: ['organic', 'morph', 'motion'], intensityKeys: ['scaleIntensity'], component: 'PixiMorphVariant', controls: MORPH_CONTROLS },
+  { id: 'pixi-radial', title: 'Radial', tags: ['geometric', 'radial', 'symmetry'], intensityKeys: ['radius'], component: 'PixiRadialVariant', controls: RADIAL_CONTROLS },
+  { id: 'pixi-kaleidoscope', title: 'Kaleidoscope', tags: ['geometric', 'symmetry', 'kaleidoscope'], intensityKeys: ['zoom', 'segments'], component: 'PixiKaleidoscopeVariant', controls: KALEIDOSCOPE_CONTROLS },
 ]
 
 export const MOVEMENT_VARIANTS = [
-  { id: 'breathing-scale', title: 'Breathing Scale', intensityKeys: ['amount'], controls: movementControls('scale') },
-  { id: 'breathing-stretch', title: 'Breathing Stretch', intensityKeys: ['amount'], controls: movementControls('stretch') },
-  { id: 'breathing-harmonica', title: 'Breathing Harmonica', intensityKeys: ['amount'], controls: movementControls('harmonica') },
+  { id: 'breathing-scale', title: 'Breathing Scale', tags: ['motion', 'breathing', 'slow'], intensityKeys: ['amount'], controls: movementControls('scale') },
+  { id: 'breathing-stretch', title: 'Breathing Stretch', tags: ['motion', 'breathing', 'stretch'], intensityKeys: ['amount'], controls: movementControls('stretch') },
+  { id: 'breathing-harmonica', title: 'Breathing Harmonica', tags: ['motion', 'breathing', 'rhythmic'], intensityKeys: ['amount'], controls: movementControls('harmonica') },
 ]
 
 export const GENERATOR_VARIANTS = [
-  { id: 'gen-noise', title: 'Noise', controls: [
+  /* Field — the generative-pattern module (user 2026-08-28). Six scalar
+     fields sampled per pixel; `mode` picks which. Two-stop ramp between
+     bgColor and color, so every mode is colourable without a palette system. */
+  { id: 'gen-field', title: 'Field', tags: ['source', 'generator', 'pattern', 'organic', 'noise'], controls: [
+    { key: 'mode', type: 'select', label: 'Mode', options: [
+      { value: 'clouds', label: 'Clouds' },
+      { value: 'sea', label: 'Sea' },
+      { value: 'swirl', label: 'Swirl' },
+      { value: 'voronoi', label: 'Voronoi' },
+      { value: 'noise', label: 'Noise' },
+      { value: 'stripes', label: 'Stripes' },
+    ], default: 'clouds' },
+    { type: 'divider' },
+    { key: 'scale', type: 'slider', label: 'Scale', min: 1, max: 24, step: 0.5, default: 4 },
+    { key: 'detail', type: 'slider', label: 'Detail', min: 1, max: 6, step: 1, default: 4 },
+    { key: 'warp', type: 'slider', label: 'Warp', min: 0, max: 1, step: 0.05, default: 0.4 },
+    { key: 'contrast', type: 'slider', label: 'Contrast', min: 20, max: 300, step: 5, default: 100 },
+    { type: 'divider' },
+    { key: 'motion', type: 'toggle', label: 'Motion', default: false },
+    { key: 'speed', type: 'slider', label: 'Speed', min: 0, max: 3, step: 0.1, default: 1 },
+    { type: 'divider' },
+    { key: 'color', type: 'color', label: 'Color', default: '#ffffff' },
+    { key: 'bgColor', type: 'color', label: 'Background', default: '#000000' },
+  ] },
+  /* Wave — the WAVE algorithm from the April videomodulo rack's GEN module, the
+     one family that never crossed into mirror when the others did. A direction
+     vector, a frequency along it, and a shaper. */
+  { id: 'gen-wave', title: 'Wave', tags: ['source', 'generator', 'wave', 'pattern', 'geometric'], controls: [
+    { key: 'shape', type: 'select', label: 'Shape', options: [
+      { value: 'sin', label: 'Sine' },
+      { value: 'saw', label: 'Saw' },
+      { value: 'pls', label: 'Pulse' },
+      { value: 'sqr', label: 'Square' },
+      { value: 'rnd', label: 'Random' },
+    ], default: 'sin' },
+    { type: 'divider' },
+    { key: 'freq', type: 'slider', label: 'Frequency', min: 1, max: 80, step: 1, default: 8 },
+    { key: 'angle', type: 'slider', label: 'Angle', min: 0, max: 360, step: 1, default: 0 },
+    { key: 'pwm', type: 'slider', label: 'PWM', min: 5, max: 95, step: 1, default: 50 },
+    { key: 'contrast', type: 'slider', label: 'Contrast', min: 20, max: 300, step: 5, default: 100 },
+    { type: 'divider' },
+    { key: 'motion', type: 'toggle', label: 'Motion', default: false },
+    { key: 'speed', type: 'slider', label: 'Speed', min: 0, max: 5, step: 0.1, default: 1 },
+    { type: 'divider' },
+    { key: 'fgColor', type: 'color', label: 'Foreground', default: '#ffffff' },
+    { key: 'bgColor', type: 'color', label: 'Background', default: '#000000' },
+  ] },
+  /* Live input — camera or a video file. The raster source: frames arrive as
+     pixels, so nothing is rasterised and there is no texture to re-bake. */
+  { id: 'gen-live', title: 'Live Input', tags: ['source', 'live', 'camera', 'video'], controls: [
+    { key: 'source', type: 'binary', label: 'Source', options: [
+      { value: 'camera', label: 'Camera' },
+      { value: 'file', label: 'Video File' },
+    ], default: 'camera' },
+    { key: 'deviceId', type: 'device', label: 'Device', default: '' },
+    { type: 'divider' },
+    { key: 'mirrored', type: 'slider', label: 'Mirror', min: 0, max: 1, step: 1, default: 1 },
+    /* ON, unlike the procedural generators: their Motion knob picks between a
+       still frame and an evolving one, but a camera with the draw loop off is
+       not a still — it never draws at all, so the channel is just black. */
+    { key: 'animate', type: 'toggle', label: 'Motion', default: true },
+  ] },
+  { id: 'gen-noise', title: 'Noise', tags: ['source', 'generator', 'noise', 'texture'], controls: [
     { key: 'noiseType', type: 'binary', label: 'Type', options: [
       { value: 'smooth', label: 'Clouds' },
       { value: 'snow', label: 'TV Snow' },
@@ -198,7 +260,7 @@ export const GENERATOR_VARIANTS = [
     { key: 'brightness', type: 'slider', label: 'Brightness', min: -50, max: 50, step: 1, default: 0 },
     { key: 'contrast', type: 'slider', label: 'Contrast', min: 50, max: 300, step: 5, default: 100 },
     { type: 'divider' },
-    { key: 'motion', type: 'toggle', label: 'Motion', default: true },
+    { key: 'motion', type: 'toggle', label: 'Motion', default: false },
     { key: 'speed', type: 'slider', label: 'Speed', min: 0, max: 5, step: 0.1, default: 1 },
     { key: 'direction', type: 'select', label: 'Direction', options: [
       { value: 'evolve', label: 'Evolve' },
@@ -212,7 +274,7 @@ export const GENERATOR_VARIANTS = [
     { key: 'fgColor', type: 'color', label: 'Foreground', default: '#ffffff' },
     { key: 'bgColor', type: 'color', label: 'Background', default: '#000000' },
   ] },
-  { id: 'gen-gradient', title: 'Gradient', controls: [
+  { id: 'gen-gradient', title: 'Gradient', tags: ['source', 'generator', 'gradient', 'smooth'], controls: [
     { key: 'type', type: 'select', label: 'Type', options: [
       { value: 'linear', label: 'Linear' },
       { value: 'radial', label: 'Radial' },
@@ -229,7 +291,7 @@ export const GENERATOR_VARIANTS = [
     { key: 'rotateSpeed', type: 'slider', label: 'Rotate Spd', min: -180, max: 180, step: 1, default: 0 },
     { key: 'cycleSpeed', type: 'slider', label: 'Cycle Spd', min: -2, max: 2, step: 0.05, default: 0 },
   ] },
-  { id: 'gen-pattern', title: 'Pattern', controls: [
+  { id: 'gen-pattern', title: 'Pattern', tags: ['source', 'generator', 'pattern', 'geometric'], controls: [
     { key: 'pattern', type: 'select', label: 'Pattern', options: [
       { value: 'stripes', label: 'Stripes' },
       { value: 'dots', label: 'Dots' },
@@ -245,7 +307,7 @@ export const GENERATOR_VARIANTS = [
     { key: 'color', type: 'color', label: 'Color', default: '#ffffff' },
     { key: 'bgColor', type: 'color', label: 'Background', default: '#000000' },
   ] },
-  { id: 'gen-color-field', title: 'Color Field', controls: [
+  { id: 'gen-color-field', title: 'Color Field', tags: ['source', 'generator', 'color', 'smooth'], controls: [
     { key: 'color', type: 'color', label: 'Color', default: '#ff0000' },
     { key: 'saturation', type: 'slider', label: 'Saturation', min: 0, max: 100, step: 1, default: 100 },
     { type: 'divider' },

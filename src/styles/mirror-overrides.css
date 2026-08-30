@@ -1,0 +1,28 @@
+/**
+ * mirror-overrides.css — what is kol-mirror's OWN, layered over @kolkrabbi/kol-theme.
+ *
+ * The DS ships brand-neutral (accent = surface ink); this file binds the mirror
+ * identity. Unlayered on purpose — it beats layer(components) at every collision.
+ *
+ * Trimmed to this in the DS consumption pass (2026-08-27): the legacy status
+ * tokens, the brand palette and the opacity-hex scale all named the styleguide
+ * as their only consumer, and it retired to _tmp/2026-08-27-styleguide-retire/.
+ * Full original at _tmp/2026-08-27-ds-consume-dead-components/mirror-overrides-full.css.
+ */
+
+:root {
+  /* ── Accent identity — teal, orange strong (was in kol-color-simple.css).
+   * NOTE: the .accentYellow class in index.css is historically misnamed — it
+   * has always rendered this teal. */
+  --kol-accent-primary: #49A0A2;
+  --kol-accent-on-primary: #1E1E21;
+  --kol-accent-primary-strong: #DB8000;
+}
+/* ── Nav active = hover state (user ruling 2026-08-12). DS canon renders
+ * aria-current as brighter glyph only (.kol-btn-nav[aria-current="page"],
+ * kol-components-atoms.css); mirror wants the clicked state to read like the
+ * hover state — the oq-04 wash + full ink from .kol-btn-nav:hover. */
+.kol-btn-nav[aria-current="page"] {
+  background-color: var(--kol-oq-04);
+  color: var(--kol-surface-on-primary);
+}

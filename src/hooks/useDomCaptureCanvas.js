@@ -1,3 +1,5 @@
+import { getQuality } from './renderQuality'
+import { markChannel } from './renderStats'
 import { useRef, useEffect, useCallback } from 'react'
 
 /**
@@ -22,6 +24,7 @@ export default function useDomCaptureCanvas({
   variantType,
   filterId,
   imgElementRef,
+  channelIndex,
 }) {
   const canvasRef = useRef(null)
   const ctxRef = useRef(null)
@@ -29,6 +32,7 @@ export default function useDomCaptureCanvas({
   const sourceImgRef = useRef(null)
   const sourceReadyRef = useRef(false)
   const mountedRef = useRef(null) // DOM-mounted canvas element for displacement
+  const lastSigRef = useRef('')   // movement dirty check — last drawn transform
 
   // Create canvas once
   useEffect(() => {
@@ -49,17 +53,26 @@ export default function useDomCaptureCanvas({
     if (!sourceImage) { sourceReadyRef.current = false; return }
     const img = new Image()
     img.crossOrigin = 'anonymous'
-    img.onload = () => { sourceImgRef.current = img; sourceReadyRef.current = true }
+    img.onload = () => { sourceImgRef.current = img; sourceReadyRef.current = true; lastSigRef.current = '' }
     img.src = sourceImage
     return () => { sourceReadyRef.current = false }
   }, [sourceImage])
 
-  // Resize canvas
+  // Resize canvas — bounded by the channel pixel budget. This surface is sized
+  // from a DOM measurement, so on a large display it was unbounded, and every
+  // frame runs an SVG filter across all of it.
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !width || !height) return
-    canvas.width = width
-    canvas.height = height
+    const cap = getQuality().maxChannelPixels || 0
+    let w = width, h = height
+    if (cap > 0 && w * h > cap) {
+      const k = Math.sqrt(cap / (w * h))
+      w = Math.max(1, Math.round(w * k))
+      h = Math.max(1, Math.round(h * k))
+    }
+    canvas.width = w
+    canvas.height = h
   }, [width, height])
 
   // Mount/unmount canvas in DOM for displacement (SVG filter URL resolution)
@@ -104,16 +117,18 @@ export default function useDomCaptureCanvas({
     if (!canvas || !ctx) return
 
     const loop = () => {
-      if (!sourceReadyRef.current || !canvas.width || !canvas.height) {
-        rafRef.current = requestAnimationFrame(loop)
-        return
-      }
+      // Re-arm first (imweb): a throw mid-draw must not kill the loop.
+      rafRef.current = requestAnimationFrame(loop)
+      if (!sourceReadyRef.current || !canvas.width || !canvas.height) return
 
       const w = canvas.width
       const h = canvas.height
-      ctx.clearRect(0, 0, w, h)
+      // Attribute this channel's share of the frame — an SVG filter pass over a
+      // full canvas is the most expensive thing the app does per channel.
+      const t0 = performance.now()
 
       if (variantType === 'displacement' && filterId) {
+        ctx.clearRect(0, 0, w, h)
         ctx.save()
         ctx.filter = `url(#${filterId})`
         ctx.translate(w / 2, h / 2)
@@ -124,6 +139,14 @@ export default function useDomCaptureCanvas({
       } else if (variantType === 'movement' && imgElementRef?.current) {
         const style = window.getComputedStyle(imgElementRef.current)
         const matrix = new DOMMatrix(style.transform || 'none')
+        /* Dirty check: the movement path redraws the SAME frame while the
+           transform is unchanged (paused, or between GSAP steps). Identical
+           matrix in, identical pixels out — so skip the draw entirely. The
+           clear above is deferred with it, or the canvas would blank. */
+        const sig = `${matrix.a},${matrix.b},${matrix.c},${matrix.d},${w},${h},${sourceImage}`
+        if (sig === lastSigRef.current) return
+        lastSigRef.current = sig
+        ctx.clearRect(0, 0, w, h)
         ctx.save()
         ctx.translate(w / 2, h / 2)
         ctx.transform(matrix.a, matrix.b, matrix.c, matrix.d, 0, 0)
@@ -131,8 +154,7 @@ export default function useDomCaptureCanvas({
         drawCover(ctx, sourceImgRef.current, w, h)
         ctx.restore()
       }
-
-      rafRef.current = requestAnimationFrame(loop)
+      if (channelIndex != null) markChannel(channelIndex, performance.now() - t0)
     }
 
     rafRef.current = requestAnimationFrame(loop)

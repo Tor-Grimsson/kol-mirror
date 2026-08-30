@@ -12,7 +12,7 @@ export default function MobileHeader({ onMenuToggle }) {
       >
         <Icon name="menu" size={20} />
       </button>
-      <span className="kol-helper-xs text-fg-64 ml-3">Hall of Mirrors</span>
+      <span className="kol-helper-12 text-fg-64 ml-3">Hall of Mirrors</span>
     </header>
   )
 }

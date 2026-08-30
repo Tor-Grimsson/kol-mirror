@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FlipIcon } from './ChannelPatchPanel'
 import { Icon } from '../icons'
 import Slider from '../atoms/Slider'
 import Divider from '../atoms/Divider'
@@ -31,14 +32,16 @@ function MatrixColumn({ header, headerStyle, rows, dividerAfter = -1, width = 64
 function ChannelButton({ label, enabled, accent = '#e74c3c', onClick }) {
   return (
     <div
-      className={`kol-helper-xxs select-none flex items-center justify-center uppercase ${onClick ? 'cursor-pointer' : ''}`}
+      className={`kol-helper-10 select-none flex items-center justify-center uppercase ${onClick ? 'cursor-pointer' : ''}`}
       style={{ height: '20px', padding: '0 8px', borderRadius: '2px', border: `1px solid ${enabled ? accent : 'var(--kol-fg-16)'}`, color: enabled ? accent : 'var(--kol-fg-32)' }}
       onClick={onClick}
     >{label}</div>
   )
 }
 
-export default function RoutingMatrix({ channels = [], onChannelUpdate, master, onMasterChange }) {
+/* `flipped` + `back` — the flip is the module's and turns only its panel, not
+   its Channel Output shelf (user 2026-08-28: "only flip the front panel"). */
+export default function RoutingMatrix({ channels = [], onChannelUpdate, master, onMasterChange, onFlip, flipped = false, back = null }) {
   const [shelfOpen, setShelfOpen] = useState(false)
   const [shelfTab, setShelfTab] = useState('output')
 
@@ -50,14 +53,21 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
   const dividerAfterRow = chCount // divider between ch rows and rtn rows
 
   return (
-    <div className="flex flex-row items-stretch shrink-0" style={{ overflow: 'visible', maxHeight: '100%' }}>
-      <div className="flex flex-col shrink-0" style={{ maxHeight: '100%' }}>
+    <div className="flex flex-row items-stretch shrink-0" style={{ overflow: 'visible', height: '100%', maxHeight: '100%' }}>
+      <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%' }}>
+        {/* only THIS — header + matrix — turns; Channel Output stays put */}
+        <div className="mirror-flip-scene flex flex-col" style={{ flex: 1, minHeight: 0 }}>
+        <div className={`mirror-flip-inner flex flex-col ${flipped ? 'is-flipped' : ''}`} style={{ flex: 1, minHeight: 0 }}>
+        <div className="mirror-flip-front flex flex-col" style={{ flex: 1, minHeight: 0 }}>
         {/* Header */}
-        <div className="flex items-center justify-between kol-helper-xs mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
+        <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
           <span className="text-fg-96">Routing Matrix</span>
-          <span className="text-fg-96 cursor-pointer select-none" onClick={() => {
-            channels.forEach((_, i) => onChannelUpdate(i, { routeFrom: null, routeSendLevels: {} }))
-          }}>Reset</span>
+          <span className="flex items-center gap-3">
+            <span className="text-fg-96 cursor-pointer select-none" onClick={() => {
+              channels.forEach((_, i) => onChannelUpdate(i, { routeFrom: null, routeSendLevels: {} }))
+            }}>Reset</span>
+            <FlipIcon onFlip={onFlip} title="Flip to patch bay" />
+          </span>
         </div>
 
         {/* Card body */}
@@ -76,7 +86,11 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                   ...channels.map((ch, i) => {
                     const BUS_SOURCES = ['rtn1', 'rtn2', 'aux1', 'aux2', 'fx1', 'fx2']
                     const BUS_LABELS = { rtn1: 'RTN 1', rtn2: 'RTN 2', aux1: 'AUX 1', aux2: 'AUX 2', fx1: 'FX 1', fx2: 'FX 2' }
-                    const sources = [null, ...channels.map((_, j) => j).filter(j => j !== i), ...BUS_SOURCES]
+                    /* Self INCLUDED (2026-08-27): the patch bay allows Ch n -> Ch n and the
+                       engine reads a cycle as last frame's buffer, so filtering it out here
+                       made two UIs disagree about the same state. A mixer allows the
+                       connection; it does not argue about it. */
+                    const sources = [null, ...channels.map((_, j) => j), ...BUS_SOURCES]
                     const currentIdx = sources.indexOf(ch.routeFrom)
                     const rf = ch.routeFrom
                     const label = rf == null ? `Ch ${i + 1}` : (typeof rf === 'string' ? (BUS_LABELS[rf] || rf) : `Ch ${rf + 1}`)
@@ -144,13 +158,13 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                 rows={[
                   ...channels.map((ch, i) => (
                     <div
-                      className={`kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border ${ch.routeSendLevels?.[i] > 0 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+                      className={`kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase border ${ch.routeSendLevels?.[i] > 0 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
                       style={{ height: '20px', padding: '0 6px', borderRadius: '2px' }}
                       onClick={() => onChannelUpdate(i, { routeSendLevels: { ...(ch.routeSendLevels || {}), [i]: ch.routeSendLevels?.[i] > 0 ? 0 : 50 } })}
                     >FB</div>
                   )),
-                  <div className="kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow" style={{ height: '20px', padding: '0 6px', borderRadius: '2px' }}>FB</div>,
-                  <div className="kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow" style={{ height: '20px', padding: '0 6px', borderRadius: '2px' }}>FB</div>,
+                  <div className="kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase border border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow" style={{ height: '20px', padding: '0 6px', borderRadius: '2px' }}>FB</div>,
+                  <div className="kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase border border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow" style={{ height: '20px', padding: '0 6px', borderRadius: '2px' }}>FB</div>,
                 ]}
               />
             </div>
@@ -169,9 +183,14 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
           </div>
         </div>
 
+        </div>
+        <div className="mirror-flip-back" style={{ overflow: 'auto' }}>{back}</div>
+        </div>
+        </div>
+
         {/* Bottom section — Channel Output */}
         <div className="flex flex-col mx-2 border border-fg-08 border-t-0 bg-surface-tertiary" style={{ borderRadius: '0 0 4px 4px', height: '124px', paddingTop: '4px' }}>
-          <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 kol-helper-xs">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 kol-helper-12">
             <span className="text-fg-96 uppercase">Channel Output</span>
           </div>
           <div className="flex items-stretch flex-1 gap-4 px-2 py-2">
@@ -204,7 +223,7 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
       {/* Shelf — Channel Output detail */}
       {shelfOpen && (
         <div
-          className="flex flex-col px-4 pt-3 pb-4 border border-fg-08 kol-helper-xs relative self-stretch"
+          className="flex flex-col px-4 pt-3 pb-4 border border-fg-08 kol-helper-12 relative self-stretch"
           style={{ borderRadius: '0 4px 4px 0', backgroundColor: 'var(--kol-surface-tertiary)', width: '280px', marginLeft: '-12px', paddingLeft: '28px' }}
         >
           <div className="flex items-center gap-3 pb-2 mb-2 -mx-4 px-4 border-b border-fg-08">
@@ -217,9 +236,9 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
               {channels.map((ch, i) => (
                 <div key={i} className="flex flex-col gap-2">
                   <div className="flex items-center justify-between" style={{ height: '24px' }}>
-                    <span className={`kol-helper-xs ${ch.enabled ? 'text-fg-96' : 'text-fg-32'}`}>Ch {i + 1}</span>
+                    <span className={`kol-helper-12 ${ch.enabled ? 'text-fg-96' : 'text-fg-32'}`}>Ch {i + 1}</span>
                     <span
-                      className={`kol-helper-xs cursor-pointer select-none ${ch.enabled ? 'text-fg-96' : 'text-fg-32'}`}
+                      className={`kol-helper-12 cursor-pointer select-none ${ch.enabled ? 'text-fg-96' : 'text-fg-32'}`}
                       onClick={() => onChannelUpdate(i, { enabled: !ch.enabled })}
                     >
                       {ch.enabled ? 'ON' : 'OFF'}
@@ -235,7 +254,7 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                     formatValue={(v) => `${Math.round(v)}%`}
                     variant="minimal"
                   />
-                  <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+                  <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
                     <span className="text-fg-96">Blend</span>
                     <Dropdown
                       options={[

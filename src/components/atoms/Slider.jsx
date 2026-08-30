@@ -45,7 +45,7 @@ const Slider = ({
   }
 
   const isDual = variant === 'dual'
-  const variantClass = (variant === 'minimal' || isDual) ? 'control-slider-minimal' : 'control-slider'
+  const variantClass = (variant === 'minimal' || isDual) ? 'mirror-slider-minimal' : 'mirror-slider'
   const decimals = useMemo(() => {
     if (formatValue) return null
     if (!Number.isFinite(step)) return 0
@@ -84,13 +84,13 @@ const Slider = ({
     return (
       <div className={`${variantClass} gap-3 shadow-none ${className}`}>
         {label && (
-          <label className="kol-helper-xs whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
+          <label className="kol-helper-12 whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
             {label}
           </label>
         )}
         <div className="flex-1">
           {showLabels && (
-            <div className="flex items-center justify-between kol-helper-xs text-fg-32" style={{ marginBottom: '-2px' }}>
+            <div className="flex items-center justify-between kol-helper-12 text-fg-32" style={{ marginBottom: '-2px' }}>
               <span>{label1 || fmt(v1)}</span>
               <span>{label2 || fmt(v2)}</span>
             </div>
@@ -112,13 +112,13 @@ const Slider = ({
             <input
               type="range" min={min} max={max} step={step} value={v1}
               onChange={(e) => { const n = Number(e.target.value); onChange && onChange(Math.min(n, v2)) }}
-              className="dual-range-in"
+              className="mirror-range-in"
               style={{ position: 'absolute', inset: 0, width: '100%', pointerEvents: 'none', appearance: 'none', background: 'transparent', zIndex: 1 }}
             />
             <input
               type="range" min={min} max={max} step={step} value={v2}
               onChange={(e) => { const n = Number(e.target.value); onChange2 && onChange2(Math.max(n, v1)) }}
-              className="dual-range-out"
+              className="mirror-range-out"
               style={{ position: 'absolute', inset: 0, width: '100%', pointerEvents: 'none', appearance: 'none', background: 'transparent', zIndex: 2 }}
             />
           </div>
@@ -132,7 +132,7 @@ const Slider = ({
   return (
     <div className={`${variantClass} gap-3 shadow-none ${className}`} onClick={(e) => { if (e.altKey && onChange) { e.preventDefault(); onChange(defaultValue ?? min) } }}>
       {label && (
-        <label className="kol-helper-xs whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
+        <label className="kol-helper-12 whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
           {label}
         </label>
       )}
@@ -143,9 +143,9 @@ const Slider = ({
         step={step}
         value={value}
         onChange={handleChange}
-        className="slider-black flex-1 w-full cursor-pointer"
+        className="mirror-slider-track flex-1 w-full cursor-pointer"
       />
-      {displayValue != null && <span className="kol-helper-xs text-right shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
+      {displayValue != null && <span className="kol-helper-12 text-right shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
         {displayValue}
       </span>}
     </div>

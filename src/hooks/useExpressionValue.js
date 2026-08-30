@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { transport } from './transport'
 
 function isExpression(str) {
   return /[a-df-zA-DF-Z]/.test(str)
@@ -36,7 +37,6 @@ export default function useExpressionValue({ onChange, min = 0, max = 100, busRe
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const rafRef = useRef(null)
-  const startRef = useRef(null)
   const frameRef = useRef(0)
 
   useEffect(() => {
@@ -44,11 +44,9 @@ export default function useExpressionValue({ onChange, min = 0, max = 100, busRe
     const busKeys = busRef?.current ? Object.keys(busRef.current) : []
     const fn = compile(expr, busKeys)
     if (!fn) { setExpr(null); return }
-    const start = startRef.current ?? performance.now() / 1000
-    startRef.current = start
     frameRef.current = 0
     const tick = () => {
-      const t = performance.now() / 1000 - start
+      const t = transport.now()
       const f = frameRef.current++
       try {
         const raw = fn(t, f, min, max, busRef?.current)
@@ -71,7 +69,6 @@ export default function useExpressionValue({ onChange, min = 0, max = 100, busRe
       setExpr(null)
       currentOnChange(Math.round(n))
     } else {
-      startRef.current = performance.now() / 1000
       setExpr(trimmed)
     }
   }, [])

@@ -1,3 +1,5 @@
+import { ICON_CACHE } from './iconCache'
+
 /**
  * Icon Component
  *
@@ -10,15 +12,6 @@
  * @param {Object} props.style - Inline styles
  * @param {ReactNode} props.children - Optional: Direct SVG path content for custom icons
  */
-const svgModules = import.meta.glob('./svg/**/*.svg', { eager: true, query: '?raw', import: 'default' })
-
-const ICON_CACHE = Object.entries(svgModules).reduce((acc, [path, svgContent]) => {
-  const fileName = path.split('/').pop() || ''
-  const iconName = fileName.replace('.svg', '')
-  acc[iconName] = svgContent
-  return acc
-}, {})
-
 const normalizeSize = (value) => {
   if (typeof value === 'number') {
     return `${value}px`

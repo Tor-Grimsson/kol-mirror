@@ -26,6 +26,12 @@ dist-ssr
 a_torg/
 .claude/
 docs/
+_tmp/
+
+# Agent context + docs framework (scaffold-llm-context / scaffold-docs-system)
+.kol/
+
+# Agent boot symlink (scaffold-llm-context)
 LLM_RULES.md
 
 # Playwright
@@ -34,3 +40,7 @@ LLM_RULES.md
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Ephemeral agent state — per-session goal file (/kol-goal)
+.kol/llm-context/.active-goal*.md
+.playwright-mcp/

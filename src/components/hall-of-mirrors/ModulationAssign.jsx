@@ -33,13 +33,13 @@ export default function ModulationAssign({ x, y, currentSource, onSelect, onClos
         padding: '2px 0',
       }}
     >
-      <div className="kol-helper-xxs text-fg-32 px-2 py-1" style={{ borderBottom: '1px solid var(--kol-fg-08)' }}>
+      <div className="kol-helper-10 text-fg-32 px-2 py-1" style={{ borderBottom: '1px solid var(--kol-fg-08)' }}>
         Modulation
       </div>
       {sources.map((src) => (
         <div
           key={src.id}
-          className={`kol-helper-xs px-2 py-1 cursor-pointer hover:bg-fg-08 ${currentSource === src.id ? 'text-accent-primary' : 'text-fg-96'}`}
+          className={`kol-helper-12 px-2 py-1 cursor-pointer hover:bg-fg-08 ${currentSource === src.id ? 'text-accent-primary' : 'text-fg-96'}`}
           onClick={() => {
             onSelect(src.id === 'none' ? null : src.id)
             onClose()

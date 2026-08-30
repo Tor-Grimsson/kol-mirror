@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kind": "expression",
+  "name": "Wobble ride",
+  "description": "A slow dramatic ease with a fast triangle wobble, lifted by 25.",
+  "tags": [
+    "ease",
+    "tri",
+    "slow"
+  ],
+  "data": {
+    "expr": "ease(t*0.5, 4)*0.5 + tri(t*6)*0.2 + 25"
+  }
+}

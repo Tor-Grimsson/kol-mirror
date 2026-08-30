@@ -6,18 +6,32 @@ import Divider from '../atoms/Divider'
 import VariantControls from '../mirror/VariantControls'
 import { findVariant, filterControlsByTab, CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
 import RotaryDial from './RotaryDial'
+import ChannelPatchPanel, { MasterPatchPanel, RoutingPatchPanel, FlipIcon } from './ChannelPatchPanel'
+import PlaybackModule from './PlaybackModule'
+import PatchCableOverlay, { PatchJacksProvider } from './PatchCableOverlay'
+import useEmblaCarousel from 'embla-carousel-react'
+import { WheelGesturesPlugin } from 'embla-carousel-wheel-gestures'
 import ColorPicker from '../atoms/ColorPicker'
 import ChannelWireDiagram from './ChannelWireDiagram'
 import MasterModule from './MasterModule'
 import RoutingMatrix from './RoutingMatrix'
+import GeneratorModule from './modules/GeneratorModule'
 import ExpressionReference from './ExpressionReference'
 import Dropdown from '../molecules/Dropdown'
-import processImageUpload from '../../utils/processImageUpload'
+import GrabEdge from '../GrabEdge'
+import MediaBrowser from './MediaBrowser'
+import useFileDrop from '../../hooks/useFileDrop'
+import LoadUnit from './LoadUnit'
+import RecorderUnit from './RecorderUnit'
+import FxUnit from './FxUnit'
+import { SourceTab, ResolutionTab } from './SourceUnit'
+import ChannelModules from './ChannelModules'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
 
 const DEFAULT_SVG_SRC = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
 
-export const CSS_BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity']
+import { CSS_BLEND_MODES } from './blendOptions'
+export { CSS_BLEND_MODES }
 
 const VECTOR_SHAPES = [
   { value: 'shape-01', label: 'S-01' },
@@ -98,7 +112,7 @@ function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
             {items?.map((item, index) => (
               <div
                 key={item.id}
-                className={`kol-helper-xs px-2 py-1 transition-all ${
+                className={`kol-helper-12 px-2 py-1 transition-all ${
                   item.empty || item.type === 'separator'
                     ? 'text-fg-32 cursor-default'
                     : 'text-fg-64 hover:text-fg-96 hover:bg-surface-secondary cursor-pointer'
@@ -120,7 +134,14 @@ function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
   )
 }
 
-function Channel({
+/* exported for /mixer, which shows the real strip as its card front rather
+   than a drawing of one (user 2026-08-28: "this is the front, not what you put
+   in") */
+export function Channel({
+  onShelfChange,
+  onFlip,
+  flipped = false,
+  patchPanel,
   value,
   onChange,
   enabled,
@@ -241,31 +262,25 @@ function Channel({
     }
   }
 
-  const blendPreviewRef = useRef(null)
   const [showRemove, setShowRemove] = useState(false)
-  const [shelfOpen, setShelfOpen] = useState(false)
+  const [shelfOpen, setShelfOpenRaw] = useState(false)
+  /* Reported up because the SLIDE is what has to lift, not this card: sibling
+     slides paint in track order, so the shelf rendered behind channel 2 however
+     high its own z-index went. The parent puts the z-index on the slide. */
+  const setShelfOpen = (v) => { setShelfOpenRaw(v); onShelfChange?.(v) }
   const [shelfPage, setShelfPage] = useState(0)
   const [shelfTab, setShelfTab] = useState('params') // 'src' | 'res' | 'load' | 'params' | 'rec'
-  const [randomized, setRandomized] = useState(() => {
-    const rdm = () => `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}`
-    return { color: rdm(), blend: rdm(), blur: rdm(), brightness: rdm(), vector: rdm(), scale: rdm() }
-  })
-  const [recLoopLength, setRecLoopLength] = useState(10)
-  const [recFps, setRecFps] = useState(60)
-  const [recRealTime, setRecRealTime] = useState(true)
-  const [recInfoOpen, setRecInfoOpen] = useState(new Set())
+  const { dragging: dropActive, handlers: dropHandlers } = useFileDrop(onMediaChange)
+  // Recorder transport settings moved with RecorderUnit — nothing else read them.
   const [fxOpen, setFxOpen] = useState(true)
   const [shelfWidth, setShelfWidth] = useState(280)
   const shelfDragging = useRef(false)
   const shelfStartX = useRef(0)
   const shelfStartW = useRef(0)
-  const mediaFileRef = useRef(null)
-  const mediaRecolorRef = useRef(null)
 
   useEffect(() => {
     if (fxOpenAllTick && fxOpenAllTick.tick > 0) setFxOpen(fxOpenAllTick.open)
   }, [fxOpenAllTick?.tick])
-  const [fxTab, setFxTab] = useState('color') // 'color' | 'blend' | 'fx'
 
   const onShelfDragStart = useCallback((e) => {
     e.preventDefault()
@@ -298,9 +313,27 @@ function Channel({
   }, [])
 
   return (
-    <div className="flex flex-row items-stretch shrink-0" style={{ overflow: 'visible' }}>
+    /* Drop an image or a video anywhere on the card — the fastest path from a
+       file to the mixer. Highlight on drag, so the target is obvious. */
+    <div
+      className="flex flex-row items-stretch shrink-0 relative"
+      /* The card lifts while its shelf is open. The shelf's own z-index only
+         orders it INSIDE this card; the next slide is a later sibling on the
+         track and paints over it regardless, which put the shelf behind
+         channel 2. Raising the card is what actually wins. */
+      style={{ overflow: 'visible', zIndex: shelfOpen ? 30 : undefined }}
+      {...dropHandlers}
+    >
+      {dropActive && (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center kol-helper-12 border border-accent-primary accentYellow pointer-events-none"
+          style={{ borderRadius: 4, backgroundColor: 'var(--kol-oq-04)' }}
+        >
+          Drop image or video
+        </div>
+      )}
       <div className="flex flex-col shrink-0">
-      <div className="flex items-center justify-between kol-helper-xs mx-2 px-4 py-2 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', width: `${320 - 16}px` }}>
+      <div className="flex items-center justify-between kol-helper-12 mx-2 px-4 py-2 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', width: `${320 - 16}px` }}>
         <span className={`${enabled ? 'text-fg-96' : 'text-fg-32'} truncate group`}>
           {loadedName ? (
             <>
@@ -310,314 +343,164 @@ function Channel({
           ) : (defaultName || '\u00A0')}
           {activeRecSlot != null && <span className="text-fg-32 ml-1">[REC]</span>}
         </span>
-        {onEdit && loadedName && (
-          <span className="flex items-center gap-1 text-fg-96 cursor-pointer select-none shrink-0" onClick={onEdit}>Edit<Icon name="edit" size={12} /></span>
-        )}
+        <span className="flex items-center gap-3 shrink-0">
+          {onEdit && loadedName && (
+            <span className="flex items-center gap-1 text-fg-96 cursor-pointer select-none" onClick={onEdit}>Edit<Icon name="edit" size={12} /></span>
+          )}
+          <FlipIcon onFlip={onFlip} title="Flip to patch bay" />
+        </span>
       </div>
-      <div
-        className="flex flex-col items-center gap-4 p-4 bg-surface-secondary border border-fg-08 relative"
-        style={{
-          borderRadius: '4px',
-          overflow: 'visible',
-          width: '320px',
-          zIndex: 1,
-        }}
-      >
-      <div className="w-full flex items-stretch gap-4">
-        <div className="flex flex-col flex-1 gap-2">
-          <div
-            className="cursor-pointer select-none flex items-center justify-center relative self-start"
-            onClick={() => { setShowRemove(false); onEnabledChange(!enabled) }}
-            onContextMenu={(e) => { e.preventDefault(); setShowRemove(!showRemove) }}
-            title={enabled ? 'ON' : 'OFF'}
-          >
-            {showRemove && onRemove && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowRemove(false)} />
-                <div
-                  className="absolute left-0 top-full mt-1 bg-surface-primary border border-fg-16 z-50 kol-helper-xs px-3 py-1.5 text-fg-64 hover:text-fg-96 hover:bg-surface-secondary cursor-pointer transition-all"
-                  style={{ borderRadius: '4px', whiteSpace: 'nowrap' }}
-                  onClick={(e) => { e.stopPropagation(); setShowRemove(false); onRemove() }}
-                >
-                  Remove Channel
-                </div>
-              </>
-            )}
-            <div className="w-6 h-6 rounded-full border-2 border-fg-48 flex items-center justify-center">
-              <div className={`w-3 h-3 rounded-full transition-all ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-x-2 gap-y-1 flex-1 w-full">
-            <RotaryDial label="INT" value={value} onChange={onChange} size={36} compact />
-            <RotaryDial label="HUE" value={Math.round(getFxValue('hue-rotate', 'angle') / 360 * 100)} onChange={(v) => setFxValue('hue-rotate', 'angle', Math.round(v / 100 * 360))} size={36} compact />
-            <RotaryDial label="SAT" value={Math.round(getFxValue('saturate', 'amount') / 3 * 100)} onChange={(v) => setFxValue('saturate', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-            <RotaryDial label="BRT" value={Math.round(getFxValue('brightness', 'amount') / 3 * 100)} onChange={(v) => setFxValue('brightness', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-            <RotaryDial label="CTR" value={Math.round(getFxValue('contrast', 'amount') / 3 * 100)} onChange={(v) => setFxValue('contrast', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-            <RotaryDial label="BLR" value={Math.round(getFxValue('blur', 'amount') / 20 * 100)} onChange={(v) => setFxValue('blur', 'amount', Math.round(v / 100 * 20 * 10) / 10)} size={36} compact />
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          {[
-            { key: 'src', icon: 'library', title: 'Source' },
-            { key: 'res', icon: 'foundation', title: 'Resolution' },
-            { key: 'load', icon: 'save', title: 'Load' },
-            { key: 'params', icon: 'frequency', title: 'Parameters', iconSize: 18 },
-            { key: 'rec', icon: 'video', title: 'Record' },
-          ].map(btn => (
+      {/* ONLY THE MIDDLE FLIPS (user, 2026-08-27). The header and the FX
+          rack belong to the channel in both states — flipping the whole card
+          took them with it and made the back a different-shaped object. Now the
+          grey body turns over in place and everything around it holds still. */}
+      <div className="mirror-flip-scene" style={{ width: '320px' }}>
+        <div className={`mirror-flip-inner ${flipped ? 'is-flipped' : ''}`}>
+          <div className="mirror-flip-front">
+        <div
+          /* the strip sits a rung BELOW the desk (user 2026-08-28: "make
+             channel strip a little darker"). `--kol-oq-04` is an opaque step
+             down from surface-secondary rather than another translucent wash —
+             the desk already carries the page wash, and stacking a second one
+             lifts the plate instead of sinking it. */
+          className="flex flex-col items-center gap-4 p-4 border border-fg-08 relative"
+          style={{
+            backgroundColor: 'var(--kol-oq-04)',
+            borderRadius: '4px',
+            overflow: 'visible',
+            width: '320px',
+            zIndex: 1,
+          }}
+        >
+        <div className="w-full flex items-stretch gap-4">
+          <div className="flex flex-col flex-1 gap-2">
             <div
-              key={btn.key}
-              className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
-              style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-              onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
-              title={btn.title}
+              className="cursor-pointer select-none flex items-center justify-center relative self-start"
+              onClick={() => { setShowRemove(false); onEnabledChange(!enabled) }}
+              onContextMenu={(e) => { e.preventDefault(); setShowRemove(!showRemove) }}
+              title={enabled ? 'ON' : 'OFF'}
             >
-              <Icon name={btn.icon} size={btn.iconSize || 16} />
+              {showRemove && onRemove && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowRemove(false)} />
+                  <div
+                    className="absolute left-0 top-full mt-1 bg-surface-primary border border-fg-16 z-50 kol-helper-12 px-3 py-1.5 text-fg-64 hover:text-fg-96 hover:bg-surface-secondary cursor-pointer transition-all"
+                    style={{ borderRadius: '4px', whiteSpace: 'nowrap' }}
+                    onClick={(e) => { e.stopPropagation(); setShowRemove(false); onRemove() }}
+                  >
+                    Remove Channel
+                  </div>
+                </>
+              )}
+              <div className="w-6 h-6 rounded-full border-2 border-fg-48 flex items-center justify-center">
+                <div className={`w-3 h-3 rounded-full transition-all ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="w-full flex flex-col" style={{ gap: '4px' }}>
-        <Slider
-          label="Speed"
-          min={0}
-          max={200}
-          step={1}
-          value={randomness}
-          onChange={onRandomnessChange}
-          formatValue={(v) => `${Math.round(v)}%`}
-          className="w-full"
-          variant="minimal"
-        />
-        <Slider
-          label="Opacity"
-          min={0}
-          max={100}
-          step={1}
-          value={opacity}
-          onChange={onOpacityChange}
-          formatValue={(v) => `${Math.round(v)}%`}
-          className="w-full"
-          variant="minimal"
-        />
-        <Divider className="pt-2" />
-        <div className="flex items-end justify-between kol-helper-xs" style={{ height: '24px' }}>
-          <div className="cursor-pointer select-none text-fg-96" onClick={(e) => { onReset && onReset(e.altKey); e.currentTarget.animate([{ color: 'var(--kol-accent-primary)' }, { color: 'var(--kol-surface-on-primary)' }], { duration: 2000, easing: 'ease-out' }) }} title="Reset channel (Alt+click: reset all)">RESET</div>
-          <div className="cursor-pointer select-none" style={{ color: shelfOpen && shelfTab === 'rec' ? '#e74c3c' : 'var(--kol-surface-on-primary)' }} onClick={() => { if (shelfOpen && shelfTab === 'rec') { setShelfOpen(false) } else { setShelfOpen(true); setShelfTab('rec') } }} title="Open REC panel">REC/LOOP</div>
-          <div className="cursor-pointer select-none" style={{ color: boosted ? '#2dd4bf' : 'var(--kol-fg-32)' }} onClick={() => onBoostChange(!boosted)} title="Boost intensity">BOOST</div>
-        </div>
-      </div>
-    </div>
-    {/* FX rack below channel strip, inside column wrapper */}
-    {fxOpen && (
-      <div
-        className="flex flex-col mx-2 border border-fg-08 border-t-0 kol-helper-xs"
-        style={{ borderRadius: '0 0 4px 4px', backgroundColor: 'var(--kol-surface-tertiary)', height: '124px', overflow: 'hidden', width: `${320 - 16}px`, paddingTop: '4px' }}
-      >
-        <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 shrink-0" style={{ backgroundColor: 'var(--kol-surface-tertiary)' }}>
-          <div className="flex items-center gap-3">
-            {['color', 'blend', 'fx', 'fb'].map(tab => (
-              <span
-                key={tab}
-                className={`cursor-pointer select-none uppercase ${fxTab === tab ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`}
-                onClick={() => setFxTab(tab)}
+            <div className="grid grid-cols-3 gap-x-2 gap-y-1 flex-1 w-full">
+              <RotaryDial label="INT" value={value} onChange={onChange} size={36} compact />
+              <RotaryDial label="HUE" value={Math.round(getFxValue('hue-rotate', 'angle') / 360 * 100)} onChange={(v) => setFxValue('hue-rotate', 'angle', Math.round(v / 100 * 360))} size={36} compact />
+              <RotaryDial label="SAT" value={Math.round(getFxValue('saturate', 'amount') / 3 * 100)} onChange={(v) => setFxValue('saturate', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+              <RotaryDial label="BRT" value={Math.round(getFxValue('brightness', 'amount') / 3 * 100)} onChange={(v) => setFxValue('brightness', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+              <RotaryDial label="CTR" value={Math.round(getFxValue('contrast', 'amount') / 3 * 100)} onChange={(v) => setFxValue('contrast', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+              <RotaryDial label="BLR" value={Math.round(getFxValue('blur', 'amount') / 20 * 100)} onChange={(v) => setFxValue('blur', 'amount', Math.round(v / 100 * 20 * 10) / 10)} size={36} compact />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {[
+              { key: 'src', icon: 'library', title: 'Source' },
+              { key: 'res', icon: 'foundation', title: 'Resolution' },
+              { key: 'load', icon: 'save', title: 'Load' },
+              { key: 'params', icon: 'frequency', title: 'Parameters', iconSize: 18 },
+              { key: 'rec', icon: 'video', title: 'Record' },
+            ].map(btn => (
+              <div
+                key={btn.key}
+                className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+                style={{ borderRadius: '4px', width: '28px', height: '28px' }}
+                onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
+                title={btn.title}
               >
-                {tab}
-              </span>
+                <Icon name={btn.icon} size={btn.iconSize || 16} />
+              </div>
             ))}
           </div>
-          {enabled && <span className="kol-helper-xs" style={{ color: renderCost > 80 ? '#e74c3c' : renderCost > 70 ? '#f39c12' : '#2ecc71', animation: renderCost >= 70 ? 'pulse 1s ease-in-out infinite' : 'none' }}>{renderCost}%</span>}
         </div>
-        <div className="flex flex-col gap-2 px-4 py-3" style={{ overflow: 'auto', flex: '1 1 0', minHeight: 0 }}>
-        {fxTab === 'fx' && (
-          <>
-            {fx.map((fxItem, fi) => {
-              const def = CHANNEL_FX_DEFS.find(d => d.id === fxItem.type)
-              const paramKeys = def ? Object.keys(def.params) : []
-              const primaryKey = paramKeys[0]
-              const primarySpec = def?.params[primaryKey]
-              return (
-                <div key={fi} className="flex items-center gap-2" style={{ height: '24px' }}>
-                  <div
-                    className={`w-3 h-3 rounded-full cursor-pointer shrink-0 ${fxItem.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
-                    onClick={() => {
-                      const next = [...fx]
-                      next[fi] = { ...next[fi], enabled: !next[fi].enabled }
-                      onFxChange(next)
-                    }}
-                  />
-                  <select
-                    className="bg-transparent text-fg-96 border-none outline-none kol-helper-xs cursor-pointer"
-                    style={{ width: '64px', fontSize: '11px' }}
-                    value={fxItem.type}
-                    onChange={(e) => {
-                      const next = [...fx]
-                      next[fi] = { type: e.target.value, enabled: fxItem.enabled, params: getDefaultFxParams(e.target.value) }
-                      onFxChange(next)
-                    }}
-                  >
-                    {CHANNEL_FX_DEFS.map(d => (
-                      <option key={d.id} value={d.id}>{d.label}</option>
-                    ))}
-                  </select>
-                  {primarySpec && (
-                    <Slider
-                      label=""
-                      min={primarySpec.min}
-                      max={primarySpec.max}
-                      step={primarySpec.step}
-                      value={fxItem.params[primaryKey] ?? primarySpec.default}
-                      onChange={(v) => {
-                        const next = [...fx]
-                        next[fi] = { ...next[fi], params: { ...next[fi].params, [primaryKey]: v } }
-                        onFxChange(next)
-                      }}
-                      formatValue={(v) => primarySpec.unit ? `${Math.round(v * 100) / 100}${primarySpec.unit}` : `${Math.round(v * 100) / 100}`}
-                      className="flex-1"
-                      variant="minimal"
-                    />
-                  )}
-                  {paramKeys.length > 1 && paramKeys.slice(1).map(pk => {
-                    const spec = def.params[pk]
-                    return (
-                      <Slider
-                        key={pk}
-                        label=""
-                        min={spec.min}
-                        max={spec.max}
-                        step={spec.step}
-                        value={fxItem.params[pk] ?? spec.default}
-                        onChange={(v) => {
-                          const next = [...fx]
-                          next[fi] = { ...next[fi], params: { ...next[fi].params, [pk]: v } }
-                          onFxChange(next)
-                        }}
-                        formatValue={(v) => spec.unit ? `${Math.round(v * 100) / 100}${spec.unit}` : `${Math.round(v * 100) / 100}`}
-                        className="flex-1"
-                        variant="minimal"
-                      />
-                    )
-                  })}
-                  <span
-                    className="text-fg-96 cursor-pointer select-none shrink-0 inline-flex"
-                    onClick={() => {
-                      const next = fx.filter((_, i) => i !== fi)
-                      onFxChange(next)
-                    }}
-                  >
-                    <Icon name="x" size={12} />
-                  </span>
-                </div>
-              )
-            })}
-            {fx.length < MAX_CHANNEL_FX && (
-              <div className="kol-helper-xs text-fg-96 cursor-pointer select-none" style={{ height: '24px', lineHeight: '24px' }} onClick={() => { onFxChange([...fx, { type: 'blur', enabled: true, params: getDefaultFxParams('blur') }]) }}>[+ Add FX]</div>
-            )}
-          </>
-        )}
-        {fxTab === 'blend' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between" style={{ height: '24px' }}>
-              <span className="text-fg-96">Mode</span>
-              <Dropdown
-                options={CSS_BLEND_MODES.map(m => ({ value: m, label: m.charAt(0).toUpperCase() + m.slice(1) }))}
-                value={blendMode}
-                onChange={(v) => { blendPreviewRef.current = null; onBlendModeChange(v) }}
-                onOptionHover={(v) => {
-                  if (v != null) {
-                    if (!blendPreviewRef.current) blendPreviewRef.current = blendMode
-                    onBlendModeChange(v)
-                  } else if (blendPreviewRef.current) {
-                    onBlendModeChange(blendPreviewRef.current)
-                    blendPreviewRef.current = null
-                  }
-                }}
-                variant="minimal"
-                size="md"
-              />
-            </div>
+
+        <div className="w-full flex flex-col" style={{ gap: '4px' }}>
+          <Slider
+            label="Speed"
+            min={0}
+            max={200}
+            step={1}
+            value={randomness}
+            onChange={onRandomnessChange}
+            formatValue={(v) => `${Math.round(v)}%`}
+            className="w-full"
+            variant="minimal"
+          />
+          <Slider
+            label="Opacity"
+            min={0}
+            max={100}
+            step={1}
+            value={opacity}
+            onChange={onOpacityChange}
+            formatValue={(v) => `${Math.round(v)}%`}
+            className="w-full"
+            variant="minimal"
+          />
+          <Divider className="pt-2" />
+          <div className="flex items-end justify-between kol-helper-12" style={{ height: '24px' }}>
+            <div className="cursor-pointer select-none text-fg-96" onClick={(e) => { onReset && onReset(e.altKey); e.currentTarget.animate([{ color: 'var(--kol-accent-primary)' }, { color: 'var(--kol-surface-on-primary)' }], { duration: 2000, easing: 'ease-out' }) }} title="Reset channel (Alt+click: reset all)">RESET</div>
+            <div className="cursor-pointer select-none" style={{ color: shelfOpen && shelfTab === 'rec' ? '#e74c3c' : 'var(--kol-surface-on-primary)' }} onClick={() => { if (shelfOpen && shelfTab === 'rec') { setShelfOpen(false) } else { setShelfOpen(true); setShelfTab('rec') } }} title="Open REC panel">REC/LOOP</div>
+            <div className="cursor-pointer select-none" style={{ color: boosted ? '#2dd4bf' : 'var(--kol-fg-32)' }} onClick={() => onBoostChange(!boosted)} title="Boost intensity">BOOST</div>
           </div>
-        )}
-        {fxTab === 'color' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-4" style={{ height: '24px' }}>
-              <div className="flex items-center justify-between flex-1">
-                <span className="text-fg-96">Vector</span>
-                <ColorPicker color={vectorColor} onChange={onVectorColorChange} />
-              </div>
-              <Divider variant="vertical" className="px-4" />
-              <div
-                className="flex items-center justify-between flex-1"
-                onClick={(e) => { if (e.altKey) { e.stopPropagation(); onBackgroundColorChange(backgroundColor === 'transparent' ? '#000000' : 'transparent') } }}
-              >
-                <span className={`${backgroundColor === 'transparent' ? 'text-fg-32' : 'text-fg-96'} select-none`}>Background</span>
-                <ColorPicker color={backgroundColor} onChange={onBackgroundColorChange} />
-              </div>
-            </div>
-            <div className="flex items-center justify-between" style={{ height: '24px' }}>
-              <span className="text-fg-96">Context Color</span>
-              <Dropdown
-                options={[
-                  { value: 'dark', label: 'Dark' },
-                  { value: 'light', label: 'Light' },
-                ]}
-                value={rasterTheme}
-                onChange={onRasterThemeChange}
-                variant="minimal"
-                size="md"
-              />
-            </div>
-          </div>
-        )}
-        {fxTab === 'fb' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2" style={{ height: '24px' }}>
-              <div
-                className={`w-3 h-3 rounded-full cursor-pointer shrink-0 ${feedback?.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
-                onClick={() => onFeedbackChange({ ...feedback, enabled: !feedback?.enabled })}
-              />
-              <span className="text-fg-96">Feedback</span>
-              <div className="flex-1" />
-              <span
-                className={`cursor-pointer select-none ${feedback?.freeze ? 'text-[#2dd4bf]' : 'text-fg-32'}`}
-                onClick={() => onFeedbackChange({ ...feedback, freeze: !feedback?.freeze })}
-              >
-                {feedback?.freeze ? 'FROZEN' : 'FREEZE'}
-              </span>
-            </div>
-            <Slider
-              label="Decay"
-              min={0}
-              max={100}
-              step={1}
-              value={feedback?.decay ?? 80}
-              onChange={(v) => onFeedbackChange({ ...feedback, decay: v })}
-              formatValue={(v) => `${Math.round(v)}%`}
-              className="w-full"
-              variant="minimal"
-            />
-            <Slider
-              label="Mix"
-              min={0}
-              max={100}
-              step={1}
-              value={feedback?.mix ?? 50}
-              onChange={(v) => onFeedbackChange({ ...feedback, mix: v })}
-              formatValue={(v) => `${Math.round(v)}%`}
-              className="w-full"
-              variant="minimal"
-            />
-          </div>
-        )}
         </div>
       </div>
+          </div>
+          <div className="mirror-flip-back" style={{ overflowY: 'auto', scrollbarWidth: 'none' }}>
+            {patchPanel}
+          </div>
+        </div>
+      </div>
+    {/* FX rack — COLOR · BLEND · FX · FB, extracted as a unit (2026-08-27) */}
+    {fxOpen && (
+      <FxUnit
+        fx={fx}
+        onFxChange={onFxChange}
+        enabled={enabled}
+        renderCost={renderCost}
+        blendMode={blendMode}
+        onBlendModeChange={onBlendModeChange}
+        vectorColor={vectorColor}
+        onVectorColorChange={onVectorColorChange}
+        backgroundColor={backgroundColor}
+        onBackgroundColorChange={onBackgroundColorChange}
+        rasterTheme={rasterTheme}
+        onRasterThemeChange={onRasterThemeChange}
+        feedback={params?.feedback}
+        onFeedbackChange={onFeedbackChange}
+      />
     )}
     </div>{/* close column wrapper */}
-    {/* Shelf — expands to the right */}
+    {/* Shelf — OVERLAYS to the right, it does not push (user 2026-08-28: "can we
+        stop matrix from reacting to channel being open"). It used to be a flex
+        sibling taking real width, so opening it grew the slide 336 → 604 and
+        shoved everything downstream on the track the same 268px — Master and
+        Routing included. Absolutely positioned against the card (already
+        `relative`, already `overflow: visible`), so the desk behind it does not
+        move; it covers the next strip while open, which is the trade. */}
     {shelfOpen && (
       <div
-        className="flex flex-col px-4 pt-3 pb-4 border border-fg-08 kol-helper-xs relative self-stretch"
-        style={{ borderRadius: '0 4px 4px 0', backgroundColor: 'var(--kol-surface-tertiary)', width: `${shelfWidth}px`, marginLeft: '-12px', paddingLeft: '28px' }}
+        className="flex flex-col px-4 pt-3 pb-4 border border-fg-08 kol-helper-12"
+        style={{
+          position: 'absolute', left: '100%', top: 0, bottom: 0, zIndex: 20,
+          marginLeft: '-12px',
+          borderRadius: '0 4px 4px 0',
+          backgroundColor: 'var(--kol-surface-tertiary)',
+          width: `${shelfWidth}px`,
+          paddingLeft: '28px',
+        }}
       >
         {/* Shelf tab bar */}
         <div className="flex items-center gap-3 pb-2 mb-2 -mx-4 px-4 border-b border-fg-08">
@@ -641,177 +524,21 @@ function Channel({
         </div>
         <div style={{ overflow: 'auto', flex: '1 1 0', minHeight: 0, scrollbarWidth: 'none' }}>
 
-        {shelfTab === 'load' && (() => {
-          const memoryItems = items?.filter(i => i.type === 'slot' && !i.empty) || []
-          const dispItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Displacement')) || []
-          const moveItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Movement')) || []
-          const copyItems = items?.filter(i => i.type === 'preset' && i.name?.startsWith('Copies')) || []
-          const genItems = items?.filter(i => i.type === 'generator') || []
-          const loadGroups = [
-            { key: 'memory', label: 'Memory', items: memoryItems },
-            { key: 'displacement', label: 'Displacement', items: dispItems },
-            { key: 'movement', label: 'Movement', items: moveItems },
-            { key: 'copies', label: 'Copies', items: copyItems },
-            { key: 'generators', label: 'Generators', items: genItems },
-          ]
-          return (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                <span className="text-fg-96">Loaded</span>
-                <span className="flex items-center gap-2">
-                  <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => {
-                    const all = items?.filter(i => !i.empty && i.type !== 'separator') || []
-                    if (all.length) onSelectItem(all[Math.floor(Math.random() * all.length)].id)
-                    const v = ALL_VECTORS[Math.floor(Math.random() * ALL_VECTORS.length)]
-                    loadVectorSvg(v.value, onMediaChange)
-                  }}><Icon name="refresh" size={12} /></span>
-                  <Dropdown
-                    options={[
-                      ...(loadedName ? [{ value: 'current', label: loadedName.split(': ').map((part, i) => i === 0 ? part[0] : part.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1, 3)).join(' ')).join(':') }] : []),
-                      { value: 'random', label: 'Random' },
-                      { value: 'clear', label: 'Clear' },
-                    ]}
-                    value={loadedName ? 'current' : ''}
-                    onChange={(v) => {
-                      if (v === 'random') {
-                        const all = items?.filter(i => !i.empty && i.type !== 'separator') || []
-                        if (all.length) onSelectItem(all[Math.floor(Math.random() * all.length)].id)
-                      } else if (v === 'clear') {
-                        onMediaChange({ variantId: null, params: {}, slotIndex: null, name: null, customImageSrc: null, customRasterSrc: null, customImageName: null })
-                      }
-                    }}
-                    variant="minimal"
-                    size="md"
-                    placeholder="Random"
-                    keepOpen
-                  />
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                <span className="text-fg-96">Reloaded</span>
-                <span className="flex items-center gap-2">
-                  <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => onReloaded && onReloaded(null)}><Icon name="refresh" size={12} /></span>
-                  <Dropdown
-                    options={[
-                      { value: 'all', label: 'All' },
-                      ...Array.from({ length: channelCount }, (_, ci) => ({ value: `ch-${ci}`, label: `Ch ${ci + 1}`, enabled: channelEnabled[ci] })),
-                    ]}
-                    value=""
-                    onChange={(v) => {
-                      if (v === 'all') { onReloaded && onReloaded(null) }
-                      else { onReloaded && onReloaded(parseInt(v.replace('ch-', ''))) }
-                    }}
-                    renderOption={(option) => (
-                      <span className="flex items-center justify-between w-full">
-                        <span>{option.label}</span>
-                        {option.enabled !== undefined && (
-                          <span className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onToggleChannel && onToggleChannel(parseInt(option.value.replace('ch-', ''))) }}>
-                            <Icon name={option.enabled ? 'eye-on' : 'eye-off'} size={12} />
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    variant="minimal"
-                    size="md"
-                    placeholder="Random"
-                    keepOpen
-                  />
-                </span>
-              </div>
-              <Divider className="my-1" />
-              {loadGroups.map(group => {
-                const selected = loadedName ? group.items.find(i => i.name === loadedName) : null
-                return (
-                <div key={group.key} className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                  <span className="text-fg-96">{group.label}</span>
-                  <Dropdown
-                    options={group.items.map(i => {
-                      if (i.type === 'slot') {
-                        const m = i.name.match(/^\[M(\d+)\]\s*(\w)\w*:\s*(.+?)(?:\s*\[USR\])?$/)
-                        if (m) {
-                          const initials = m[3].split(/[\s-]+/).map(w => w[0]?.toUpperCase()).join('')
-                          return { value: i.id, label: `[M${m[1]}] ${m[2]}:${initials}` }
-                        }
-                        return { value: i.id, label: i.name }
-                      }
-                      const full = i.name?.split(': ').slice(1).join(': ') || i.name
-                      return { value: i.id, label: full.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1, 3)).join(' ') }
-                    })}
-                    value={selected ? selected.id : ''}
-                    onChange={(v) => onSelectItem(v)}
-                    variant="minimal"
-                    size="md"
-                    placeholder="—"
-                    keepOpen
-                  />
-                </div>
-                )
-              })}
-              <Divider className="my-1" />
-              {[
-                { key: 'color', label: 'Color', onRandom: () => { const r = () => Math.floor(Math.random() * 256); onVectorColorChange(`rgba(${r()},${r()},${r()},1)`); onBackgroundColorChange(`rgba(${r()},${r()},${r()},1)`); setRandomized(p => ({ ...p, color: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onVectorColorChange('currentColor'); onBackgroundColorChange('transparent'); setRandomized(p => ({ ...p, color: null })) } },
-                { key: 'blend', label: 'Blend', onRandom: () => { onBlendModeChange(CSS_BLEND_MODES[Math.floor(Math.random() * CSS_BLEND_MODES.length)]); setRandomized(p => ({ ...p, blend: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onBlendModeChange('normal'); setRandomized(p => ({ ...p, blend: null })) } },
-                { key: 'blur', label: 'Blur', onRandom: () => { const amt = +(Math.random() * 5).toFixed(1); onFxChange([...fx.filter(f => f.type !== 'blur'), { type: 'blur', enabled: true, params: { amount: amt } }]); setRandomized(p => ({ ...p, blur: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onFxChange(fx.filter(f => f.type !== 'blur')); setRandomized(p => ({ ...p, blur: null })) } },
-                { key: 'brightness', label: 'Brightness', onRandom: () => { const b = +(0.5 + Math.random() * 2).toFixed(2); const c = +(0.5 + Math.random() * 2).toFixed(2); onFxChange([...fx.filter(f => f.type !== 'brightness' && f.type !== 'contrast'), { type: 'brightness', enabled: true, params: { amount: b } }, { type: 'contrast', enabled: true, params: { amount: c } }]); setRandomized(p => ({ ...p, brightness: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onFxChange(fx.filter(f => f.type !== 'brightness' && f.type !== 'contrast')); setRandomized(p => ({ ...p, brightness: null })) } },
-              ].map(row => (
-                <div key={row.key} className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                  <span className="text-fg-96">{row.label}</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => row.onRandom()}><Icon name="refresh" size={12} /></span>
-                    <Dropdown options={[{ value: 'random', label: 'Random' }, ...(row.extraOptions || []), { value: 'clear', label: 'Clear' }]} value="" onChange={(v) => { if (v === 'random') { row.onRandom(); } else if (v === 'clear') { row.onClear() } else if (row.onExtra) { row.onExtra(v) } }} variant="minimal" size="md" placeholder={randomized[row.key] || 'Random'} keepOpen />
-                  </span>
-                </div>
-              ))}
-              <Divider className="my-1" />
-              {[
-                { key: 'vector', label: 'Vector', onRandom: () => { const v = ALL_VECTORS[Math.floor(Math.random() * ALL_VECTORS.length)]; loadVectorSvg(v.value, onMediaChange); setRandomized(p => ({ ...p, vector: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onMediaChange({ customImageSrc: null, customRasterSrc: null, customImageName: null }); setRandomized(p => ({ ...p, vector: null })) }, extraOptions: [{ value: 'shapes', label: '[Shapes]' }, { value: 'forms', label: '[Forms]' }], onExtra: (v) => { const pool = v === 'shapes' ? VECTOR_SHAPES : VECTOR_FORMS; const pick = pool[Math.floor(Math.random() * pool.length)]; loadVectorSvg(pick.value, onMediaChange); setRandomized(p => ({ ...p, vector: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) } },
-                { key: 'scale', label: 'Scale', onRandom: () => { onMediaChange({ vectorPadding: Math.floor(Math.random() * 41) }); setRandomized(p => ({ ...p, scale: `RDM-${String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')}` })) }, onClear: () => { onMediaChange({ vectorPadding: 0 }); setRandomized(p => ({ ...p, scale: null })) } },
-              ].map(row => (
-                <div key={row.key} className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                  <span className="text-fg-96">{row.label}</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => row.onRandom()}><Icon name="refresh" size={12} /></span>
-                    <Dropdown options={[{ value: 'random', label: 'Random' }, ...(row.extraOptions || []), { value: 'clear', label: 'Clear' }]} value="" onChange={(v) => { if (v === 'random') { row.onRandom(); } else if (v === 'clear') { row.onClear() } else if (row.onExtra) { row.onExtra(v) } }} variant="minimal" size="md" placeholder={randomized[row.key] || 'Random'} keepOpen />
-                  </span>
-                </div>
-              ))}
-              <Divider className="my-1" />
-              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                <span className="text-fg-96">Shapes</span>
-                <Dropdown
-                  options={VECTOR_SHAPES}
-                  value={randomized.selectedShape || ''}
-                  onChange={(v) => { loadVectorSvg(v, onMediaChange); setRandomized(p => ({ ...p, selectedShape: v, selectedForm: '', selectedLogo: '' })) }}
-                  variant="minimal"
-                  size="md"
-                  placeholder="—"
-                />
-              </div>
-              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                <span className="text-fg-96">Forms</span>
-                <Dropdown
-                  options={VECTOR_FORMS}
-                  value={randomized.selectedForm || ''}
-                  onChange={(v) => { loadVectorSvg(v, onMediaChange); setRandomized(p => ({ ...p, selectedForm: v, selectedShape: '', selectedLogo: '' })) }}
-                  variant="minimal"
-                  size="md"
-                  placeholder="—"
-                />
-              </div>
-              <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                <span className="text-fg-96">Logos</span>
-                <Dropdown
-                  options={VECTOR_LOGOS}
-                  value={randomized.selectedLogo || ''}
-                  onChange={(v) => { loadVectorSvg(v, onMediaChange); setRandomized(p => ({ ...p, selectedLogo: v, selectedShape: '', selectedForm: '' })) }}
-                  variant="minimal"
-                  size="md"
-                  placeholder="—"
-                />
-              </div>
-            </div>
-          )
-        })()}
+        {shelfTab === 'load' && (
+          <LoadUnit
+            items={items}
+            loadedName={loadedName}
+            onSelectItem={onSelectItem}
+            onMediaChange={onMediaChange}
+            onVectorColorChange={onVectorColorChange}
+            onBackgroundColorChange={onBackgroundColorChange}
+            onBlendModeChange={onBlendModeChange}
+            fx={fx}
+            onFxChange={onFxChange}
+            vectors={ALL_VECTORS}
+            loadVectorSvg={loadVectorSvg}
+          />
+        )}
 
         {shelfTab === 'params' && controls && params && (() => {
           const ROWS_PER_COL = 14
@@ -865,255 +592,50 @@ function Channel({
         })()}
 
         {shelfTab === 'src' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Recolor</span>
-              <span className="text-fg-96 cursor-pointer select-none flex items-center gap-1" onClick={() => mediaRecolorRef.current?.click()}>Upload <Icon name="upload" size={16} /></span>
-            </div>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Normal</span>
-              <span className="text-fg-96 cursor-pointer select-none flex items-center gap-1" onClick={() => mediaFileRef.current?.click()}>Upload <Icon name="upload" size={16} /></span>
-            </div>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Default</span>
-              <span className="text-fg-96 cursor-pointer select-none flex items-center gap-1" onClick={() => onMediaChange({ customImageSrc: DEFAULT_SVG_SRC, customRasterSrc: null, customImageName: 'default-canvas.svg' })}>Load <Icon name="refresh" size={16} /></span>
-            </div>
-            <Divider className="pt-1 pb-2" />
-            <div className="flex flex-col gap-2">
-              <div className={`w-full border border-fg-08 bg-fg-04 flex items-center justify-center overflow-hidden relative${customImageSrc ? ' group cursor-pointer' : ''}`} style={{ aspectRatio: '5/3', borderRadius: '4px' }} onClick={customImageSrc ? () => onMediaChange({ customImageSrc: null, customRasterSrc: null, customImageName: null }) : undefined}>
-                {customImageSrc && <img src={customImageSrc.startsWith('data:image/svg+xml') ? customImageSrc.replace(/currentColor/g, encodeURIComponent(vectorColor === 'currentColor' ? (document.documentElement.dataset.theme === 'light' ? '#000000' : '#ffffff') : vectorColor)) : customImageSrc} alt="Source" className="transition-opacity group-hover:opacity-30" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />}
-                {customImageSrc && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-fg-96 kol-helper-xs">[Clear]</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-end kol-helper-xs-2" style={{ fontSize: '10px' }}>
-                <span className="text-fg-48 truncate">{customImageName || ''}</span>
-              </div>
-            </div>
-            <Divider className="pt-2 pb-1" />
-            <Slider
-              label="Padding"
-              min={-100}
-              max={100}
-              step={1}
-              value={vectorPadding}
-              onChange={(v) => onMediaChange({ vectorPadding: v })}
-              formatValue={(v) => `${v > 0 ? '+' : ''}${v}%`}
-              variant="minimal"
-            />
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Source</span>
-              <span className="text-fg-96">{customImageSrc ? 'Custom' : 'Global'}</span>
-            </div>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Mode</span>
-              <Dropdown
-                options={[
-                  { value: 'effect', label: 'Effect Only' },
-                  { value: 'source', label: 'Effect + Source' },
-                ]}
-                value={loadMode}
-                onChange={(v) => onMediaChange({ loadMode: v })}
-                variant="minimal"
-                size="md"
-              />
-            </div>
-            <input ref={mediaFileRef} type="file" accept="image/*,.svg" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const r = await processImageUpload(file); onMediaChange({ customImageSrc: r.imageSrc, customRasterSrc: r.rasterSrc, customImageName: file.name }) } catch (_) {} e.target.value = '' }} />
-            <input ref={mediaRecolorRef} type="file" accept="image/svg+xml,.svg" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const r = await processImageUpload(file, { recolor: true }); onMediaChange({ customImageSrc: r.imageSrc, customRasterSrc: r.rasterSrc, customImageName: file.name }) } catch (_) {} e.target.value = '' }} />
-          </div>
+          <SourceTab
+            customImageSrc={customImageSrc}
+            customImageName={customImageName}
+            vectorColor={vectorColor}
+            vectorPadding={vectorPadding}
+            loadMode={loadMode}
+            onMediaChange={onMediaChange}
+            DEFAULT_SVG_SRC={DEFAULT_SVG_SRC}
+          />
         )}
 
         {shelfTab === 'res' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Tier</span>
-              <Dropdown
-                options={[
-                  { value: 'auto', label: 'Auto' },
-                  { value: 'low', label: 'Low (1x)' },
-                  { value: 'mid', label: 'Mid (6x)' },
-                  { value: 'high', label: 'High (12x)' },
-                ]}
-                value={rasterTierOverride || 'auto'}
-                onChange={(v) => onRasterTierOverrideChange(v === 'auto' ? null : v)}
-                variant="minimal"
-                size="md"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Raster Theme</span>
-              <Dropdown
-                options={[
-                  { value: 'dark', label: 'Dark' },
-                  { value: 'light', label: 'Light' },
-                ]}
-                value={rasterTheme}
-                onChange={onRasterThemeChange}
-                variant="minimal"
-                size="md"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Recalculate</span>
-              <span
-                className="text-fg-96 cursor-pointer select-none"
-                onClick={(e) => {
-                  onRecalc && onRecalc()
-                  e.currentTarget.animate([
-                    { color: 'var(--kol-accent-primary)' },
-                    { color: 'var(--kol-surface-on-primary)' }
-                  ], { duration: 2000, easing: 'ease-out' })
-                }}
-              >[RECALC]</span>
-            </div>
-          </div>
+          <ResolutionTab
+            rasterTierOverride={rasterTierOverride}
+            onRasterTierOverrideChange={onRasterTierOverrideChange}
+            rasterTheme={rasterTheme}
+            onRasterThemeChange={onRasterThemeChange}
+            onMediaChange={onMediaChange}
+            onRecalc={onRecalc}
+          />
         )}
 
         {shelfTab === 'rec' && (
-          <div className="flex flex-col gap-2" style={{ flex: '1 1 0', minHeight: 0 }}>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Duration</span>
-              <Dropdown
-                options={[10, 20, 40, 80, 160].map(s => ({ value: s, label: `${s}s` }))}
-                value={recLoopLength}
-                onChange={setRecLoopLength}
-                variant="minimal"
-                size="md"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Framerate</span>
-              <Dropdown
-                options={[30, 60].map(f => ({ value: f, label: `${f}fps` }))}
-                value={recFps}
-                onChange={setRecFps}
-                variant="minimal"
-                size="md"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="text-fg-96">Real-time</span>
-              <span className="cursor-pointer select-none text-fg-96" onClick={() => setRecRealTime(!recRealTime)}>[{recRealTime ? 'ON' : 'OFF'}]</span>
-            </div>
-            <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-              <span className="flex items-center gap-2 cursor-pointer select-none" onClick={() => { if (!recState || recState?.status === 'idle') onArmRecording?.(recLoopLength, recFps); else if (recState?.status === 'armed' || recState?.status === 'recording') onDisarmRecording?.() }}>
-                <span className="text-fg-96">Record</span>
-                <span className="block rounded-full transition-all" style={{ width: 8, height: 8, backgroundColor: (recState?.status === 'armed' || recState?.status === 'recording') ? '#e74c3c' : '#6b2828' }} />
-              </span>
-              <div className="flex items-center gap-2">
-                {(!recState || recState?.status === 'idle') && (
-                  <>
-                    <span className="text-fg-16">[Start]</span>
-                    <span className="text-fg-16">[Cancel]</span>
-                  </>
-                )}
-                {recState?.status === 'armed' && (
-                  <>
-                    <span className="text-fg-96 cursor-pointer select-none" onClick={() => onStartRecording?.()}>[Start]</span>
-                    <span className="text-fg-96 cursor-pointer select-none" onClick={() => onDisarmRecording?.()}>[Cancel]</span>
-                  </>
-                )}
-                {recState?.status === 'recording' && (
-                  <>
-                    <span className="text-[#e74c3c] cursor-pointer select-none" onClick={() => onStopRecording?.()}>[Stop]</span>
-                    <span className="text-fg-96 cursor-pointer select-none" onClick={() => onDisarmRecording?.()}>[Cancel]</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {recState?.status === 'armed' && (
-              <div className="kol-helper-xs text-fg-32" style={{ height: '24px', lineHeight: '24px' }}>Standby — ready to record</div>
-            )}
-
-            {recState?.status === 'recording' && (
-              <>
-                <div className="w-full bg-fg-08 overflow-hidden" style={{ height: '2px', borderRadius: '1px' }}>
-                  <div className="h-full bg-[#e74c3c]" style={{ width: `${(recState.elapsed / recLoopLength) * 100}%`, transition: 'width 100ms' }} />
-                </div>
-                <div className="flex items-center justify-between kol-helper-xs text-fg-32" style={{ height: '24px' }}>
-                  <span className="text-[#e74c3c]">Frame {Math.floor(recState.elapsed * recFps)}</span>
-                  <span>{recState.elapsed.toFixed(1)}s / {recLoopLength}s</span>
-                </div>
-              </>
-            )}
-
-            {recState?.status === 'done' && recState?.blobUrl && (
-              <div className="flex items-center justify-between kol-helper-xs border border-fg-16 px-2" style={{ height: '24px', borderRadius: '3px' }}>
-                <span className="text-fg-64">{recState.blobSize ? (recState.blobSize / (1024 * 1024)).toFixed(2) + ' MB' : ''} · {recLoopLength}s</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-fg-48 hover:text-fg-96 cursor-pointer select-none" onClick={() => onSaveRecToSlot?.({ blobUrl: recState.blobUrl, blobSize: recState.blobSize, loopLength: recLoopLength, fps: recFps, frozenParams: recState.frozenParams })}>[Save]</span>
-                  <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => onClearRecorder?.()}>[Discard]</span>
-                </div>
-              </div>
-            )}
-
-            <Divider className="my-1" />
-
-            <div className="flex flex-col gap-2" style={{ overflowY: 'auto', overflowX: 'hidden', flex: '1 1 0', minHeight: 0, scrollbarWidth: 'none' }}>
-              {recSlots.map((slot, si) => {
-                const isActive = activeRecSlot === si
-                if (!slot) return (
-                  <div key={si} className="flex items-center justify-between kol-helper-xs" style={{ height: '24px', opacity: 0.5 }}>
-                    <span className="text-fg-32">{si + 1}. empty</span>
-                    <div className="flex items-center gap-2">
-                      <label className="text-fg-32 hover:text-fg-64 cursor-pointer select-none">
-                        [Upload]<input type="file" accept="video/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadRecSlot(si, f); e.target.value = '' }} />
-                      </label>
-                      <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => onRemoveRecSlot(si)}><Icon name="x" size={12} /></span>
-                    </div>
-                  </div>
-                )
-                const slotDuration = slot.duration || recLoopLength
-                const infoOpen = recInfoOpen.has(si)
-                const toggleInfo = () => setRecInfoOpen(prev => { const next = new Set(prev); next.has(si) ? next.delete(si) : next.add(si); return next })
-                return (
-                  <div key={si} className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                      <span className={isActive ? 'text-fg-96' : 'text-fg-64'}>
-                        rec-{String(si + 1).padStart(2, '0')}{isActive && <span className="text-[#e74c3c] ml-2">ACTIVE</span>}
-                      </span>
-                      <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={toggleInfo}>[Info]</span>
-                    </div>
-                    {infoOpen && (
-                      <div className="kol-helper-xs text-fg-32" style={{ height: '24px', lineHeight: '24px' }}>
-                        {(slot.size / (1024 * 1024)).toFixed(2)}MB · {slot.duration?.toFixed(1)}s · {slot.resolution} · {slot.fps}fps
-                      </div>
-                    )}
-                    <Slider variant="dual" min={0} max={slotDuration} step={0.1} value={slot.mark1 ?? 0} value2={slot.mark2 ?? slotDuration} onChange={(v) => onUpdateRecSlotTrim(si, v, slot.mark2)} onChange2={(v) => onUpdateRecSlotTrim(si, slot.mark1, v)} playhead={isActive ? playhead : undefined} onPlayheadChange={isActive ? onSeek : undefined} />
-                    <div className="flex items-center justify-between gap-4 kol-helper-xs" style={{ height: '24px' }}>
-                      <div className="flex items-center" style={{ gap: '2px' }}>
-                        {isActive ? (
-                          <div className="flex items-center" style={{ gap: '2px' }}>
-                            <span className="cursor-pointer select-none" style={{ color: '#2dd4bf' }} onClick={() => onRecPauseToggle && onRecPauseToggle()}>
-                              <Icon name={recPaused ? 'control-play' : 'control-pause'} size={16} />
-                            </span>
-                            <span className="cursor-pointer select-none" style={{ color: '#2dd4bf' }} onClick={() => onClearActiveRecSlot()}>
-                              <Icon name="control-stop" size={16} />
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="cursor-pointer select-none" style={{ color: '#2dd4bf' }} onClick={() => onSetActiveRecSlot(si)}>
-                            <Icon name="control-play" size={16} />
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => { const a = document.createElement('a'); a.href = slot.blobUrl; a.download = slot.fileName; a.click() }}>[Download]</span>
-                        <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => onRemoveRecSlot(si)}><Icon name="x" size={12} /></span>
-                      </div>
-                    </div>
-                    <Divider />
-                  </div>
-                )
-              })}
-              {recSlots.length < 8 && (
-                <div className="kol-helper-xs text-fg-32 hover:text-fg-64 cursor-pointer select-none" style={{ height: '24px', lineHeight: '24px' }} onClick={() => onAddRecSlot()}>[+ Add Slot]</div>
-              )}
-            </div>
-          </div>
+          <RecorderUnit
+            recState={recState}
+            recPaused={recPaused}
+            recSlots={recSlots}
+            activeRecSlot={activeRecSlot}
+            playhead={playhead}
+            onSeek={onSeek}
+            onRecPauseToggle={onRecPauseToggle}
+            onArmRecording={onArmRecording}
+            onStartRecording={onStartRecording}
+            onStopRecording={onStopRecording}
+            onDisarmRecording={onDisarmRecording}
+            onSaveRecToSlot={onSaveRecToSlot}
+            onClearRecorder={onClearRecorder}
+            onSetActiveRecSlot={onSetActiveRecSlot}
+            onClearActiveRecSlot={onClearActiveRecSlot}
+            onRemoveRecSlot={onRemoveRecSlot}
+            onAddRecSlot={onAddRecSlot}
+            onUploadRecSlot={onUploadRecSlot}
+            onUpdateRecSlotTrim={onUpdateRecSlotTrim}
+          />
         )}
         </div>{/* close scroll wrapper */}
         {/* Drag handle */}
@@ -1132,16 +654,19 @@ function Channel({
 export default function SymphonyMixer({
   channels = [],
   resolvedParams = [],
+  isVisible = true,
+  screen2 = 'off',
+  setScreen2,
   onChannelUpdate,
   onChannelParamChange,
   onLoadPreset,
   layout = 'row',
+  deskMode = 'card',
   dropdownItems = [],
   openNineDropdown = null,
   onSelectVariant,
   onCloseDropdown,
   onEditChannel,
-  onAddChannel,
   onRemoveChannel,
   onRecalc,
   onResetChannel,
@@ -1170,69 +695,442 @@ export default function SymphonyMixer({
   const [masterFxOpen, setMasterFxOpen] = useState(false)
   const [fxOpenAll, setFxOpenAll] = useState({ open: false, tick: 0 })
   const [masterFxTab, setMasterFxTab] = useState('fx')
-  const [mixerTab, setMixerTab] = useState('channels')
-  const channelRowRef = useRef(null)
-  const touchStartRef = useRef(null)
+  /* DESK VIEW — pan and zoom over the desk (user 2026-08-28: "I want to move
+     around either with space bar grab and move or some other key bind").
+     A LAYER over embla, not a replacement: with no modifier held the loop and
+     its wheel-scroll behave exactly as before.
+
+       hold SPACE + drag   pan   (the canvas idiom — grab the surface and move)
+       middle-drag         pan   (no keys, for a mouse)
+       alt / ⌘ + drag      pan
+       alt / ⌘ + wheel     zoom toward the cursor, 0.25× – 3×
+       alt + 0             reset
+
+     SPACE IS THE TRANSPORT'S (App.jsx:164 — play/pause, every route). While the
+     pointer is over the desk this takes it, in the CAPTURE phase with
+     `stopImmediatePropagation`, so grabbing the canvas cannot also start the
+     clock. Off the desk, Space is the transport's as always.
+
+     The transform wraps ONLY the embla viewport. PatchCableOverlay stays
+     outside it on purpose — it measures jacks in screen pixels, so leaving it
+     unscaled keeps cables landing on jacks instead of double-applying the zoom. */
+  const [view, setView] = useState({ z: 1, x: 0, y: 0 })
+  /* LOCK — kol-monitor's idiom exactly (RackViewport/useKeybindings): a state
+     for the label and a REF the handlers read, because they are registered once
+     and would otherwise close over a stale value. `L` toggles it; every pan and
+     zoom handler early-returns on it. */
+  const [locked, setLocked] = useState(false)
+  const lockedRef = useRef(false)
+  /* The dot grid, kol-monitor's exactly (hooks/useDotGrid.js): a radial-gradient
+     cell whose SIZE scales with the zoom and whose POSITION carries the pan, so
+     the surface visibly moves under the modules instead of the modules sliding
+     over a static field. `g` toggles it, same key as over there. */
+  const [dots, setDots] = useState(true)
+  const [grab, setGrab] = useState(null) // null | 'ready' | 'panning'
+  const panRef = useRef(null)
+  const overRef = useRef(false)
+  const spaceRef = useRef(false)
   useEffect(() => {
-    const el = channelRowRef.current
+    const el = deskRef.current
     if (!el) return
-    const onTouchStart = (e) => {
-      if (e.touches.length === 2) {
-        touchStartRef.current = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, scrollLeft: el.scrollLeft }
-      } else {
-        touchStartRef.current = null
-      }
+    const onEnter = () => { overRef.current = true }
+    const onLeave = () => { overRef.current = false }
+    const onWheel = (e) => {
+      if (lockedRef.current) return
+      if (!(e.altKey || e.metaKey)) return
+      e.preventDefault()
+      const box = el.getBoundingClientRect()
+      const cx = e.clientX - box.left
+      const cy = e.clientY - box.top
+      setView(v => {
+        const z = Math.max(0.25, Math.min(3, v.z * (1 - e.deltaY * 0.0015)))
+        const k = z / v.z
+        // hold the point under the cursor still while the scale changes
+        return { z, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }
+      })
     }
-    const onTouchMove = (e) => {
-      if (e.touches.length === 2 && touchStartRef.current) {
-        const x = (e.touches[0].clientX + e.touches[1].clientX) / 2
-        el.scrollLeft = touchStartRef.current.scrollLeft - (x - touchStartRef.current.x)
+    const onDown = (e) => {
+      if (lockedRef.current) return
+      const wants = spaceRef.current || e.button === 1 || ((e.altKey || e.metaKey) && e.button === 0)
+      if (!wants) return
+      e.preventDefault()
+      panRef.current = { x: e.clientX, y: e.clientY }
+      setGrab('panning')
+    }
+    const onMove = (e) => {
+      const p = panRef.current
+      if (!p) return
+      const dx = e.clientX - p.x
+      const dy = e.clientY - p.y
+      panRef.current = { x: e.clientX, y: e.clientY }
+      setView(v => ({ ...v, x: v.x + dx, y: v.y + dy }))
+    }
+    const onUp = () => {
+      if (!panRef.current) return
+      panRef.current = null
+      setGrab(spaceRef.current ? 'ready' : null)
+    }
+    const noInput = (e) => !e.target.closest('input, textarea, [contenteditable]')
+    const onKeyDown = (e) => {
+      // g toggles the dot grid (kol-monitor binds the same key)
+      if (e.code === 'KeyG' && !e.metaKey && !e.ctrlKey && !e.altKey && noInput(e)) {
         e.preventDefault()
+        setDots(v => !v)
+        return
       }
+      // L locks the view (kol-monitor binds the same key)
+      if (e.code === 'KeyL' && !e.metaKey && !e.ctrlKey && noInput(e)) {
+        e.preventDefault()
+        setLocked(v => { lockedRef.current = !v; return !v })
+        return
+      }
+      if (e.code === 'Space' && !e.repeat && !lockedRef.current && overRef.current && noInput(e) && !spaceRef.current) {
+        // take Space from the transport, but only over the desk
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        spaceRef.current = true
+        setGrab(g => g === 'panning' ? g : 'ready')
+      }
+      if (e.altKey && e.key === '0' && !lockedRef.current) setView({ z: 1, x: 0, y: 0 })
     }
-    const onTouchEnd = () => { touchStartRef.current = null }
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchend', onTouchEnd)
+    const onKeyUp = (e) => {
+      if (e.code === 'Space') { spaceRef.current = false; if (!panRef.current) setGrab(null) }
+    }
+    el.addEventListener('pointerenter', onEnter)
+    el.addEventListener('pointerleave', onLeave)
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('keydown', onKeyDown, true)
+    window.addEventListener('keyup', onKeyUp, true)
     return () => {
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('pointerenter', onEnter)
+      el.removeEventListener('pointerleave', onLeave)
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('keyup', onKeyUp, true)
     }
   }, [])
+
+  const [mixerTab, setMixerTab] = useState('mixer')
+  // Flip-to-patch (2026-08-12) — per-channel card flip + pending patch source
+  const [flippedCards, setFlippedCards] = useState({})
+  const [pendingOut, setPendingOut] = useState(null)
+  // Flip shortcuts — 1/2/3 flip that channel's card, P flips the whole desk.
+  // Gated on the mixer actually being on screen (audit 2026-08-12: keys were
+  // flipping cards invisibly while the mixer was hidden or on Expressions).
+  const channelCount = channels.length
+  const flipKeysActiveRef = useRef(true)
+  useEffect(() => { flipKeysActiveRef.current = isVisible && mixerTab === 'mixer' })
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!flipKeysActiveRef.current) return
+      const t = e.target
+      if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const k = e.key.toLowerCase()
+      if (k === 'p') {
+        setFlippedCards(prev => {
+          const all = channelCount > 0 && Array.from({ length: channelCount }).every((_, i) => prev[i]) && prev.master && prev.routing
+          return all ? {} : { ...Object.fromEntries(Array.from({ length: channelCount }, (_, i) => [i, true])), master: true, routing: true }
+        })
+        return
+      }
+      const n = parseInt(k)
+      if (!isNaN(n) && n >= 1 && n <= channelCount) {
+        setFlippedCards(prev => ({ ...prev, [n - 1]: !prev[n - 1] }))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [channelCount])
+
+  // Embla loop desk (2026-08-12) — wheel + drag, endless in both directions.
+  // watchDrag is a PREDICATE, not false (audit: false also kills the wheel —
+  // WheelGesturesPlugin synthesizes drags, so no drag engine = no wheel).
+  // Interactive elements refuse the drag; the plugin's synthetic events
+  // target the viewport itself and always pass.
+  const [emblaRef] = useEmblaCarousel(
+    {
+      loop: true,
+      dragFree: true,
+      align: 'start',
+      skipSnaps: true,
+      watchDrag: (emblaApi, evt) => {
+        const t = evt.target
+        if (!(t instanceof Element)) return true
+        return !t.closest('input, button, select, textarea, [style*="touch-action: none"], .cursor-pointer, .cursor-col-resize, .cursor-ew-resize')
+      },
+    },
+    [WheelGesturesPlugin()]
+  )
+  const [firstSlideEl, setFirstSlideEl] = useState(null)
+  /* Which slide has its shelf open. The shelf OVERLAYS now rather than taking
+     track width, and an overlay only wins against later slides if the slide
+     itself is lifted — a z-index inside the card cannot reach past its own. */
+  const [shelfSlide, setShelfSlide] = useState(null)
+  // ALL non-channel modules pin to the first channel card's height (user
+  // ruling: same height across the desk); internal scroll absorbs overflow.
+  /* THE RING NEEDS FILLING (2026-08-27): embla drops `loop` unless the OTHER
+     slides cover the viewport at every loop point (Engine.canLoop) — on a wide
+     screen the six cards fit and the desk just stops. Two spacer slides pad the
+     ring to the width the loop needs; zero when the cards already overflow. */
+  const [viewportEl, setViewportEl] = useState(null)
+  const deskViewportRef = useCallback((el) => { emblaRef(el); setViewportEl(el) }, [emblaRef])
+  const [ringPad, setRingPad] = useState(0)
+  useEffect(() => {
+    if (!viewportEl || layout !== 'row') { setRingPad(0); return }
+    const track = viewportEl.firstElementChild
+    const measure = () => {
+      const V = viewportEl.clientWidth
+      const widths = [...track.children].filter((el) => !el.hasAttribute('data-spacer')).map((el) => el.offsetWidth)
+      const S = widths.reduce((a, b) => a + b, 0)
+      const M = Math.max(0, ...widths)
+      // spacer's own loop point: S + P ≥ V · the widest card's: S − M + 2P ≥ V
+      setRingPad(Math.max(0, Math.ceil(Math.max(V - S, (V - S + M) / 2)) + 1))
+    }
+    const ro = new ResizeObserver(measure)
+    ro.observe(viewportEl)
+    ;[...track.children].forEach((el) => ro.observe(el))
+    return () => ro.disconnect()
+  }, [viewportEl, layout, channels.length])
+  /* THE DESK'S HEIGHT is grabbable at its top edge (user 2026-08-28: "where
+     is the grab to make channel strip taller"). null = content height, which
+     is what it was before and what a double-click restores. The drag writes
+     px straight to state; `masterH` follows through the ResizeObserver below,
+     so master and routing stay pinned to the channel. */
+  const [deskH, setDeskH] = useState(null)
+  const [masterH, setMasterH] = useState(null)
+  useEffect(() => {
+    if (!firstSlideEl) return
+    const ro = new ResizeObserver(() => setMasterH(firstSlideEl.offsetHeight))
+    ro.observe(firstSlideEl) // fires once on observe
+    return () => ro.disconnect()
+  }, [firstSlideEl])
+  // (Two-finger touch-pan effect removed 2026-08-12 — the embla loop +
+  // WheelGesturesPlugin own desk scrolling now.)
+  const deskRef = useRef(null)
+  /* the desk is in patch mode when every card is on its back — the Patch tab's
+     active state and its label both read this */
+  const allFlipped = channels.length > 0 && channels.every((_, i) => flippedCards[i]) && flippedCards.master && flippedCards.routing
   return (
     <div className="flex flex-col gap-6">
+      {/* Wire diagram — patch-mode only (user ruling 2026-08-12): the signal
+          map earns its 80px while you're actually patching, i.e. any card
+          is flipped to its patch bay.
+          THE 80px IS RESERVED EITHER WAY (bug, user 2026-08-28: "output
+          monitor changes size when I flip to patch bay"). Mounting the block
+          on flip grew the mixer by 80, and the mixer sits at the bottom of a
+          flex column — so the viewport above it lost 80px and the output
+          monitor rescaled mid-patch. The row now always occupies its height
+          and only its CONTENTS come and go, so the desk's top edge never
+          moves and the monitor holds its size. */}
       <div style={{ height: '80px', overflow: 'hidden' }}>
-        <ChannelWireDiagram channels={channels} master={master} />
+        {Object.values(flippedCards).some(Boolean) && (
+          <ChannelWireDiagram channels={channels} master={master} />
+        )}
       </div>
-      <div className="flex items-center gap-6 pb-2 mb-1 border-b border-fg-08">
+      {/* the desk is in patch mode when every card is on its back */}
+      {/* the rule runs the FULL width (user 2026-08-28: "make the line go all
+          the way across") — the row bleeds out past the studio's 16px viewport
+          gutter and the container's own inset, then pads the tabs back to
+          where they were. The grab edge rides the same box, so the pill can
+          travel the whole line. */}
+      <div
+        className="flex items-center gap-6 pb-2 mb-1 border-b border-fg-08"
+        style={{ position: 'relative', marginInline: -16, paddingInline: 16 }}
+      >
+        {/* The grab edge sits ON this row's bottom rule — the line between the
+            viewport and the desk (user 2026-08-28: "it needs to be ON THE
+            LINE"). Drag it down to make the strips taller; double-click
+            restores content height. `bottom` rather than `top`: the strip
+            straddles the border below it, not the box's own top edge. */}
+        {layout === 'row' && mixerTab === 'mixer' && (
+          <GrabEdge
+            axis="y"
+            style={{ top: 'auto', bottom: '-4.5px' }}
+            onDoubleClick={() => setDeskH(null)}
+            onDrag={(y) => {
+              const b = deskRef.current?.getBoundingClientRect()
+              if (b) setDeskH(Math.max(240, Math.min(1200, Math.round(b.bottom - y))))
+            }}
+          />
+        )}
+        {/* ONE COMPONENT FOR ALL THREE (user 2026-08-28: "this should be all
+            the same component, not 2 and 1 … same size icon as well"). Patch
+            was a one-off span beside the map with its own type rung, its own
+            gap and its own active rule. Every tab is a row in one list now —
+            what differs is only `active` and what the click does, which is
+            data, not a second rendering path. */}
         {[
-          { key: 'channels', label: 'Channels', icon: 'settings-01' },
-          { key: 'output', label: 'Output', icon: 'circle' },
-          { key: 'expressions', label: 'Expressions', icon: 'wave' },
+          { key: 'mixer', label: 'Mixer', icon: 'settings-01', active: mixerTab === 'mixer', onClick: () => setMixerTab('mixer') },
+          { key: 'expressions', label: 'Expressions', icon: 'wave', active: mixerTab === 'expressions', onClick: () => setMixerTab('expressions') },
+          ...(mixerTab === 'mixer' ? [{
+            key: 'patch',
+            label: allFlipped ? 'Controls' : 'Patch',
+            icon: 'flip-y',
+            active: allFlipped,
+            title: allFlipped ? 'Flip all to controls (P)' : 'Flip all to patch bays (P)',
+            onClick: () => setFlippedCards(allFlipped ? {} : { ...Object.fromEntries(channels.map((_, i) => [i, true])), master: true, routing: true }),
+          }] : []),
         ].map(tab => (
           <span
             key={tab.key}
-            className={`cursor-pointer select-none kol-helper-s flex items-center gap-2 ${
-              mixerTab === tab.key ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'
+            title={tab.title}
+            className={`cursor-pointer select-none kol-helper-14 flex items-center gap-2 ${
+              tab.active ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'
             }`}
-            onClick={() => setMixerTab(tab.key)}
+            onClick={tab.onClick}
           >
             <Icon name={tab.icon} size={14} />
             {tab.label}
           </span>
         ))}
+        {/* LOCK + GRID, kol-monitor's bracket idiom (VideoModulo.jsx:154) — red
+            when the view is locked. `L` and `g` bind the same keys it does. */}
+        <span className="flex items-center gap-4" style={{ marginLeft: 'auto' }}>
+          <span
+            className="cursor-pointer select-none kol-helper-14 flex items-center gap-2"
+            style={{ color: dots ? 'var(--kol-fg-64)' : 'var(--kol-fg-32)' }}
+            onClick={() => setDots(v => !v)}
+            title="Dot grid (G)"
+          >
+            <Icon name="grid-02" size={14} />
+            [{dots ? 'Grid' : 'No grid'}]
+          </span>
+          <span
+            className="cursor-pointer select-none kol-helper-14 flex items-center gap-2"
+            style={{ color: locked ? 'rgba(231,76,60,0.9)' : 'var(--kol-fg-32)' }}
+            onClick={() => setLocked(v => { lockedRef.current = !v; return !v })}
+            title={locked ? 'Unlock the view (L)' : 'Lock the view (L)'}
+          >
+            <Icon name={locked ? 'lock' : 'unlock'} size={14} />
+            [{locked ? 'Locked' : 'Lock'}]
+          </span>
+        </span>
       </div>
-      <div style={{ position: 'relative' }}>
-      {/* A Channels — always rendered to hold height */}
+      <PatchJacksProvider>
+      <div ref={deskRef} style={{ position: 'relative' }}>
+      {/* THE DESK IS DARKER THAN THE PAGE (user 2026-08-28: "make channel mixer
+          darker, remove the 02 — below the line"). The route paints the shell's
+          `--kol-fg-02` page wash; below the tab rule the desk goes DARKER than
+          the page, not merely un-washed — dropping to the base surface is a 2%
+          move and reads as no change at all.
+          `absolute-split` — the END of the ramp, because there is
+          almost no ramp left. The dark page is #121215, i.e. 18/255 off black:
+          `surface-primary` was a 2% move, `oq-12` goes the WRONG way (the oq
+          ramp mixes the FOREGROUND in, so it is white at 12% here), and
+          `surface-contrast` at #0b0b0c is 7/255. Absolute black is the only
+          step that reads. If the deck still wants more separation the lever is
+          the other side of the line — lighten the page above it.
+          A backdrop at z-index -1 rather than a background on the desk box: the
+          desk is measured by the grab edge and is PatchCableOverlay's coordinate
+          container, so it must not gain padding to bleed past the 16px gutter.
+          The backdrop bleeds instead, and nothing above it moves.
+          It also rides 48px UP over the tab row (user: "it needs to go up a
+          little more … some panel needs to cover"), so the deck reads as one
+          panel that starts at the rule rather than a field beginning under it. */}
       <div
-        ref={channelRowRef}
-        className={`flex ${layout === 'row' ? 'flex-row' : 'flex-col'} gap-4`}
-        style={{ overflowX: layout === 'row' ? 'auto' : 'visible', scrollbarWidth: 'none', visibility: mixerTab === 'channels' ? 'visible' : 'hidden' }}
+        aria-hidden
+        className="absolute"
+        style={{
+          inset: '-48px -16px 0',
+          zIndex: -1,
+          background: 'var(--kol-surface-absolute-split)',
+          ...(dots ? {
+            backgroundImage: 'radial-gradient(var(--kol-fg-12) 1px, transparent 1px)',
+            backgroundSize: `${36 * view.z}px ${36 * view.z}px`,
+            backgroundPosition: `${view.x}px ${view.y}px`,
+          } : null),
+        }}
+      />
+      {/* Patch cables (v2, 2026-08-15) — full between flipped bays, ghosted otherwise */}
+      {isVisible && mixerTab === 'mixer' && (
+        <PatchCableOverlay channels={channels} flipped={flippedCards} inputs={master.inputs} screen2={screen2} containerRef={deskRef} />
+      )}
+      {/* A Mixer — channels + master section as an EMBLA LOOP (user ruling
+          2026-08-12): the desk is a circle, wheel scrolls it endlessly in
+          either direction. watchDrag off so pointer drags stay with the
+          knobs/sliders; WheelGesturesPlugin carries two-finger scroll.
+          Centering released — the loop has no edges to center between. */}
+      <div
+        style={{
+          transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`,
+          transformOrigin: '0 0',
+          cursor: grab === 'panning' ? 'grabbing' : grab === 'ready' ? 'grab' : undefined,
+        }}
       >
-        {channels.map((ch, i) => (
-          <Channel
+      <div
+        ref={layout === 'row' ? deskViewportRef : undefined}
+        /* THE CLIP LINE SITS OUTSIDE THE PADDING (user 2026-08-28: "just
+           don't clip where the padding is"). embla needs `overflow: hidden`,
+           but with the box ending on the cards' own edge it cut their padding,
+           borders and the flip scene's shadow. Equal padding + negative margin
+           moves the clip out by 16px on each side: the viewport occupies the
+           same space, the cards keep their gutter, and the loop is untouched. */
+        style={{
+          overflow: layout === 'row' ? 'hidden' : 'visible',
+          overscrollBehaviorX: 'contain',
+          visibility: mixerTab === 'mixer' ? 'visible' : 'hidden',
+          ...(layout === 'row' ? { paddingInline: 16, marginInline: -16, paddingBottom: 16, marginBottom: -16 } : null),
+          /* THE GRAB GIVES THE DESK ROOM, IT DOES NOT STRETCH THE MODULES
+             (user 2026-08-28: "this should not grow, these modules are not
+             supposed to be responsive like that — the reason I want to make the
+             channel taller is just to move things around"). Height lands on the
+             desk's BOX; the track is `items-start`, so every module keeps its
+             intrinsic height and the extra is empty desk. That is also the
+             shape an infinite canvas needs later — space to arrange in, not
+             modules that resize to fill it. */
+          ...(deskH ? { height: deskH } : null),
+        }}
+      >
+      <div
+        className={`flex ${layout === 'row' ? 'flex-row items-start' : 'flex-col'}`}
+        style={layout === 'row' ? undefined : { width: 'fit-content', marginInline: 'auto' }}
+      >
+        {/* TWO ARRANGEMENTS, ONE MODEL (2026-08-27). 'card' stacks the units in
+            one box behind a tab bar; 'modular' puts each on the desk as its own
+            module. Both render the SAME unit components off the same channel
+            state, so a change to a unit lands in both. */}
+        {deskMode === 'modular' && channels.map((ch, i) => (
+          <ChannelModules
+            key={`mod-${i}`}
+            index={i}
+            channel={ch}
+            onChannelUpdate={onChannelUpdate}
+            onMediaChange={(updates) => onChannelUpdate(i, updates)}
+            onRecalc={onRecalc}
+            DEFAULT_SVG_SRC={DEFAULT_SVG_SRC}
+          />
+        ))}
+        {deskMode !== 'modular' && channels.map((ch, i) => (
+          <div
             key={i}
+            className="shrink-0 pr-4"
+            ref={i === 0 ? setFirstSlideEl : undefined}
+            style={{ position: 'relative', zIndex: shelfSlide === i ? 30 : undefined }}
+          >
+          <Channel
+            onShelfChange={(open) => setShelfSlide(open ? i : (prev) => (prev === i ? null : prev))}
+            flipped={!!flippedCards[i]}
+            patchPanel={
+              <ChannelPatchPanel
+                channelIndex={i}
+                channel={ch}
+                channels={channels}
+                master={master}
+                screen2={screen2}
+                onChannelUpdate={onChannelUpdate}
+                pendingOut={pendingOut}
+                setPendingOut={setPendingOut}
+                onFlip={() => setFlippedCards(prev => ({ ...prev, [i]: !prev[i] }))}
+              />
+            }
+            onFlip={() => setFlippedCards(prev => ({ ...prev, [i]: !prev[i] }))}
             value={ch.intensity}
             onChange={(v) => onChannelUpdate(i, { intensity: v })}
             enabled={ch.enabled}
@@ -1307,40 +1205,70 @@ export default function SymphonyMixer({
             feedback={ch.feedback || { enabled: false, decay: 80, mix: 50, freeze: false }}
             onFeedbackChange={(fb) => onChannelUpdate(i, { feedback: fb })}
           />
+          </div>
         ))}
 
-        {/* Add channel */}
-        <div
-          className="flex items-center justify-center shrink-0 cursor-pointer"
-          style={{ width: '48px' }}
-          onClick={() => onAddChannel && onAddChannel()}
-        >
-          <div className="w-8 h-8 rounded-full bg-fg-08 hover:bg-fg-16 flex items-center justify-center transition-colors">
-            <Icon name="plus" size={14} className="text-fg-48" />
-          </div>
+        {/* Master section — joined from the old Output tab (2026-08-12):
+            channel strips left, master + routing right, one desk. Both pin
+            to the channel height; overflow scrolls inside the module.
+            Both FLIP like the channels (scope 2026-08-12): master back =
+            bus IN + RTN OUT jacks, routing back = the live cable list. */}
+        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+          {/* the module owns its flip now — only its panel turns */}
+          <MasterModule
+            onFlip={() => setFlippedCards(prev => ({ ...prev, master: !prev.master }))}
+            flipped={!!flippedCards.master}
+            back={(
+              <MasterPatchPanel
+                channels={channels}
+                onChannelUpdate={onChannelUpdate}
+                master={master}
+                onMasterChange={onMasterChange}
+                pendingOut={pendingOut}
+                setPendingOut={setPendingOut}
+                screen2={screen2}
+                setScreen2={setScreen2}
+                onFlip={() => setFlippedCards(prev => ({ ...prev, master: !prev.master }))}
+              />
+            )}
+            master={master}
+            onMasterChange={(updates) => onMasterChange && onMasterChange(updates)}
+            channels={channels}
+            onChannelUpdate={onChannelUpdate}
+          />
         </div>
-
+        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+          <RoutingMatrix
+            onFlip={() => setFlippedCards(prev => ({ ...prev, routing: !prev.routing }))}
+            flipped={!!flippedCards.routing}
+            back={<RoutingPatchPanel channels={channels} onChannelUpdate={onChannelUpdate} master={master} onMasterChange={onMasterChange} screen2={screen2} setScreen2={setScreen2} pendingOut={pendingOut} setPendingOut={setPendingOut} onFlip={() => setFlippedCards(prev => ({ ...prev, routing: !prev.routing }))} />}
+            channels={channels}
+            onChannelUpdate={onChannelUpdate}
+            master={master}
+            onMasterChange={onMasterChange}
+          />
+        </div>
+        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+          <PlaybackModule />
+        </div>
+        {/* The generators, as a front panel. A bench, not a second home for
+            channel state — [Load] hands the built source to the first free
+            channel through `onChannelUpdate`, the same seam the palette uses. */}
+        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+          <GeneratorModule
+            onLoadToChannel={(variantId, params) => {
+              const free = channels.findIndex((c) => !c.variantId)
+              onChannelUpdate(free < 0 ? 0 : free, { variantId, params, enabled: true })
+            }}
+          />
+        </div>
+        {ringPad > 0 && [0, 1].map((k) => <div key={`spacer-${k}`} data-spacer="" aria-hidden className="shrink-0" style={{ width: ringPad }} />)}
       </div>
-
-      {/* B Output — overlays on top when active */}
-      {mixerTab === 'output' && (
-      <div className="flex flex-row gap-4" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
-        <MasterModule
-          master={master}
-          onMasterChange={(updates) => onMasterChange && onMasterChange(updates)}
-          channels={channels}
-          onChannelUpdate={onChannelUpdate}
-        />
-        <RoutingMatrix
-          channels={channels}
-          onChannelUpdate={onChannelUpdate}
-          master={master}
-          onMasterChange={onMasterChange}
-        />
       </div>
-      )}
+      </div>{/* close the zoom/pan layer */}
       {mixerTab === 'expressions' && <ExpressionReference />}
       </div>{/* close relative wrapper */}
+      </PatchJacksProvider>
 
     </div>
   )

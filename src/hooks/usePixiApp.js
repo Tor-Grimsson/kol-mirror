@@ -1,3 +1,4 @@
+import { getQuality } from './renderQuality'
 import { useEffect, useRef, useState } from 'react'
 import { Application, Assets } from 'pixi.js'
 
@@ -49,7 +50,9 @@ export default function usePixiApp(canvasRef, imageSrc, { backgroundColor = 0x00
           height,
           backgroundColor,
           backgroundAlpha,
-          resolution: window.devicePixelRatio || 1,
+          // The DPR tax: at 2 every channel draws 4x the fragments for detail
+          // no one sees on moving video. Settings > Performance owns this.
+          resolution: getQuality().pixelRatio || 1,
           autoDensity: true,
           ...(preserveDrawingBuffer && { webgl: { preserveDrawingBuffer: true } }),
         })

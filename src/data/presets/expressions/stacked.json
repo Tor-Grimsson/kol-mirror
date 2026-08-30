@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "kind": "expression",
+  "name": "Stacked",
+  "description": "Sine, saw, triangle and a bouncing sine, summed.",
+  "tags": [
+    "layered",
+    "wave",
+    "saw",
+    "tri"
+  ],
+  "data": {
+    "expr": "wave(t)+saw(t*2)*0.3 + tri(t*0.5) + abs(sin(t*3))*max"
+  }
+}

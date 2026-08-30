@@ -1,5 +1,37 @@
 @import "tailwindcss";
-@import "./styles/theme.css";
+/* DS canon. kol-theme rules live in layer(components); the local ./styles/*
+ * below are unlayered, so anything they declare WINS — which is why only three
+ * things are left there (DS consumption pass, 2026-08-27): the JetBrains
+ * @font-face + an 11px off-scale helper, the accent bind, and the instrument
+ * chrome the DS has no equivalent for. No local rule shadows a DS class name
+ * any more, so a kol-theme upgrade now reaches this repo.
+ *
+ * FONTS RESOLVE AS OF 2026-08-27. kol-theme declares 98 Right Grotesk faces at
+ * /fonts/right-grotesk/*.woff2 plus two variable JetBrains cuts; this repo had
+ * only 6 legacy .woff files, so every one of those URLs 404'd and the DS's sans
+ * type classes fell back to system sans. The full woff2 set is now served (same
+ * files kol-fxr / kol-ds-ui / kol-website serve) and the build reports zero
+ * unresolved font URLs — so kol-theme's display/heading classes are live, which
+ * is what let the local mono copies of them retire. See
+ * .kol/llm-plan/02-ds-adoption.md. */
+/* `/core`, not the umbrella (kol-theme 0.77.0): the umbrella pulls in the
+   chess · workshop · foundry · dashboards · styleguide packs — ~23% of the
+   theme — and plain CSS @import does not tree-shake, so an app that renders
+   none of them still ships all of them. Swept the pack-only selectors against
+   src/ first; the only nominal hit was `chart`, which is an icon NAME here,
+   not a class. Switch back to the umbrella if this app ever renders a pack. */
+@import "@kolkrabbi/kol-theme/core";
+/* @source manifest — KOL packages ship raw JSX and Tailwind skips node_modules,
+ * so utilities used inside DS components are never generated without this. */
+@import "@kolkrabbi/kol-theme/kol-sources.css";
+/* kol-framework.css is NOT imported (2026-08-28). It was required by kol-shell
+   0.13–0.15, whose rail was framework's SideNav inside a `.kol-brand-layout`
+   grid. Since 0.16.0 the rail is the flat column again (RailFlatGrabOpen) and
+   kol-framework is no longer even a shell peer — nothing in this app renders a
+   `.kol-brand-*` or `.kol-sidenav-*` class. Re-add it the day a site-register
+   component (SideNav, BrandHero, PortalFooter) lands here. */
+@import "./styles/kol-typography-mono.css"; /* JetBrains face + mono display/heading — see above */
+@import "./styles/mirror-overrides.css";
 @import "./styles/components.css";
 
 .accentYellow { color: var(--kol-accent-primary); }
@@ -28,8 +60,16 @@
  * Mobile: canvas full-bleed, mixer overlays at bottom with toggle.
  */
 .symphony-viewport-root { display: flex; flex-direction: column; padding: 16px; }
-.symphony-viewport-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; margin-bottom: 16px; }
-.symphony-canvas-container { flex: 1; display: flex; align-items: flex-start; justify-content: flex-start; min-height: 0; }
+/* Centered (2026-08-12): the canvas column sits mid-viewport instead of glued
+ * left, and the centered header clears the fixed [Show] in the left gutter. */
+.symphony-viewport-header { display: flex; align-items: center; justify-content: center; gap: 12px; flex-shrink: 0; margin-bottom: 16px; }
+/* The monitor sits in the MIDDLE of its space (user 2026-08-28), not pinned to
+ * the top — and it is pushed 160px DOWN off the top edge (user 2026-08-28:
+ * "there is a middle between the top and the beginning of channel strip … push
+ * the monitor down by 160px", then back up 40)). The dead band under it is the mixer's always
+ * reserved 80px wire-diagram slot; the monitor already fills its own box
+ * exactly, so the only way down is to give 160px of that box back. */
+.symphony-canvas-container { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding-top: 120px; }
 .symphony-mixer-container { flex-shrink: 0; margin-top: auto; padding-top: 24px; margin-right: -16px; }
 .symphony-mobile-toggle { display: none; }
 
@@ -64,3 +104,4 @@
   border: none !important;
   border-radius: 0 !important;
 }
+html { overscroll-behavior-x: none; }

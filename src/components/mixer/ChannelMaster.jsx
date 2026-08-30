@@ -91,7 +91,7 @@ export default function ChannelMaster({
       </div>
       {/* Channel button above fader */}
       <div
-        className="kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase"
+        className="kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase"
         style={{ height: '20px', padding: '0 8px', borderRadius: '2px', border: `1px solid ${enabled ? accent : 'var(--kol-fg-16)'}`, color: enabled ? accent : 'var(--kol-fg-32)' }}
         onClick={() => onEnabledChange && onEnabledChange(!enabled)}
       >{label}</div>
@@ -100,12 +100,12 @@ export default function ChannelMaster({
       {/* A / B buttons */}
       <div className="flex items-center gap-3">
         <div
-          className={`kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border ${bank === 1 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+          className={`kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase border ${bank === 1 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
           style={{ height: '20px', width: '20px', borderRadius: '2px' }}
           onClick={() => setBank(bank === 1 ? 0 : 1)}
         >A</div>
         <div
-          className={`kol-helper-xxs cursor-pointer select-none flex items-center justify-center uppercase border ${bank === 2 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+          className={`kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase border ${bank === 2 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
           style={{ height: '20px', width: '20px', borderRadius: '2px' }}
           onClick={() => setBank(bank === 2 ? 0 : 2)}
         >B</div>

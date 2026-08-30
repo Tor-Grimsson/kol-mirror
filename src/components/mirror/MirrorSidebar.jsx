@@ -1,10 +1,15 @@
 import { useRef, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Logomark } from '@kolkrabbi/kol-shell'
+import logomarkUrl from '@kolkrabbi/kol-brand/svg/favicon-01.svg?url'
 import { DISPLACEMENT_VARIANTS, COPIES_VARIANTS, MOVEMENT_VARIANTS, findVariant } from '../../data/mirrorVariants'
 import VariantControls from './VariantControls'
 import Dropdown from '../molecules/Dropdown'
 import Button from '../atoms/Button'
 import Slider from '../atoms/Slider'
 import QuantityInput from '../atoms/QuantityInput'
+import { rasterDims } from '../../utils/processImageUpload'
+import { importEntry } from '../../hooks/useLibraryStore'
 import ColorPicker from '../atoms/ColorPicker'
 import Divider from '../atoms/Divider'
 import { Icon } from '../icons'
@@ -31,9 +36,31 @@ const VARIANT_MAP = {
   copies: COPIES_VARIANTS,
 }
 
-export default function MirrorSidebar({ state, onClose }) {
+// Nav header row — logomark + nav icons, replacing the hidden global rail
+// while the studio sidebar is open (monitor's rack header-row pattern).
+function NavHeaderRow({ onHide }) {
+  const navigate = useNavigate()
+  return (
+    <div className="flex items-center border-b border-fg-08" style={{ gap: 8, padding: '12px 16px' }}>
+      <span onClick={() => navigate('/')} style={{ cursor: 'pointer', display: 'inline-flex' }} title="Home">
+        <Logomark svgUrl={logomarkUrl} size={18} />
+      </span>
+      <Button iconOnly="nav-library" iconSize={18} variant="nav" size="sm" onClick={() => navigate('/library')} title="Library" />
+      <Button iconOnly="nav-settings" iconSize={18} variant="nav" size="sm" onClick={() => navigate('/settings')} title="Settings" />
+      {onHide && (
+        <span style={{ marginLeft: 'auto' }}>
+          <Button iconOnly="columns" iconSize={18} variant="nav" size="sm" onClick={onHide} title="Hide sidebar (H)" />
+        </span>
+      )}
+    </div>
+  )
+}
+
+export default function MirrorSidebar({ state, onClose, onHide }) {
   const fileInputRef = useRef(null)
   const [savedSlot, setSavedSlot] = useState('_none')
+  const [patchName, setPatchName] = useState('')
+  const navigate = useNavigate()
   const loadBtnRef = useRef(null)
   const variants = (state.activeHall && VARIANT_MAP[state.activeHall]) || []
   const activeVariantData = state.activeVariant ? findVariant(state.activeVariant) : null
@@ -78,11 +105,13 @@ export default function MirrorSidebar({ state, onClose }) {
 
         // Rasterize for Pixi channels
         const img = new Image()
+        img.crossOrigin = 'anonymous'
         img.onload = () => {
           const canvas = document.createElement('canvas')
-          const RASTER_SCALE = 4
-          canvas.width = (img.naturalWidth || 1024) * RASTER_SCALE
-          canvas.height = (img.naturalHeight || 1024) * RASTER_SCALE
+          // Raster scale is the Settings knob, not a constant — see rasterDims.
+          const [rw, rh] = rasterDims(img.naturalWidth || 1024, img.naturalHeight || 1024)
+          canvas.width = rw
+          canvas.height = rh
           const ctx = canvas.getContext('2d')
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
           URL.revokeObjectURL(svgUrl)
@@ -105,14 +134,18 @@ export default function MirrorSidebar({ state, onClose }) {
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
+      {/* Nav header row — the global rail merges in here while the studio
+          sidebar is open (monitor's rack pattern; rail is navHidden). */}
+      <NavHeaderRow onHide={onHide} />
+
       {/* Hall picker */}
       <div className="p-4 border-b border-fg-08">
-        <div className="kol-helper-xs text-fg-48 mb-3 uppercase">Mixer</div>
+        <div className="kol-helper-12 text-fg-48 mb-3 uppercase">Mixer</div>
         <div className="flex flex-col gap-1">
           {MIXER.map(item => (
             <button
               key={item.id}
-              className={`text-left px-3 rounded kol-helper-xs transition-colors flex items-center h-6 ${
+              className={`text-left px-3 rounded kol-helper-12 transition-colors flex items-center h-6 ${
                 state.activeHall === item.id
                   ? 'accentYellow'
                   : 'text-fg-64 hover:text-fg-96 hover:bg-fg-04'
@@ -127,12 +160,12 @@ export default function MirrorSidebar({ state, onClose }) {
           ))}
         </div>
 
-        <div className="kol-helper-xs text-fg-48 mb-2 mt-4 uppercase">Halls</div>
+        <div className="kol-helper-12 text-fg-48 mb-2 mt-4 uppercase">Halls</div>
         <div className="flex flex-col gap-1">
           {HALLS.map(hall => (
             <button
               key={hall.id}
-              className={`text-left px-3 rounded kol-helper-xs transition-colors flex items-center h-6 ${
+              className={`text-left px-3 rounded kol-helper-12 transition-colors flex items-center h-6 ${
                 state.activeHall === hall.id
                   ? 'accentYellow'
                   : 'text-fg-64 hover:text-fg-96 hover:bg-fg-04'
@@ -147,12 +180,12 @@ export default function MirrorSidebar({ state, onClose }) {
           ))}
         </div>
 
-        <div className="kol-helper-xs text-fg-48 mb-2 mt-4 uppercase">Library</div>
+        <div className="kol-helper-12 text-fg-48 mb-2 mt-4 uppercase">Library</div>
         <div className="flex flex-col gap-1">
           {LIBRARY.map(item => (
             <div key={item.id} className="flex items-center justify-between">
               <button
-                className={`text-left px-3 rounded kol-helper-xs transition-colors flex items-center h-6 flex-1 ${
+                className={`text-left px-3 rounded kol-helper-12 transition-colors flex items-center h-6 flex-1 ${
                   state.activeHall === item.id
                     ? 'accentYellow'
                     : 'text-fg-64 hover:text-fg-96 hover:bg-fg-04'
@@ -167,7 +200,7 @@ export default function MirrorSidebar({ state, onClose }) {
               {item.id === 'archive' && (
                 <span
                   ref={loadBtnRef}
-                  className="kol-helper-xs text-fg-32 hover:text-fg-96 cursor-pointer select-none px-2"
+                  className="kol-helper-12 text-fg-32 hover:text-fg-96 cursor-pointer select-none px-2"
                   onClick={() => {
                     state.loadDevPresets()
                     const el = loadBtnRef.current
@@ -190,12 +223,12 @@ export default function MirrorSidebar({ state, onClose }) {
       {/* Variant list — only for halls with variants */}
       {variants.length > 0 && (
         <div className="flex-1 overflow-y-auto p-4 border-b border-fg-08">
-          <div className="kol-helper-xs text-fg-48 mb-3 uppercase">Variants</div>
+          <div className="kol-helper-12 text-fg-48 mb-3 uppercase">Variants</div>
           <div className="flex flex-col gap-1">
             {variants.map(variant => (
               <button
                 key={variant.id}
-                className={`text-left px-3 rounded kol-helper-xs transition-colors flex items-center h-6 ${
+                className={`text-left px-3 rounded kol-helper-12 transition-colors flex items-center h-6 ${
                   state.activeVariant === variant.id
                     ? 'accentYellow'
                     : 'text-fg-64 hover:text-fg-96 hover:bg-fg-04'
@@ -215,8 +248,8 @@ export default function MirrorSidebar({ state, onClose }) {
       {/* Archive info */}
       {state.activeHall === 'archive' && (
         <div className="flex-1 overflow-y-auto p-4 border-b border-fg-08">
-          <div className="kol-helper-xs text-fg-48 mb-3 uppercase">About</div>
-          <div className="kol-helper-xs text-fg-64 space-y-2 px-3" style={{ lineHeight: '140%' }}>
+          <div className="kol-helper-12 text-fg-48 mb-3 uppercase">About</div>
+          <div className="kol-helper-12 text-fg-64 space-y-2 px-3" style={{ lineHeight: '140%' }}>
             <p>Saved experiments and compositions from the Symphony mixer.</p>
             <p>9 slots for storing your best effect combinations.</p>
           </div>
@@ -235,14 +268,14 @@ export default function MirrorSidebar({ state, onClose }) {
           {/* Save to archive slot */}
           <Divider className="my-2" />
           <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
-            <span className="kol-helper-xs text-fg-96 shrink-0">Save to Slot</span>
+            <span className="kol-helper-12 text-fg-96 shrink-0">Save to Slot</span>
             <div className="flex items-center gap-2">
               {state.editingSlot !== null && params && (() => {
                 const saved = state.archiveSlots[state.editingSlot]
                 const hasChanges = saved && JSON.stringify(saved.params) !== JSON.stringify(params)
                 return hasChanges ? (
                   <span
-                    className="kol-helper-xs accentYellow cursor-pointer select-none"
+                    className="kol-helper-12 accentYellow cursor-pointer select-none"
                     onClick={() => {
                       state.saveToArchiveSlot(state.editingSlot)
                     }}
@@ -272,7 +305,7 @@ export default function MirrorSidebar({ state, onClose }) {
 
           {/* Canvas ratio */}
           <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
-            <span className="kol-helper-xs text-fg-96 shrink-0">Canvas</span>
+            <span className="kol-helper-12 text-fg-96 shrink-0">Canvas</span>
             <Dropdown
               options={[
                 { value: 'none', label: 'Full Bleed' },
@@ -301,10 +334,10 @@ export default function MirrorSidebar({ state, onClose }) {
           </div>
           {state.hallCanvasRatio === 'custom' && (
             <div className="flex items-center justify-between" style={{ height: '24px', gap: '8px' }}>
-              <span className="kol-helper-xs text-fg-96 shrink-0">Resolution</span>
+              <span className="kol-helper-12 text-fg-96 shrink-0">Resolution</span>
               <div className="flex items-center gap-2">
                 <QuantityInput value={state.hallCustomWidth} onChange={state.setHallCustomWidth} min={100} max={4096} />
-                <span className="kol-helper-xs text-fg-48">x</span>
+                <span className="kol-helper-12 text-fg-48">x</span>
                 <QuantityInput value={state.hallCustomHeight} onChange={state.setHallCustomHeight} min={100} max={4096} />
               </div>
             </div>
@@ -312,7 +345,7 @@ export default function MirrorSidebar({ state, onClose }) {
 
           {/* Image fit */}
           <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
-            <span className="kol-helper-xs text-fg-96 shrink-0">Image Fit</span>
+            <span className="kol-helper-12 text-fg-96 shrink-0">Image Fit</span>
             <Dropdown
               options={[
                 { value: 'contain', label: 'Contain' },
@@ -348,16 +381,51 @@ export default function MirrorSidebar({ state, onClose }) {
       {state.activeHall === 'symphony' && (
         <div className="p-4 overflow-visible border-t border-fg-08">
           <div className="flex flex-col" style={{ gap: '4px' }}>
+            {/* PATCH — the whole desk out and back. Save names it into the
+                library (Library lists it, and it exports as JSON from there);
+                Import reads a .json patch straight onto the desk. */}
+            <div className="flex items-center gap-2" style={{ height: '24px' }}>
+              <input
+                value={patchName}
+                onChange={(e) => setPatchName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && patchName.trim()) { state.savePatch({ name: patchName.trim() }); setPatchName('') } }}
+                placeholder="Patch name"
+                className="kol-helper-12 text-fg-96 bg-surface-tertiary px-2 flex-1 min-w-0"
+                style={{ height: '20px', border: 'none', outline: 'none', borderRadius: '2px', fontFamily: 'var(--kol-font-family-mono)' }}
+              />
+              <span
+                className={`kol-helper-12 select-none shrink-0 ${patchName.trim() ? 'text-fg-96 cursor-pointer hover:accentYellow' : 'text-fg-32'}`}
+                onClick={() => { if (patchName.trim()) { state.savePatch({ name: patchName.trim() }); setPatchName('') } }}
+              >[Save]</span>
+            </div>
+            <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
+              <span className="text-fg-96">Patch</span>
+              <span className="flex items-center gap-2">
+                <span className="text-fg-64 hover:text-fg-96 cursor-pointer select-none" onClick={() => importEntry().then((e) => { if (e?.kind === 'patch') state.loadPatch(e) })}>[Import]</span>
+                <span className="text-fg-64 hover:text-fg-96 cursor-pointer select-none" onClick={() => navigate('/library')}>[Library]</span>
+              </span>
+            </div>
+            <Divider className="my-1" />
             <div
-              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
+              className="flex items-center justify-between kol-helper-12 text-fg-96 cursor-pointer select-none"
               style={{ height: '24px' }}
               onClick={(e) => { if (e.altKey) { state.setSymphonyRestartKey(k => k + 1); if (!state.symphonyAnimating) state.setSymphonyAnimating(true) } else { state.setSymphonyAnimating(!state.symphonyAnimating) } }}
             >
               <span>Animate</span>
               <span>[{state.symphonyAnimating ? 'ON' : 'OFF'}]</span>
             </div>
+            {/* Two arrangements of the same units — see ChannelModules. */}
             <div
-              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
+              className="flex items-center justify-between kol-helper-12 text-fg-96 cursor-pointer select-none"
+              style={{ height: '24px' }}
+              onClick={() => state.setSymphonyDeskMode(state.symphonyDeskMode === 'modular' ? 'card' : 'modular')}
+              title="Channel card, or each unit as its own desk module"
+            >
+              <span>Desk</span>
+              <span>[{state.symphonyDeskMode === 'modular' ? 'MODULAR' : 'CARD'}]</span>
+            </div>
+            <div
+              className="flex items-center justify-between kol-helper-12 text-fg-96 cursor-pointer select-none"
               style={{ height: '24px' }}
               onClick={() => state.symphonyLoaded && state.symphonyLoaded(null)}
             >
@@ -365,7 +433,7 @@ export default function MirrorSidebar({ state, onClose }) {
               <span>[Random]</span>
             </div>
             <div
-              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
+              className="flex items-center justify-between kol-helper-12 text-fg-96 cursor-pointer select-none"
               style={{ height: '24px' }}
               onClick={() => state.symphonyReloaded && state.symphonyReloaded(null)}
             >
@@ -373,8 +441,26 @@ export default function MirrorSidebar({ state, onClose }) {
               <span>[Random]</span>
             </div>
             <Divider className="my-2" />
+            {/* Screen 2 — moved off the canvas header (user 2026-08-28). One
+                dropdown does the toggle AND the channel: Off is the toggle. */}
             <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
-              <span className="kol-helper-xs text-fg-96 shrink-0">Canvas Ratio</span>
+              <span className="kol-helper-12 text-fg-96 shrink-0">Screen 2</span>
+              <Dropdown
+                options={[
+                  { value: 'off', label: 'Off' },
+                  { value: '0', label: 'Ch 1' },
+                  { value: '1', label: 'Ch 2' },
+                  { value: '2', label: 'Ch 3' },
+                  { value: 'expr', label: 'Expr' },
+                ]}
+                value={state.symphonyScreen2}
+                onChange={(v) => state.setSymphonyScreen2(v)}
+                variant="minimal"
+                size="md"
+              />
+            </div>
+            <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
+              <span className="kol-helper-12 text-fg-96 shrink-0">Canvas Ratio</span>
               <Dropdown
                 options={[
                   { value: '16:9', label: '16:9' },
@@ -402,16 +488,16 @@ export default function MirrorSidebar({ state, onClose }) {
             </div>
             {state.symphonyRatio === 'custom' && (
               <div className="flex items-center justify-between" style={{ height: '24px', gap: '8px' }}>
-                <span className="kol-helper-xs text-fg-96 shrink-0">Resolution</span>
+                <span className="kol-helper-12 text-fg-96 shrink-0">Resolution</span>
                 <div className="flex items-center gap-2">
                   <QuantityInput value={state.symphonyCustomWidth} onChange={state.setSymphonyCustomWidth} min={100} max={4096} />
-                  <span className="kol-helper-xs text-fg-48">x</span>
+                  <span className="kol-helper-12 text-fg-48">x</span>
                   <QuantityInput value={state.symphonyCustomHeight} onChange={state.setSymphonyCustomHeight} min={100} max={4096} />
                 </div>
               </div>
             )}
             <div className="flex items-center justify-between" style={{ height: '24px', gap: '12px' }}>
-              <span className="kol-helper-xs text-fg-96 shrink-0">Image Fit</span>
+              <span className="kol-helper-12 text-fg-96 shrink-0">Image Fit</span>
               <Dropdown
                 options={[
                   { value: 'contain', label: 'Contain' },
@@ -438,7 +524,7 @@ export default function MirrorSidebar({ state, onClose }) {
               />
             )}
             <Divider className="my-2" />
-            <div className="flex items-center justify-between kol-helper-xs" style={{ height: '24px' }}>
+            <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
               <span className="text-fg-96">History</span>
               <div className="flex items-center gap-2">
                 <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => state.symphonyUndo()}><Icon name="undo" size={14} /></span>
@@ -446,7 +532,7 @@ export default function MirrorSidebar({ state, onClose }) {
               </div>
             </div>
             <div
-              className="flex items-center justify-between kol-helper-xs text-fg-96 cursor-pointer select-none"
+              className="flex items-center justify-between kol-helper-12 text-fg-96 cursor-pointer select-none"
               style={{ height: '24px' }}
               onClick={() => state.setSymphonyLayout(state.symphonyLayout === 'row' ? 'col' : 'row')}
             >

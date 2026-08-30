@@ -100,7 +100,7 @@ const MirrorVariant = ({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div
-          className="kol-helper-s text-fg-64 cursor-help"
+          className="kol-helper-14 text-fg-64 cursor-help"
           onMouseEnter={() => setShowInfo(true)}
           onMouseLeave={() => setShowInfo(false)}
         >
@@ -108,13 +108,13 @@ const MirrorVariant = ({
         </div>
         <div className="flex gap-2">
           <div
-            className={`kol-helper-xs cursor-pointer select-none ${isEnabled ? 'accentYellow' : 'text-fg-64'} hover:text-fg-96`}
+            className={`kol-helper-12 cursor-pointer select-none ${isEnabled ? 'accentYellow' : 'text-fg-64'} hover:text-fg-96`}
             onClick={onToggleEnabled}
           >
             [{isEnabled ? 'ON' : 'OFF'}]
           </div>
           <div
-            className={`kol-helper-xs cursor-pointer select-none ${isSelected ? 'accentYellowStrong' : 'text-fg-64'} hover:text-fg-96`}
+            className={`kol-helper-12 cursor-pointer select-none ${isSelected ? 'accentYellowStrong' : 'text-fg-64'} hover:text-fg-96`}
             onClick={onToggleSelect}
           >
             [{isSelected ? 'SELECT' : 'UNSELECT'}]
@@ -146,7 +146,7 @@ const MirrorVariant = ({
         style={{ borderRadius: '4px' }}
       >
         {showInfo && (
-          <div className="absolute top-0 left-0 right-0 kol-helper-xs textAbsoluteWhite p-3 space-y-1 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--kol-surface-primary) 60%, transparent)' }}>
+          <div className="absolute top-0 left-0 right-0 kol-helper-12 text-absolute-white p-3 space-y-1 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--kol-surface-primary) 60%, transparent)' }}>
             <div><strong>Base Frequency:</strong> {baseFrequency} - {baseFrequency < 0.01 ? 'Large, slow waves' : baseFrequency < 0.02 ? 'Medium waves' : 'Small, tight waves'}</div>
             <div><strong>Octaves:</strong> {numOctaves} - {numOctaves === 1 ? 'Simple pattern' : numOctaves === 2 ? 'Moderate detail' : numOctaves === 3 ? 'Complex detail' : 'Very intricate'}</div>
             <div><strong>Scale:</strong> {scale} - {scale < 20 ? 'Subtle displacement' : scale < 40 ? 'Moderate displacement' : 'Heavy displacement'}</div>
@@ -166,10 +166,10 @@ const MirrorVariant = ({
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="kol-helper-xs text-fg-48 font-mono">
+        <div className="kol-helper-12 text-fg-48 font-mono">
           baseFrequency: {baseFrequency} | octaves: {numOctaves} | scale: {scale}
         </div>
-        <label className="kol-helper-s textAbsoluteWhite cursor-pointer hover:opacity-80">
+        <label className="kol-helper-14 text-absolute-white cursor-pointer hover:opacity-80">
           <input
             type="file"
             accept="image/*"

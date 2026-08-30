@@ -59,136 +59,20 @@
 }
 
 /* =============================================================================
- * DISPLAY (Largest Headings)
+ * MIRROR-LOCAL REMNANTS — what the DS deliberately does not cover
+ *
+ * The t-shirt TEXT + HELPER scales retired 2026-08-12; the DISPLAY/HEADING mono
+ * voice retired 2026-08-27 with its last consumer (the unrouted styleguide) —
+ * it had been shadowing kol-theme's same-named display classes. Callsites use
+ * the DS numeric classes (kol-mono-N / kol-helper-N). Originals archived at
+ * _tmp/2026-08-12-ds-adoption/ and _tmp/2026-08-27-ds-consume-dead-components/.
+ *
+ * Kept above: the JetBrains @font-face + --kol-font-family-mono token. Fonts
+ * are per-app by DS design — kol-theme's type classes are font-agnostic.
+ *
+ * Kept below: kol-helper-xs-2 — an 11px off-scale density special
+ * (ExpressionReference, SymphonyMixer). No DS rung at 11.
  * ============================================================================= */
-
-.kol-display-lg {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(48px, 6vw, 96px);
-  line-height: 100%;
-  font-weight: 600;
-}
-
-.kol-display-section {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(40px, 5vw, 64px);
-  line-height: 100%;
-  font-weight: 600;
-}
-
-.kol-display-subsection {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(32px, 4vw, 48px);
-  line-height: 100%;
-  font-weight: 600;
-}
-
-/* =============================================================================
- * HEADINGS
- * ============================================================================= */
-
-.kol-heading-xl {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(40px, 5vw, 64px);
-  line-height: 110%;
-  font-weight: 500;
-}
-
-.kol-heading-lg {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(32px, 4vw, 48px);
-  line-height: 110%;
-  font-weight: 500;
-}
-
-.kol-heading-md {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(28px, 3.5vw, 40px);
-  line-height: 120%;
-  font-weight: 500;
-}
-
-.kol-heading-sm {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(20px, 2.5vw, 32px);
-  line-height: 100%;
-  font-weight: 500;
-}
-
-.kol-heading-xs {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(18px, 2vw, 28px);
-  line-height: 125%;
-  font-weight: 500;
-}
-
-/* =============================================================================
- * TEXT (Body Copy)
- * ============================================================================= */
-
-.kol-text-lg {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(18px, 2vw, 20px);
-  line-height: 160%;
-  font-weight: 400;
-}
-
-.kol-text-md {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(14px, 1.5vw, 18px);
-  line-height: 160%;
-  font-weight: 400;
-}
-
-.kol-text-sm {
-  font-family: var(--kol-font-family-mono);
-  font-size: clamp(12px, 1.25vw, 16px);
-  line-height: 150%;
-  font-weight: 400;
-}
-
-
-/* =============================================================================
- * HELPERS
- * ============================================================================= */
-
-/* Use Tailwind "uppercase" / "font-light" to compose variants inline */
-
-.kol-helper-xl {
-  font-family: var(--kol-font-family-mono);
-  font-size: 20px;
-  line-height: 100%;
-  font-weight: 500;
-}
-
-.kol-helper-lg {
-  font-family: var(--kol-font-family-mono);
-  font-size: 18px;
-  line-height: 100%;
-  font-weight: 500;
-}
-
-.kol-helper-md {
-  font-family: var(--kol-font-family-mono);
-  font-size: 16px;
-  line-height: 100%;
-  font-weight: 500;
-}
-
-.kol-helper-s {
-  font-family: var(--kol-font-family-mono);
-  font-size: 14px;
-  line-height: 100%;
-  font-weight: 500;
-}
-
-.kol-helper-xs {
-  font-family: var(--kol-font-family-mono);
-  font-size: 12px;
-  line-height: 100%;
-  font-weight: 500;
-}
-
 .kol-helper-xs-2 {
   font-family: var(--kol-font-family-mono);
   font-size: 11px;
@@ -196,27 +80,6 @@
   font-weight: 500;
 }
 
-.kol-helper-xs-2 .kol-helper-xs {
-  font-size: 11px;
-}
-
-.kol-helper-xs-2 .control-slider-minimal {
+.kol-helper-xs-2 .mirror-slider-minimal {
   height: 20px;
 }
-
-
-.kol-helper-xxs {
-  font-family: var(--kol-font-family-mono);
-  font-size: 10px;
-  line-height: 100%;
-  font-weight: 500;
-}
-
-.kol-helper-xxxs {
-  font-family: var(--kol-font-family-mono);
-  font-size: 8px;
-  line-height: 125%;
-  font-weight: 500;
-}
-
-

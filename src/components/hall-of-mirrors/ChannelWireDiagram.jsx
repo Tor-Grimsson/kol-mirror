@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-
-const WIRE_COLORS = ['#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#1abc9c', '#e67e22', '#ecf0f1']
+import { WIRE_COLORS } from './wireColors'
 const NODE_W = 10
 const NODE_H = 8
 const ROW_H = 20
@@ -50,7 +49,9 @@ function DraggableNode({ x, y, onDrag, svgRef, children }) {
 }
 
 export default function ChannelWireDiagram({ channels = [], master }) {
-  const activeChannels = channels.filter(ch => ch.enabled)
+  // In the mix = on AND patched into a master input slot (the back's jacks).
+  const inputs = master?.inputs || []
+  const activeChannels = channels.filter((ch, i) => ch.enabled && inputs.includes(i))
   if (activeChannels.length === 0) return null
 
   const rows = activeChannels.length
