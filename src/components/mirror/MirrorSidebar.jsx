@@ -9,7 +9,6 @@ import Button from '../atoms/Button'
 import Slider from '../atoms/Slider'
 import QuantityInput from '../atoms/QuantityInput'
 import { rasterDims } from '../../utils/processImageUpload'
-import { importEntry } from '../../hooks/useLibraryStore'
 import ColorPicker from '../atoms/ColorPicker'
 import Divider from '../atoms/Divider'
 import { Icon } from '../icons'
@@ -59,7 +58,6 @@ function NavHeaderRow({ onHide }) {
 export default function MirrorSidebar({ state, onClose, onHide }) {
   const fileInputRef = useRef(null)
   const [savedSlot, setSavedSlot] = useState('_none')
-  const [patchName, setPatchName] = useState('')
   const navigate = useNavigate()
   const loadBtnRef = useRef(null)
   const variants = (state.activeHall && VARIANT_MAP[state.activeHall]) || []
@@ -381,29 +379,14 @@ export default function MirrorSidebar({ state, onClose, onHide }) {
       {state.activeHall === 'symphony' && (
         <div className="p-4 overflow-visible border-t border-fg-08">
           <div className="flex flex-col" style={{ gap: '4px' }}>
-            {/* PATCH — the whole desk out and back. Save names it into the
-                library (Library lists it, and it exports as JSON from there);
-                Import reads a .json patch straight onto the desk. */}
-            <div className="flex items-center gap-2" style={{ height: '24px' }}>
-              <input
-                value={patchName}
-                onChange={(e) => setPatchName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && patchName.trim()) { state.savePatch({ name: patchName.trim() }); setPatchName('') } }}
-                placeholder="Patch name"
-                className="kol-helper-12 text-fg-96 bg-surface-tertiary px-2 flex-1 min-w-0"
-                style={{ height: '20px', border: 'none', outline: 'none', borderRadius: '2px', fontFamily: 'var(--kol-font-family-mono)' }}
-              />
-              <span
-                className={`kol-helper-12 select-none shrink-0 ${patchName.trim() ? 'text-fg-96 cursor-pointer hover:accentYellow' : 'text-fg-32'}`}
-                onClick={() => { if (patchName.trim()) { state.savePatch({ name: patchName.trim() }); setPatchName('') } }}
-              >[Save]</span>
-            </div>
+            {/* PATCH LIVES ON THE DESK NOW (2026-09-01). The name field, [Save]
+                and [Import] stood here — three scrolls under the desk they act
+                on, with export a page away on /library. They are one front
+                panel on monitor's `PatchModule` shape; `[Library]` stays as the
+                way out to the full list. */}
             <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
               <span className="text-fg-96">Patch</span>
-              <span className="flex items-center gap-2">
-                <span className="text-fg-64 hover:text-fg-96 cursor-pointer select-none" onClick={() => importEntry().then((e) => { if (e?.kind === 'patch') state.loadPatch(e) })}>[Import]</span>
-                <span className="text-fg-64 hover:text-fg-96 cursor-pointer select-none" onClick={() => navigate('/library')}>[Library]</span>
-              </span>
+              <span className="text-fg-64 hover:text-fg-96 cursor-pointer select-none" onClick={() => navigate('/library')}>[Library]</span>
             </div>
             <Divider className="my-1" />
             <div

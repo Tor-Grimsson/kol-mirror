@@ -9,6 +9,7 @@ import useImageTiers from '../../hooks/useImageTiers'
 import { getRasterTier } from '../../data/mirrorVariants'
 import SymphonyViewport from './SymphonyViewport'
 import ArchiveViewport from './ArchiveViewport'
+import WideOnly from '../WideOnly'
 import PresetsViewport from './PresetsViewport'
 import { useRef, useState, useEffect } from 'react'
 import { findVariant, IMAGE_SIZES } from '../../data/mirrorVariants'
@@ -24,14 +25,22 @@ const RATIO_MAP = {
 }
 
 function CanvasFrame({ ratio, customWidth, customHeight, hallLabel, children }) {
-  if (ratio === 'none') return children
-
+  /* HOOK ORDER. The `ratio === 'none'` early return used to sit ABOVE these
+     three hooks — one of the four conditional-hook errors standing in this file
+     since before 2026-08-30, and the only one this session had to touch: the
+     mobile studio pins `ratio` to 'none' for a full-bleed canvas while the desk
+     keeps '16:9', so dragging a window across the 768 fold changed the hook
+     count between renders and React throws on the next one. Latent before, live
+     the moment a phone layout exists.
+     `CopiesViewport`'s is untouched — a live instrument path, and not mine. */
   const containerRef = useRef(null)
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 })
 
-  const [rw, rh] = ratio === 'custom'
-    ? [customWidth, customHeight]
-    : ratio.split(':').map(Number)
+  const [rw, rh] = ratio === 'none'
+    ? [1, 1]
+    : ratio === 'custom'
+      ? [customWidth, customHeight]
+      : ratio.split(':').map(Number)
 
   useEffect(() => {
     const el = containerRef.current
@@ -55,6 +64,10 @@ function CanvasFrame({ ratio, customWidth, customHeight, hallLabel, children }) 
     observer.observe(el)
     return () => observer.disconnect()
   }, [rw, rh])
+
+  /* The early return, now BELOW every hook — same behaviour as before for the
+     desk, no hook-count change across a resize. */
+  if (ratio === 'none') return children
 
   const ratioLabel = ratio === 'custom' ? `${customWidth}x${customHeight}` : ratio
 
@@ -213,7 +226,14 @@ export default function MirrorViewport({ state }) {
         </CanvasFrame>
       )}
 
-      {state.activeHall === 'symphony' && <SymphonyViewport state={state} />}
+      {/* The desk is gated HERE rather than in the mobile sheet's hall list,
+          because the sheet is not the only way in: /library's CREATE view and
+          the home cards deep-link straight to `symphony` through
+          `location.state`, and a saved hall survives a reload. One gate at the
+          render, not a guard at each entrance. */}
+      {state.activeHall === 'symphony' && (
+        <WideOnly what="The Symphony mixer"><SymphonyViewport state={state} /></WideOnly>
+      )}
 
       {state.activeHall === 'archive' && <ArchiveViewport state={state} />}
 

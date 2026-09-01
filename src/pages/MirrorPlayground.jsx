@@ -8,14 +8,14 @@ import { findVariant, getDefaultParams } from '../data/mirrorVariants'
 import { useMirrorState } from '../hooks/useMirrorState'
 import { transport } from '../hooks/transport'
 import { useTheme } from '@kolkrabbi/kol-framework/src/theme.js'
-import MobileHeader from '../components/mirror/MobileHeader'
-import MobileDrawer from '../components/mirror/MobileDrawer'
 import MirrorSidebar from '../components/mirror/MirrorSidebar'
 import MirrorViewport from '../components/mirror/MirrorViewport'
+import MobileStudio from '../components/mirror/MobileStudio'
+import { useNarrow } from '../hooks/useNarrow'
 
 export default function MirrorPlayground() {
   const state = useMirrorState()
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const narrow = useNarrow()
 
   // Sidebar open/close — monitor's rack mechanics verbatim: closed by default,
   // the global rail hides only WHILE the sidebar is open, [Show]/[Hide]
@@ -208,19 +208,28 @@ export default function MirrorPlayground() {
     }
   }, [getDefaultWidth])
 
+  /* BELOW THE FOLD, a different studio (2026-09-01). Placed after every hook in
+     this component, never inside a condition — `MirrorViewport` already carries
+     four conditional-hook errors and this file is not going to add a fifth.
+
+     `MobileStudio` is not this layout reflowed: the resizable overlay sidebar,
+     the drag handle, the H key and the rail-hiding dance are all mouse
+     mechanics, and a phone gets a canvas and a sheet instead. The desktop tree
+     below is left exactly as it was. */
+  if (narrow) return <MobileStudio state={state} />
+
   return (
     /* The page wash (kol-shell 0.11.0 `AppShell pageWash`): the shell paints the
        primary back, PageShell reads the wash var — this root paints its own, so it
        reads the same var to stay in step with the other routes. */
     <div className="flex h-dvh w-full overflow-hidden" style={{ background: 'var(--kol-shell-page-wash, var(--kol-surface-primary))' }}>
       <ModulePalette mode={palette} onClose={() => setPalette(null)} api={paletteApi} />
-      {/* Mobile header */}
-      <MobileHeader onMenuToggle={() => setDrawerOpen(true)} />
-
-      {/* Mobile drawer */}
-      <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <MirrorSidebar state={state} onClose={() => setDrawerOpen(false)} />
-      </MobileDrawer>
+      {/* `MobileHeader` + `MobileDrawer` stood here and are retired to
+          `_tmp/2026-09-01-mobile-studio/`. They put the WHOLE `MirrorSidebar` —
+          hall nav, variant list, canvas-ratio controls, archive slots, the save
+          row — behind a hamburger at 288px, which is the desktop instrument in
+          a drawer. `MobileStudio` replaced them above; this tree is now only
+          ever rendered above the fold, so both were dead. */}
 
       {/* Desktop sidebar — closed by default; a FIXED OVERLAY like monitor's
           rack sidebar (VideoModulo ~85): the studio never reflows on H, the

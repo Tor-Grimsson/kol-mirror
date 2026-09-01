@@ -154,7 +154,11 @@ export default function RecorderUnit({
                   {(slot.size / (1024 * 1024)).toFixed(2)}MB · {slot.duration?.toFixed(1)}s · {slot.resolution} · {slot.fps}fps
                 </div>
               )}
-              <Slider variant="dual" min={0} max={slotDuration} step={0.1} value={slot.mark1 ?? 0} value2={slot.mark2 ?? slotDuration} onChange={(v) => onUpdateRecSlotTrim(si, v, slot.mark2)} onChange2={(v) => onUpdateRecSlotTrim(si, slot.mark1, v)} playhead={isActive ? playhead : undefined} onPlayheadChange={isActive ? onSeek : undefined} />
+              <Slider variant="dual"
+                      /* the live teal its neighbours wear (pause/clear/slot below),
+                         not the DS default accent — the playhead reads as one of
+                         this unit's transport controls, not as brand */
+                      className="[--kol-slider-playhead:#2dd4bf]" min={0} max={slotDuration} step={0.1} value={slot.mark1 ?? 0} value2={slot.mark2 ?? slotDuration} onChange={(v) => onUpdateRecSlotTrim(si, v, slot.mark2)} onChange2={(v) => onUpdateRecSlotTrim(si, slot.mark1, v)} playhead={isActive ? playhead : undefined} onPlayheadChange={isActive ? onSeek : undefined} />
               <div className="flex items-center justify-between gap-4 kol-helper-12" style={{ height: '24px' }}>
                 <div className="flex items-center" style={{ gap: '2px' }}>
                   {isActive ? (

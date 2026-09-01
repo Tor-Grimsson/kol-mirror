@@ -1135,6 +1135,15 @@ export default function SymphonyViewport({ state }) {
       </InfiniteCanvas>
       <div className="symphony-mixer-container" style={{ display: mixerVisible ? 'block' : 'none' }}>
         <SymphonyMixer
+          /* The patch module's three verbs. Bundled as one prop rather than
+             three: SymphonyMixer already threads 40, and these only ever move
+             together. `clear` pulls the master input cables and leaves the
+             channels loaded — monitor's semantics (see PatchModule). */
+          patchApi={{
+            save: (name) => state.savePatch({ name }),
+            load: (entry) => state.loadPatch(entry),
+            clear: () => state.setSymphonyMaster((m) => ({ ...m, inputs: [null, null, null] })),
+          }}
           screen2={state.symphonyScreen2}
           setScreen2={state.setSymphonyScreen2}
           channels={rawChannels}

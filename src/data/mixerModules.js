@@ -178,4 +178,21 @@ export const MIXER_MODULES = [
       ['Caveat', 'A custom-uploaded image is not persisted with a slot — reloading falls back to the default source'],
     ],
   },
+  {
+    id: 'patch',
+    name: 'Patch',
+    kind: 'Storage',
+    role: 'The whole desk out and back. A patch is channels, master and the canvas settings together — `master.inputs` is half of every cable, so the three cannot be saved apart. Distinct from Memory, which stores ONE hall variant per slot.',
+    io: {
+      in: 'The live desk, on [Save]; a library entry on [Load]; a .json file on [Import]',
+      out: 'A named entry in the library, listed on /library; a .json file on [Export]',
+    },
+    controls: [
+      ['Preset tab', 'The library’s patches in a dropdown — Load · Clear · a name field and [Save]. A user save can be deleted; a shipped preset cannot'],
+      ['File tab', 'Export writes the selected patch to .json; Import reads one onto the desk and keeps it in the library'],
+      ['Clear', 'Pulls the master input cables and leaves the channels loaded — the patch, not the desk'],
+      ['Readout', 'Inputs wired, and channels loaded out of channels present'],
+      ['Not carried', 'Uploaded images (data URLs blow the localStorage quota) and recorded takes (session-scoped object URLs, dead links in any later session)'],
+    ],
+  },
 ]

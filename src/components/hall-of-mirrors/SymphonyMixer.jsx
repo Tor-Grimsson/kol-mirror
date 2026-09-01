@@ -16,6 +16,7 @@ import ChannelWireDiagram from './ChannelWireDiagram'
 import MasterModule from './MasterModule'
 import RoutingMatrix from './RoutingMatrix'
 import GeneratorModule from './modules/GeneratorModule'
+import PatchModule from './modules/PatchModule'
 import ExpressionReference from './ExpressionReference'
 import Dropdown from '../molecules/Dropdown'
 import GrabEdge from '../GrabEdge'
@@ -691,6 +692,7 @@ export default function SymphonyMixer({
   onAddRecSlot,
   onUploadRecSlot,
   onUpdateRecSlotTrim,
+  patchApi,
 }) {
   const [masterFxOpen, setMasterFxOpen] = useState(false)
   const [fxOpenAll, setFxOpenAll] = useState({ open: false, tick: 0 })
@@ -1261,6 +1263,12 @@ export default function SymphonyMixer({
               onChannelUpdate(free < 0 ? 0 : free, { variantId, params, enabled: true })
             }}
           />
+        </div>
+        {/* The patch, as a front panel (user 2026-09-01, on monitor's
+            `PatchModule`). Sits after the bench modules because it acts on the
+            whole desk rather than on any one strip. */}
+        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+          <PatchModule api={patchApi} master={master} channels={channels} />
         </div>
         {ringPad > 0 && [0, 1].map((k) => <div key={`spacer-${k}`} data-spacer="" aria-hidden className="shrink-0" style={{ width: ringPad }} />)}
       </div>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell, ShortcutsOverlay } from '@kolkrabbi/kol-shell'
 import logomarkUrl from '@kolkrabbi/kol-brand/svg/favicon-01.svg?url'
@@ -12,6 +12,7 @@ import MixerPage from './pages/MixerPage'
 import FrontsPage from './pages/FrontsPage'
 import IconsPage from './pages/IconsPage'
 import TapePage from './pages/TapePage'
+import WideOnly from './components/WideOnly'
 import { KEYBOARD_SHORTCUTS } from './data/shortcuts'
 import { transport } from './hooks/transport'
 import { useRenderStats, setStatsEnabled } from './hooks/renderStats'
@@ -135,12 +136,12 @@ function Shell() {
   const [showFps, setShowFps] = useState(false)
   useAdaptiveQuality()
 
-  /* the pinned Settings rung is a TOGGLE (user, 2026-08-28: "click settings
-     opens settings, click again closes") — the second click returns to the
-     page it was opened from */
-  const lastPage = useRef('/')
-  useEffect(() => { if (location.pathname !== '/settings') lastPage.current = location.pathname }, [location.pathname])
-  const onNavigate = (path) => navigate(path === '/settings' && location.pathname === '/settings' ? lastPage.current : path)
+  /* The Settings rung TOGGLES (user, 2026-08-28: "click settings opens
+     settings, click again closes") — the shell's own since kol-shell 0.25.0 /
+     0.26.0 (SettingsToggleGesture: three repos had each built this), so the
+     local `lastPage` ref and the branch in `onNavigate` are gone. Passed as
+     `settingsPath` + `settingsKey` below; `onNavigate` is a plain navigate
+     again. */
 
   /* App-wide keys — S (the shortcuts sheet), Space (the timeline) and
      Option+1..N. The rail's own `\` and its nav-hidden state are AppShell's
@@ -176,10 +177,18 @@ function Shell() {
       bottomItems={BOTTOM_ITEMS}
       logomark={LOGOMARK}
       currentPath={location.pathname}
-      onNavigate={onNavigate}
+      onNavigate={navigate}
       iconComponent={DSIcon}
       railToggleKey={'\\'}
+      settingsPath="/settings"
+      settingsKey=","
       pageWash="var(--kol-fg-02)"
+      /* Below 768 the rail goes off-canvas and gives its 48px back (kol-shell
+         0.31.0). On a 390px phone that column is 12.3% of the viewport, and
+         `railToggleKey` cannot help there — it is a KEY, and a phone has no
+         keyboard. A WIDTH, not a pointer test: an iPad is coarse and has the
+         room, so ARCHITECTURE §2's pointer rule is not what governs this one. */
+      touch="drawer"
     >
       <Outlet />
       {showShortcuts && <ShortcutsOverlay shortcuts={KEYBOARD_SHORTCUTS} onClose={() => setShowShortcuts(false)} />}
@@ -196,12 +205,17 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/studio" element={<MirrorPlayground />} />
-          <Route path="/expressions" element={<ExpressionsPage />} />
-          <Route path="/mixer" element={<MixerPage />} />
-          <Route path="/icons" element={<IconsPage />} />
-          <Route path="/tape" element={<TapePage />} />
+          {/* WIDE ONLY. Five reference surfaces that are not small-screen
+              objects: five 320px scroll columns, a module spec sheet, an icon
+              grid, ten tape decks side by side, a front-panel sketchbook. A
+              phone gets the note, not a broken layout. `/` `/library`
+              `/settings` and the studio's halls are the mobile app. */}
+          <Route path="/expressions" element={<WideOnly what="The expression reference"><ExpressionsPage /></WideOnly>} />
+          <Route path="/mixer" element={<WideOnly what="The module sheet"><MixerPage /></WideOnly>} />
+          <Route path="/icons" element={<WideOnly what="The icon sheet"><IconsPage /></WideOnly>} />
+          <Route path="/tape" element={<WideOnly what="The tape decks"><TapePage /></WideOnly>} />
           {/* a sketchbook of module-front ideas — not wired to the instrument */}
-          <Route path="/fronts" element={<FrontsPage />} />
+          <Route path="/fronts" element={<WideOnly what="The front sketchbook"><FrontsPage /></WideOnly>} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
         {DevCapturePage && (

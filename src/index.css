@@ -38,21 +38,22 @@
 .accentYellowStrong { color: var(--kol-accent-primary-strong); }
 
 /*
- * Mirror layout: mobile vs desktop detection.
- * Desktop = non-touch screen ≥768px. Everything else gets mobile (hamburger).
- * Touch devices (iPad etc.) always get mobile layout regardless of screen size.
+ * Mirror layout. The fold is decided in JS now (`useNarrow`, 2026-09-01) —
+ * below 768 the studio is `MobileStudio`, and this desktop tree is not rendered
+ * at all. So there is nothing left for a media query to switch: these two
+ * classes only ever exist above the fold.
+ *
+ * ⚠️ THE OLD QUERY WAS `(min-width: 768px) and (pointer: fine)`, and dropping
+ * the pointer half is the point, not an oversight. Under it a TOUCH LAPTOP or
+ * an iPad at 1024px fell to the mobile branch — which, once the JS fold went
+ * width-only, would have rendered the desktop sidebar with `display: none` on
+ * it: present, focusable, invisible. ARCHITECTURE §2 rules pointer capability
+ * for INTERACTION and still does; this is layout, and the DS made the same
+ * split in kol-shell 0.31.0 ("an iPad is coarse and has room"). Old block in
+ * `_tmp/2026-09-01-mobile-studio/index-css-mobile-block.css`.
  */
-.mirror-sidebar-desktop { display: none; }
-.mirror-mobile-header { display: flex; }
-.mirror-mobile-drawer { display: block; }
-.mirror-viewport { padding-top: 3rem; /* h-12 header */ }
-
-@media (min-width: 768px) and (pointer: fine) {
-  .mirror-sidebar-desktop { display: flex; }
-  .mirror-mobile-header { display: none; }
-  .mirror-mobile-drawer { display: none; }
-  .mirror-viewport { padding-top: 0; }
-}
+.mirror-sidebar-desktop { display: flex; }
+.mirror-viewport { padding-top: 0; }
 
 /*
  * Symphony viewport layout.

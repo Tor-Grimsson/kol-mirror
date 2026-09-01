@@ -80,6 +80,8 @@
   font-weight: 500;
 }
 
-.kol-helper-xs-2 .mirror-slider-minimal {
+/* `.control-slider` since 2026-08-30 — the local `.mirror-slider-minimal` was
+ * this same row and retired with the slider (SliderDualThumbAndPlayhead). */
+.kol-helper-xs-2 .control-slider {
   height: 20px;
 }

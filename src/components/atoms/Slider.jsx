@@ -1,155 +1,44 @@
-import React, { useMemo, useRef, useCallback } from 'react'
+import DSSlider from '@kolkrabbi/kol-component/molecules/Slider'
 
 /**
- * Slider Component
+ * Slider — thin adapter over the DS Slider (@kolkrabbi/kol-component), the same
+ * shape `molecules/Dropdown.jsx` uses.
  *
- * Reusable range slider with label and value display
+ * Replaces mirror's hand-built slider (SliderDualThumbAndPlayhead, filed from
+ * here 2026-08-30 and closed the same day as kol-component 0.133.0 + kol-theme
+ * 0.97.0). The local one was a VERBATIM copy of DS CSS kept alive by one
+ * feature the DS did not have: `.mirror-slider-minimal` was `.control-slider`
+ * declaration for declaration, `.mirror-slider-track` was `.slider-black` down
+ * to the thumb's `margin-top: -5px`, and the third rule was the bordered pill
+ * the DS retired 2026-07-08 — dead here too, no call site ever passed it.
+ * Original at `_tmp/2026-08-30-slider-upstream/Slider-local.jsx` (183 lines),
+ * its skin beside it as `components-slider-block.css` (157 lines).
  *
- * @param {Object} props
- * @param {string} props.label - Slider label text
- * @param {number} props.min - Minimum value
- * @param {number} props.max - Maximum value
- * @param {number} props.value - Current value
- * @param {Function} props.onChange - Change handler
- * @param {string} props.variant - Variant style: 'default' | 'minimal'
- * @param {string} props.className - Additional wrapper classes
- * @param {number} props.displayWidth - Width for value display (in characters)
- * @param {string} props.fontSize - Font size for label and value (e.g., '11px', '12px', '14px')
- * @param {number} props.step - Slider step increment (default: 1)
- * @param {Function} props.formatValue - Optional formatter for displayed value
+ * `variant="dual"`, `playhead` / `onPlayheadChange`, `readout` and
+ * `defaultValue` + alt-click reset are all the DS's now — forwarded untouched,
+ * which is why all 18 call sites needed no edit.
+ *
+ * TWO REPO-WIDE PINS, the reason this file exists rather than a direct import
+ * at 10 sites. First, `readout="value"`. The DS default is an editable filled <Input>,
+ * and the mixer runs 17 faders in 24px rows inside a ~300px shelf — an input
+ * chip on every one is a different control. `value` is RotaryDial's own
+ * display-only readout and renders the exact span the local component had.
+ * Overridable per call site: pass `readout` and it wins.
+ *
+ * The track ink is the second pin: mirror's faders run full ink, not the DS's
+ * dim `fg-64`. It rides `style` — the documented seam, which only became real
+ * in kol-theme 0.98.0 + kol-component 0.134.0 (`SliderTrackVariableNotForwarded`,
+ * filed from here while adopting the dual slider and closed the same day). It
+ * had never worked: `style` was forwarded nowhere and `.slider-black` declared
+ * the variable on itself, so inheritance was dead too. A call site's own `style`
+ * spreads after and wins.
  */
-const Slider = ({
-  label,
-  min = 0,
-  max = 100,
-  value = 0,
-  value2,
-  label1,
-  label2,
-  onChange,
-  onChange2,
-  variant = 'default',
-  className = '',
-  displayWidth = 10,
-  fontSize,
-  step = 1,
-  playhead,
-  onPlayheadChange,
-  formatValue,
-  defaultValue
-}) => {
-  const handleChange = (e) => {
-    if (onChange) {
-      onChange(Number(e.target.value))
-    }
-  }
-
-  const isDual = variant === 'dual'
-  const variantClass = (variant === 'minimal' || isDual) ? 'mirror-slider-minimal' : 'mirror-slider'
-  const decimals = useMemo(() => {
-    if (formatValue) return null
-    if (!Number.isFinite(step)) return 0
-    if (step >= 1) return 0
-    const decimalPart = step.toString().split('.')[1]
-    return decimalPart ? decimalPart.length : 2
-  }, [formatValue, step])
-
-  const fmt = (v) => {
-    if (formatValue) return formatValue(v)
-    if (decimals && decimals > 0) return Number(v).toFixed(decimals)
-    return Math.round(v)
-  }
-
-  const trackRef = useRef(null)
-  const handlePlayheadDrag = useCallback((e) => {
-    if (!onPlayheadChange || !trackRef.current) return
-    e.preventDefault()
-    const track = trackRef.current
-    const seek = (clientX) => {
-      const rect = track.getBoundingClientRect()
-      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-      onPlayheadChange(min + ratio * (max - min))
-    }
-    seek(e.clientX)
-    const onMove = (me) => seek(me.clientX)
-    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-  }, [min, max, onPlayheadChange])
-
-  if (isDual) {
-    const v1 = value ?? min
-    const v2 = value2 ?? max
-    const showLabels = label1 || label2
-    return (
-      <div className={`${variantClass} gap-3 shadow-none ${className}`}>
-        {label && (
-          <label className="kol-helper-12 whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
-            {label}
-          </label>
-        )}
-        <div className="flex-1">
-          {showLabels && (
-            <div className="flex items-center justify-between kol-helper-12 text-fg-32" style={{ marginBottom: '-2px' }}>
-              <span>{label1 || fmt(v1)}</span>
-              <span>{label2 || fmt(v2)}</span>
-            </div>
-          )}
-          <div className="relative w-full" ref={trackRef} style={{ height: '20px', cursor: onPlayheadChange ? 'pointer' : undefined }} onClick={(e) => {
-            if (!onPlayheadChange || !trackRef.current) return
-            const rect = trackRef.current.getBoundingClientRect()
-            const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-            onPlayheadChange(min + ratio * (max - min))
-          }}>
-            <div className="absolute left-0 right-0" style={{ top: '9px', height: '2px', backgroundColor: 'var(--kol-surface-on-primary)' }} />
-            {playhead != null && max > min && (
-              <div
-                className="absolute"
-                style={{ left: `calc(6px + (100% - 12px) * ${(playhead - min) / (max - min)})`, top: '0px', width: '3px', height: '20px', marginLeft: '-1.5px', backgroundColor: '#2dd4bf', zIndex: 4, cursor: 'grab', borderRadius: '1px' }}
-                onPointerDown={handlePlayheadDrag}
-              />
-            )}
-            <input
-              type="range" min={min} max={max} step={step} value={v1}
-              onChange={(e) => { const n = Number(e.target.value); onChange && onChange(Math.min(n, v2)) }}
-              className="mirror-range-in"
-              style={{ position: 'absolute', inset: 0, width: '100%', pointerEvents: 'none', appearance: 'none', background: 'transparent', zIndex: 1 }}
-            />
-            <input
-              type="range" min={min} max={max} step={step} value={v2}
-              onChange={(e) => { const n = Number(e.target.value); onChange2 && onChange2(Math.max(n, v1)) }}
-              className="mirror-range-out"
-              style={{ position: 'absolute', inset: 0, width: '100%', pointerEvents: 'none', appearance: 'none', background: 'transparent', zIndex: 2 }}
-            />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const displayValue = useMemo(() => fmt(value), [decimals, formatValue, value])
-
-  return (
-    <div className={`${variantClass} gap-3 shadow-none ${className}`} onClick={(e) => { if (e.altKey && onChange) { e.preventDefault(); onChange(defaultValue ?? min) } }}>
-      {label && (
-        <label className="kol-helper-12 whitespace-nowrap shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
-          {label}
-        </label>
-      )}
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={handleChange}
-        className="mirror-slider-track flex-1 w-full cursor-pointer"
-      />
-      {displayValue != null && <span className="kol-helper-12 text-right shrink-0 w-fit" style={fontSize ? { fontSize } : undefined}>
-        {displayValue}
-      </span>}
-    </div>
-  )
-}
+const Slider = ({ readout = 'value', style, ...rest }) => (
+  <DSSlider
+    {...rest}
+    readout={readout}
+    style={{ '--kol-slider-track': 'var(--kol-surface-on-primary)', ...style }}
+  />
+)
 
 export default Slider
