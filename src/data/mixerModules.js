@@ -39,6 +39,23 @@ export const MIXER_MODULES = [
     ],
   },
   {
+    id: 'input',
+    name: 'Input',
+    kind: 'Source',
+    role: 'Where a picture enters the instrument — the camera, an image, a video or an SVG — and the strip it feeds. One module for the four ways in that used to be split across the strip’s SRC shelf, the Live Input generator and the Recorder.',
+    io: {
+      in: 'The camera (any device), an image or SVG file, a video file — by button or by dropping it on the panel',
+      out: 'OUT → one channel strip, chosen on the panel; the strip sees exactly what its own SRC shelf would have loaded',
+    },
+    controls: [
+      ['Camera', 'Points the strip at the live input — gen-live, source camera, mirrored'],
+      ['Image · SVG', 'Rasterised through the same upload path as the shelf, capped at 2.1 MP'],
+      ['Video', 'The live input pointed at a file — a frame stream, not a still'],
+      ['Drop', 'The whole panel is a drop zone; image or video decided by type'],
+      ['OUT', 'Which strip this feeds — defaults to the newest'],
+    ],
+  },
+  {
     id: 'master',
     name: 'Master Module',
     kind: 'Output',
@@ -196,3 +213,18 @@ export const MIXER_MODULES = [
     ],
   },
 ]
+
+/* The modules that exist ONCE on a desk. `ModulePalette` lists them and says
+   so ("one per desk") rather than pretending they are addable twice. Data,
+   not component code — beside the catalogue so react-refresh keeps
+   `ModuleFront.jsx` a components-only file. */
+export const ONE_PER_DESK = new Set(['master', 'routing', 'playback'])
+
+/* The ids `ModuleFront` can draw. Anything else above is a catalogue entry
+   with no standalone front yet. */
+export const HAS_FRONT = new Set([
+  'channel', 'master', 'routing', 'playback', 'generators', 'field', 'generator-module',
+  /* wired 2026-09-02 — these three had real components all along (`PatchModule`,
+     `RecorderUnit`, `FxUnit`) and were only missing from the id → component map */
+  'patch', 'recorder', 'canvas-fx',
+])

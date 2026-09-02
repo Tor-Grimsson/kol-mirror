@@ -441,7 +441,9 @@ export default function PixiKaleidoscopeVariant({
     >
       <div
         className="absolute inset-0"
-        style={{ pointerEvents: grabSegment ? 'auto' : 'none' }}
+        /* touch-action: none — see the sibling Pixi variants: a touch device otherwise
+           claims the drag for scroll and pointercancel kills the grab. */
+        style={{ pointerEvents: grabSegment ? 'auto' : 'none', touchAction: 'none' }}
         onPointerMove={grabSegment && !grabDragRef.current ? (e) => {
           const el = e.currentTarget
           const rect = el.getBoundingClientRect()

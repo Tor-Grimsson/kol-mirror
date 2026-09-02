@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useNavHidden } from '@kolkrabbi/kol-shell'
 import ModulePalette from '../components/mirror/ModulePalette'
+import PatchTableOverlay from '../components/hall-of-mirrors/PatchTableOverlay'
 import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
 import { getDefaultCanvasFxParams } from '../hooks/useCanvasFx'
 import { findVariant, getDefaultParams } from '../data/mirrorVariants'
@@ -39,8 +40,18 @@ export default function MirrorPlayground() {
   useEffect(() => {
     if (deepLinkDone.current) return
     deepLinkDone.current = true
-    const { variantId, slotIndex, patch, slot, channelIndex } = location.state || {}
-    if (slot) {
+    const { variantId, slotIndex, patch, slot, slots, channelIndex } = location.state || {}
+    /* `slots` — the whole mixer, from CREATE's builder view (2026-09-01, on
+       kol-monitor's CreatePage shape: you assemble the instrument and then open
+       it). Same merge semantics as the single `slot` below, N at a time: each
+       entry lands on its own strip and whatever it does not specify — level,
+       sends, routing — survives. An entry that is `null` leaves that strip
+       untouched, so a builder with only Ch 2 filled does not blank Ch 1 and 3. */
+    if (Array.isArray(slots)) {
+      state.setSymphonyChannels((prev) =>
+        prev.map((ch, i) => (slots[i] ? { ...ch, ...slots[i] } : ch)))
+      state.selectHall('symphony')
+    } else if (slot) {
       /* A channel built on /library's CREATE view. Merged into the target channel rather than
          replacing it, so whatever the slot does not specify (level, sends,
          routing) survives. */
@@ -72,6 +83,10 @@ export default function MirrorPlayground() {
      an entry DOES is its own `add`, run against this api — so the palette never
      learns what kind of thing it is adding. */
   const [palette, setPalette] = useState(null)
+  /* THE PATCH TABLE (kol-monitor's `PatchTableOverlay`, user 2026-09-01:
+     "a mobile and structure friendly patch bay … follow suit"). `p` toggles
+     it, as over there; on a phone the `Patch` control beside `Modules` does. */
+  const [patchTable, setPatchTable] = useState(false)
   /* The channel the palette is currently building. A source and the FX that
      follow it are ONE patch, so they have to land on the same strip — this used
      to be "first free channel" for the source and "channel 0" for the FX, which
@@ -149,6 +164,7 @@ export default function MirrorPlayground() {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       switch (e.key.toLowerCase()) {
         case 'e': setPalette((m) => (m === 'shelf' ? null : 'shelf')); break
+        case 'p': setPatchTable((v) => !v); break
         case 'h': setSidebarOpen(v => !v); break
         case 't': cycleRef.current?.(); break
         case 'm': s.setSymphonyMixerVisible(v => !v); break
@@ -216,7 +232,59 @@ export default function MirrorPlayground() {
      the drag handle, the H key and the rail-hiding dance are all mouse
      mechanics, and a phone gets a canvas and a sheet instead. The desktop tree
      below is left exactly as it was. */
-  if (narrow) return <MobileStudio state={state} />
+  /* Below the fold the studio IS `MobileStudio` — but the module palette lives
+     here, so its touch entry has to be rendered on this side of the return or
+     it never mounts at all (which is exactly what happened on the first
+     attempt: the button sat in the desktop tree below and a phone never
+     reached it). */
+  if (narrow) return (
+    <>
+      <MobileStudio state={state} />
+      {/* THE TOUCH WAY IN. `ModulePalette` has had both chromes since
+          2026-08-28 — ⌘K a search, E a bottom shelf, ported from kol-monitor —
+          and BOTH are bound to keys, so on a phone the module library did not
+          exist at all. kol-monitor has the same gap (`useKeybindings.js:16`,
+          ⌘K only), so there is no decision to port here; what IS monitor's is
+          the idiom for desk chrome — a fixed corner control, `VideoModulo.jsx:167`
+          puts `[Lock]` at bottom-right the same way.
+
+          The SHELF, not the search: a search opens a keyboard over the surface
+          you are trying to see, and the shelf is the browsable half. Bottom-LEFT
+          because the drawer trigger owns the top-right corner and the mobile
+          sheet owns the bottom edge's full width. */}
+      {!palette && (
+        <button
+          type="button"
+          onClick={() => setPalette('shelf')}
+          className="fixed kol-helper-12 text-fg-64"
+          style={{ bottom: 72, left: 16, zIndex: 'var(--kol-z-overlay)', background: 'var(--kol-surface-primary)', border: '1px solid var(--kol-fg-08)', borderRadius: 'var(--kol-radius-xs)', height: 40, padding: '0 12px' }}
+        >
+          Modules
+        </button>
+      )}
+      {narrow && !patchTable && state.activeHall === 'symphony' && (
+        <button
+          type="button"
+          onClick={() => setPatchTable(true)}
+          className="fixed kol-helper-12 text-fg-64"
+          style={{ bottom: 72, left: 104, zIndex: 'var(--kol-z-overlay)', background: 'var(--kol-surface-primary)', border: '1px solid var(--kol-fg-08)', borderRadius: 'var(--kol-radius-xs)', height: 40, padding: '0 12px' }}
+        >
+          Patch
+        </button>
+      )}
+
+      <ModulePalette mode={palette} onClose={() => setPalette(null)} api={paletteApi} />
+      <PatchTableOverlay
+        open={patchTable}
+        onClose={() => setPatchTable(false)}
+        channels={state.symphonyChannels}
+        master={state.symphonyMaster}
+        onChannelUpdate={(i, patch) => state.setSymphonyChannels((prev) => prev.map((c, n) => (n === i ? { ...c, ...patch } : c)))}
+        onMasterChange={(patch) => state.setSymphonyMaster((m) => ({ ...m, ...patch }))}
+      />
+
+    </>
+  )
 
   return (
     /* The page wash (kol-shell 0.11.0 `AppShell pageWash`): the shell paints the
@@ -224,6 +292,15 @@ export default function MirrorPlayground() {
        reads the same var to stay in step with the other routes. */
     <div className="flex h-dvh w-full overflow-hidden" style={{ background: 'var(--kol-shell-page-wash, var(--kol-surface-primary))' }}>
       <ModulePalette mode={palette} onClose={() => setPalette(null)} api={paletteApi} />
+      <PatchTableOverlay
+        open={patchTable}
+        onClose={() => setPatchTable(false)}
+        channels={state.symphonyChannels}
+        master={state.symphonyMaster}
+        onChannelUpdate={(i, patch) => state.setSymphonyChannels((prev) => prev.map((c, n) => (n === i ? { ...c, ...patch } : c)))}
+        onMasterChange={(patch) => state.setSymphonyMaster((m) => ({ ...m, ...patch }))}
+      />
+
       {/* `MobileHeader` + `MobileDrawer` stood here and are retired to
           `_tmp/2026-09-01-mobile-studio/`. They put the WHOLE `MirrorSidebar` —
           hall nav, variant list, canvas-ratio controls, archive slots, the save

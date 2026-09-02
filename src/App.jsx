@@ -5,6 +5,9 @@ import logomarkUrl from '@kolkrabbi/kol-brand/svg/favicon-01.svg?url'
 import { Icon as DSIcon, registerIcons } from '@kolkrabbi/kol-icons'
 import HomePage from './pages/HomePage'
 import LibraryPage from './pages/LibraryPage'
+import CreatePage from './pages/CreatePage'
+import { CreateDeskProvider } from './hooks/useCreateDesk'
+import ModuleDetailPage from './pages/ModuleDetailPage'
 import MirrorPlayground from './pages/MirrorPlayground'
 import ExpressionsPage from './pages/ExpressionsPage'
 import SettingsPage from './pages/SettingsPage'
@@ -27,6 +30,11 @@ const DevCapturePage = import.meta.env.DEV ? lazy(() => import('./pages/DevCaptu
 // generic `library` / `rack` / `slider-01` stand-ins retired 2026-08-27.
 const NAV_ITEMS = [
   { icon: 'nav-library', path: '/library', label: 'Library' },
+  /* CREATE IS A ROUTE AGAIN (user ruling 2026-09-01, asked four times). It was
+     merged into /library as a view on 2026-08-28; that note is superseded —
+     kol-monitor keeps `/create` as a route with its own rail row
+     (`AppLayout.jsx:32`), and monitor is the reference. */
+  { icon: 'nav-create', path: '/create', label: 'Create' },
   // The DS set has no `wave` (the mixer tab's local glyph); `frequency` is the
   // nearest mark and already names the channel strip's expressions shelf.
   { icon: 'frequency', path: '/expressions', label: 'Expression' },
@@ -188,6 +196,15 @@ function Shell() {
          `railToggleKey` cannot help there — it is a KEY, and a phone has no
          keyboard. A WIDTH, not a pointer test: an iPad is coarse and has the
          room, so ARCHITECTURE §2's pointer rule is not what governs this one. */
+      /* `drawer` everywhere, home included (user ruling 2026-09-02: "i still
+         think the card is too big, if its a tradeoff, then just hide the
+         sidenav on home as well"). The collapsed rail on home was his first
+         ask and it was served — kol-shell 0.38.0's tap disc made it possible —
+         but the 48px it costs is exactly the width that flips `CatalogPage`'s
+         grid from two tracks to one at 390 (302px fits one 160px-floor track,
+         350 fits two), so a lone card went full width. He'd rather have the
+         two-column card than the rail. `ShellRailCollapsedWithTapOpen` stays
+         shipped for whoever wants the other side of that trade. */
       touch="drawer"
     >
       <Outlet />
@@ -210,10 +227,21 @@ function App() {
               grid, ten tape decks side by side, a front-panel sketchbook. A
               phone gets the note, not a broken layout. `/` `/library`
               `/settings` and the studio's halls are the mobile app. */}
-          <Route path="/expressions" element={<WideOnly what="The expression reference"><ExpressionsPage /></WideOnly>} />
-          <Route path="/mixer" element={<WideOnly what="The module sheet"><MixerPage /></WideOnly>} />
+          <Route path="/expressions" element={<ExpressionsPage />} />
+          <Route path="/mixer" element={<MixerPage />} />
+          {/* THE CREATE GROUP. `/create` and a module's own page share one
+              provider so the desk survives canvas → module page → Back
+              (kol-monitor §6: "the item routes moved INSIDE the rack
+              provider's route group so state survives"). `CreatePage`
+              unmounts on navigation, so no amount of `location.key`
+              bookkeeping can hold the desk from inside it — measured. */}
+          <Route element={<CreateDeskProvider><Outlet /></CreateDeskProvider>}>
+            <Route path="/create" element={<CreatePage />} />
+            {/* a desk module's own page — monitor's `/library/:moduleType` */}
+            <Route path="/mixer/:id" element={<ModuleDetailPage />} />
+          </Route>
           <Route path="/icons" element={<WideOnly what="The icon sheet"><IconsPage /></WideOnly>} />
-          <Route path="/tape" element={<WideOnly what="The tape decks"><TapePage /></WideOnly>} />
+          <Route path="/tape" element={<TapePage />} />
           {/* a sketchbook of module-front ideas — not wired to the instrument */}
           <Route path="/fronts" element={<WideOnly what="The front sketchbook"><FrontsPage /></WideOnly>} />
           <Route path="/settings" element={<SettingsPage />} />

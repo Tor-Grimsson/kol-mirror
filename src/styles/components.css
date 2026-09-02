@@ -81,18 +81,3 @@
 /* the drag IS the transition — nothing eases while the pointer holds it */
 :root[data-grab-dragging] .symphony-mixer-container { transition: none; }
 
-/* ── /mixer: no hover. The card is a SPECIMEN — nothing to click — so hover
-   is made impossible rather than restyled: `pointer-events: none` means
-   `:hover` never matches and every DS hover rule is simply never applied.
-   (Restyling the hover state to `inherit` was wrong twice over — `inherit`
-   resolves to the PARENT's value, not the element's rest value, so it painted
-   a change on hover instead of removing one.) */
-.mixer-spec .kol-card,
-.mixer-spec .kol-card * {
-  pointer-events: none;
-  cursor: default;
-}
-/* …except the Patch toggle, which is the one live control on the page */
-/* …except the strip's own flip control in its header */
-.mixer-spec .kol-card [data-live],
-.mixer-spec [data-live] { pointer-events: auto; cursor: pointer; }

@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, GENERATOR_VARIANTS, getDefaultParams, findVariant, DEFAULT_IMAGE } from '../data/mirrorVariants'
 import { GENERATOR_COMPONENTS } from '../components/hall-of-mirrors/generators'
+import ModuleFront from '../components/hall-of-mirrors/ModuleFront'
+import { MODULE_REGISTRY, MODULE_HEIGHT } from '../data/moduleRegistry'
+import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx, fxPath, fxCapability } from '../hooks/useCanvasFx'
 import { buildPasses } from '../hooks/gpuFxShaders'
 import { runChain, gpuAvailable } from '../hooks/gpuFx'
@@ -18,6 +21,7 @@ import PixiKaleidoscopeVariant from '../components/hall-of-mirrors/PixiKaleidosc
  * DevCapturePage — /dev/capture (DEV builds only; monitor's pattern).
  * Render surface for scripts/generate-previews.mjs:
  *   ?kind=list       → JSON list of capturable ids in #capture-list
+ *   ?module=<id>     → a desk module's FRONT, for its catalogue preview
  *   ?variant=<id>    → that variant standalone at default params in #capture-target
  *   ?fx=<id>         → ONE canvas-FX unit over the canonical still, ditto
  * Not instrument navigation — the studio stays state-driven (ARCHITECTURE §1);
@@ -161,7 +165,43 @@ export default function DevCapturePage() {
        true. */
     const generatorIds = GENERATOR_VARIANTS.map(v => v.id).filter(id => id !== 'gen-live')
     const fxIds = CANVAS_FX_DEFS.map(d => d.id)
-    return <pre id="capture-list">{JSON.stringify({ variantIds, generatorIds, fxIds })}</pre>
+    /* THE DESK'S MODULES. A variant's preview is what it does to a picture; a
+       desk module has no output image, so its preview is a photograph of the
+       module itself — which is what a module catalogue shows anyway. Without
+       these the Library and `/create` cards drew the glyph for every desk unit
+       (2026-09-02). */
+    const moduleIds = MODULE_REGISTRY.filter(m => m.front?.kind === 'desk').map(m => m.front.id)
+    return <pre id="capture-list">{JSON.stringify({ variantIds, generatorIds, fxIds, moduleIds })}</pre>
+  }
+
+  const moduleId = search.get('module')
+  if (moduleId) {
+    return (
+      /* THE SAME 800×500 FRAME the variant and FX captures use, with the
+         module centred in it. Shot at its natural 320×490 the PNG was portrait,
+         and `ContentCard fit="cover"` crops a portrait image to a landscape
+         card by showing the middle sliver — measured in the Library grid,
+         2026-09-02. A module is 490 tall, so 500 clears it. */
+      <div id="capture-target" className="relative overflow-hidden bg-surface-primary flex items-center justify-center" style={{ width: W, height: H }}>
+        {/* `#capture-fit` is what the script scales. The desk's widest modules
+            (Master with its meter bank, the Routing matrix) are wider than this
+            frame, and a module that overflows gets its edges cut off in the
+            card — so the script measures this box after render and sets a
+            `zoom` that fits it. Done at capture time because the width is the
+            component's, not something this route can know. */}
+        <div id="capture-fit" className="flex">
+        <ModuleFront
+          front={{ kind: 'desk', id: moduleId }}
+          id={moduleId}
+          channel={{ ...EMPTY_CHANNEL }}
+          channels={[{ ...EMPTY_CHANNEL }]}
+          master={{ inputs: [null, null, null], fx: [], sends: {}, opacity: 100 }}
+          onChannelUpdate={() => {}}
+          onMasterChange={() => {}}
+        />
+        </div>
+      </div>
+    )
   }
 
   const fxId = search.get('fx')

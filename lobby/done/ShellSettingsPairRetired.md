@@ -67,7 +67,7 @@ import { LabeledControlSection, SettingsRow } from '@kolkrabbi/kol-component'
 
 Both renamed props took: `label` for the section, and `align="fill"` on the four
 prose rows (Memory ×2, Adaptive → Currently) that read as sentences rather than
-values. Re-confirmed green on **kol-shell 0.31.0** today, five releases past the
+values. Re-confirmed green on **kol-shell 0.35.0**, fifteen releases past the
 0.20.0 line where the exports vanish.
 
 `divided` and `rowGap` are available and not taken — no row here has asked for
@@ -77,3 +77,16 @@ either yet.
 changes — the section header becoming an eyebrow, and `SettingsRow` uppercasing
 its label — have never been looked at in this repo. 🔴 **Needs the user's
 screen.**
+
+## 🟢 CLOSED — 2026-09-01, seen on screen
+
+Both deliberate render changes are confirmed at 390 × 844 and unchanged at 1440:
+
+1. **The section header is an eyebrow** — `MEMORY`, `KEYBOARD SHORTCUTS`,
+   `RENDER BUDGET` render on `kol-eyebrow text-fg-80`, not shell's old `h2`.
+2. **`SettingsRow` uppercases its label** — `SAVE` / `LOAD` read as uppercase
+   with their prose right-hand cells left-aligned, which is `align="fill"`
+   doing its job on the four rows that are sentences.
+
+Re-confirmed green on **kol-shell 0.36.0**, sixteen releases past the 0.20.0
+line where the exports vanish. Nothing was owed here but the looking.

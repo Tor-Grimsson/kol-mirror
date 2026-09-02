@@ -128,8 +128,28 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
         }
 
         if (ctrl.type === 'slider') {
+          /* THE SLIDER WAS THE ONE BRANCH `rowHeight` NEVER REACHED. Every
+             other control type here applies it; this one wrapped the DS Slider
+             in a bare div, so on the phone sheet — which passes 44 — the
+             faders still rendered a 24px row while the toggles and dropdowns
+             beside them were 44. Measured at 390 on 2026-09-01: the range
+             input's own box was 24px tall against a 44px platform floor, and
+             the faders are the primary control of every variant.
+
+             The row height alone is only half of it, and the half that does
+             NOT fix the hit box — the input is still 24px inside a 44px row,
+             so a thumb landing high hits this div and nothing moves. The hit
+             box and `touch-action` both have to reach the `<input>` itself,
+             which props cannot do (`style` goes to the `.control-slider`
+             wrapper and `touch-action` does not inherit), so they ride two
+             rules in `mirror-overrides.css`. Filed to kol-ds-ui as
+             `SliderCoarsePointerHeight`; delete the rules when it ships. */
           return (
-            <div key={ctrl.key} style={frozenStyle}>
+            <div
+              key={ctrl.key}
+              className="flex items-center"
+              style={{ height: `${rowHeight}px`, ...frozenStyle }}
+            >
               <Slider
                 label={ctrl.label}
                 min={ctrl.min}

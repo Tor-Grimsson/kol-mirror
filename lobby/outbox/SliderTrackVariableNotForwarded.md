@@ -3,7 +3,7 @@
 **Filed:** 2026-08-30 → **kol-ds-ui**
 **Entry:** `~/dev/projects/kol-ds-ui/lobby/inbox/SliderTrackVariableNotForwarded.md`
 **Ledger:** `~/dev/projects/kol-ds-ui/lobby/INDEX.md` — **the truth about this ticket**
-**Last known:** 🔵 `filed` · 2026-08-30
+**Last known:** 🟢 `closed` · synced 2026-08-30 — **kol-theme 0.98.0 + kol-component 0.134.0**
 
 ## Why it went there
 

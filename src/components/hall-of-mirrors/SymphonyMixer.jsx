@@ -943,7 +943,13 @@ export default function SymphonyMixer({
           where they were. The grab edge rides the same box, so the pill can
           travel the whole line. */}
       <div
-        className="flex items-center gap-6 pb-2 mb-1 border-b border-fg-08"
+        /* WRAPS BELOW THE FOLD. The row is Mixer · Expressions · Patch with
+              Lock + Grid pushed right by `margin-left: auto`; at 390 its total
+              runs past the viewport and the right pair simply leaves the
+              screen. `flex-wrap` + a tighter mobile gap lets it fall to a
+              second line instead — measured 2026-09-01, and the desk is on a
+              phone now that nothing is omitted from mobile. */
+            className="flex items-center flex-wrap gap-x-4 gap-y-2 md:gap-x-6 pb-2 mb-1 border-b border-fg-08"
         style={{ position: 'relative', marginInline: -16, paddingInline: 16 }}
       >
         {/* The grab edge sits ON this row's bottom rule — the line between the
@@ -994,7 +1000,15 @@ export default function SymphonyMixer({
         ))}
         {/* LOCK + GRID, kol-monitor's bracket idiom (VideoModulo.jsx:154) — red
             when the view is locked. `L` and `g` bind the same keys it does. */}
-        <span className="flex items-center gap-4" style={{ marginLeft: 'auto' }}>
+        {/* On the desk this hugs the right. Below md the row wraps, and a
+            group pushed right by `margin-left: auto` lands 8px under "Patch"
+            reading as overlap (user, 2026-09-01: "do you think that's a good
+            look?"). So under md it takes its OWN line — full width,
+            left-aligned, a hairline above — and reads as a second row of chrome
+            instead of a collision. Monitor keeps `[Lock]` out of its tab row
+            entirely, as a fixed corner control; on a desk that scrolls inside a
+            page, a second row is the equivalent that stays with the desk. */}
+        <span className="flex items-center gap-4 w-full pt-2 mt-1 border-t border-fg-08 md:w-auto md:pt-0 md:mt-0 md:border-t-0 md:ml-auto">
           <span
             className="cursor-pointer select-none kol-helper-14 flex items-center gap-2"
             style={{ color: dots ? 'var(--kol-fg-64)' : 'var(--kol-fg-32)' }}

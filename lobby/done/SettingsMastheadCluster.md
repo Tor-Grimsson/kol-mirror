@@ -100,3 +100,24 @@ repo's standing baseline, unmoved.
 **NOT verified on screen.** No dev server ran — the user owns his. This repo is
 the first adopter, so the ticket's own warning lands here: the cluster's render
 is unchecked by anyone. 🔴 **Needs the user's screen before this goes 🟢.**
+
+## 🟢 CLOSED — 2026-09-01, seen on screen
+
+**The bar in this ledger is "verified by running it". It was run.** Playwright at
+390 × 844 against the dev server the user sanctioned, and again at 20:14 on a
+production build at the current tier (kol-shell 0.36.0 · kol-theme 0.122.0 ·
+kol-component 0.153.0).
+
+The masthead cluster **renders**: the `ThemeToggle` sits right-aligned on the
+subtitle's baseline above the rule, `fill="none" tone="sunken" label={false}
+size="sm"`, exactly fxr's approved row. `picker` and the gear are absent, which
+is the omission this repo argued for and not a defect.
+
+**kol-mirror was the first repo anywhere to adopt this, so the ticket's own
+warning — *"Nothing here is screen-verified. The first to adopt is the check"* —
+is now served.** That check has been run and it passes.
+
+Shots: `_tmp/2026-09-01-mobile-qa/04-settings-390-shortcuts-18px-columns.png`
+(the cluster is the icon at top right; the 18px shortcut columns in that same
+frame were a separate defect, filed as `SettingsShortcutsGridColumns` and closed
+in kol-shell 0.36.0 the same day).

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { useTouchGestures } from '../../hooks/useTouchGestures'
 
 /**
  * InfiniteCanvas — the studio's viewport becomes a workspace you can pan and
@@ -16,11 +17,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * every canvas app shares. The wheel zooms about the POINTER, not the centre,
  * which is the difference between a canvas and a zoom button.
  */
-const MIN = 0.25
+/* 0.1, monitor's floor, not 0.25 — at 0.25 a 1716px rack was still 429px, wider
+   than a 390 phone at any zoom ("it's clipping"). Mirror's desk is the same
+   order of width. */
+const MIN = 0.1
 const MAX = 3
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b)
 
-export default function InfiniteCanvas({ children, className = '', style }) {
+/* `controls` — an object this fills with `{ zoomIn, zoomOut, setZoom, reset }`,
+   and `onZoomChange(k)` for a readout. The view lives in a ref so the pan stays
+   off React; a consumer that wants to SHOW the zoom needs telling, and one that
+   wants a −/+ needs a way in. Monitor's bottom bar is the reason both exist. */
+export default function InfiniteCanvas({ children, className = '', style, controls, onZoomChange, showReset = true }) {
   const stage = useRef(null)
   const layer = useRef(null)
   const view = useRef({ x: 0, y: 0, k: 1 })
@@ -29,7 +37,8 @@ export default function InfiniteCanvas({ children, className = '', style }) {
   const paint = useCallback(() => {
     const { x, y, k } = view.current
     if (layer.current) layer.current.style.transform = `translate(${x}px, ${y}px) scale(${k})`
-  }, [])
+    onZoomChange?.(k)
+  }, [onZoomChange])
 
   const reset = useCallback(() => {
     view.current = { x: 0, y: 0, k: 1 }
@@ -40,6 +49,14 @@ export default function InfiniteCanvas({ children, className = '', style }) {
   useEffect(() => {
     const el = stage.current
     if (!el) return undefined
+    /* TOUCH-ACTION ON BOTH BOXES, monitor's ruling: the OUTER as well as the
+       transformed content. The margin around the canvas is most of a phone
+       screen, and a touch starting there was the browser's — page scroll, our
+       pointers cancelled. Without it the pointer stream never reaches
+       `useTouchGestures` below. A scroller nested inside still gets native
+       scroll: touch-action resolves only up to the nearest scroll container. */
+    el.style.touchAction = 'none'
+    if (layer.current) layer.current.style.touchAction = 'none'
     let drag = null
     let space = false
 
@@ -47,6 +64,10 @@ export default function InfiniteCanvas({ children, className = '', style }) {
     const onKeyUp = (e) => { if (e.code === 'Space') space = false }
 
     const onDown = (e) => {
+      /* MOUSE ONLY. Touch is `useTouchGestures` below — one finger on empty
+         surface pans, two pinch — and letting both run on a phone gave two
+         handlers one pointer stream. */
+      if (e.pointerType === 'touch') return
       /* background, space-drag or middle button — never a control */
       const onBackground = e.target === el || e.target === layer.current
       if (!(onBackground || space || e.button === 1)) return
@@ -101,18 +122,83 @@ export default function InfiniteCanvas({ children, className = '', style }) {
     }
   }, [paint])
 
+  /* TOUCH — monitor's `useTouchGestures`, its consumers' shape too.
+     `onTouchPan` is screen px straight onto the translate, because this canvas
+     transforms with `scale()` and not CSS `zoom` (monitor's rack divides by
+     zoom for that reason; the stage, which uses a transform like this one,
+     does not).
+     `onTouchZoom` anchors on the MIDPOINT — the content under the fingers
+     stays under the fingers — and writes `view.current.k` EAGERLY inside the
+     gesture. That eagerness is the 537px bug monitor measured: a pinch fires
+     one pointermove PER FINGER, so a value written on render is already stale
+     by the second one and the pan correction stacks. `view` is a ref, so it is
+     eager by construction here. */
+  const onTouchPan = useCallback((dx, dy) => {
+    view.current.x += dx
+    view.current.y += dy
+    paint()
+    setMoved(true)
+  }, [paint])
+
+  const onTouchZoom = useCallback((factor, mid) => {
+    const el = stage.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const px = mid.x - r.left
+    const py = mid.y - r.top
+    const v = view.current
+    const k = clamp(v.k * factor, MIN, MAX)
+    v.x = px - ((px - v.x) / v.k) * k
+    v.y = py - ((py - v.y) / v.k) * k
+    v.k = k
+    paint()
+    setMoved(true)
+  }, [paint])
+
+  useTouchGestures(stage, { onPan: onTouchPan, onZoom: onTouchZoom })
+
+  /* zoom about the CENTRE for the bar's −/+, which have no pointer of their own */
+  const zoomTo = useCallback((next) => {
+    const el = stage.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const px = r.width / 2
+    const py = r.height / 2
+    const v = view.current
+    const k = clamp(next, MIN, MAX)
+    v.x = px - ((px - v.x) / v.k) * k
+    v.y = py - ((py - v.y) / v.k) * k
+    v.k = k
+    paint()
+    setMoved(true)
+  }, [paint])
+
+  /* `useImperativeHandle`, not an assignment during render — writing to a ref
+     while rendering is exactly what React's rules forbid, and the lint caught
+     it. `controls` is a ref the consumer owns. */
+  useImperativeHandle(controls, () => ({
+    zoomIn: () => zoomTo(view.current.k * 1.25),
+    zoomOut: () => zoomTo(view.current.k / 1.25),
+    setZoom: (k) => zoomTo(k),
+    reset,
+  }), [zoomTo, reset])
+
   return (
     <div ref={stage} className={className} style={{ position: 'relative', overflow: 'hidden', ...style }}>
       <div ref={layer} style={{ transformOrigin: '0 0', width: '100%', height: '100%' }}>
         {children}
       </div>
-      {moved && (
+      {moved && showReset && (
         <span
           onClick={reset}
           className="kol-helper-12 cursor-pointer select-none text-fg-32 hover:text-fg-96"
           style={{ position: 'absolute', left: 12, bottom: 12, zIndex: 6 }}
           title="Back to 1:1"
         >Reset view</span>
+        /* `showReset={false}` where the page has its own bar — on /create this
+           label sat at `bottom: 12` under a bar at `bottom: 24` and the two
+           overlapped the moment the canvas was panned. It only renders once
+           `moved` is true, which is why an unpanned screenshot looked fine. */
       )}
     </div>
   )

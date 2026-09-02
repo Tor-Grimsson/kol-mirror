@@ -226,14 +226,12 @@ export default function MirrorViewport({ state }) {
         </CanvasFrame>
       )}
 
-      {/* The desk is gated HERE rather than in the mobile sheet's hall list,
-          because the sheet is not the only way in: /library's CREATE view and
-          the home cards deep-link straight to `symphony` through
-          `location.state`, and a saved hall survives a reload. One gate at the
-          render, not a guard at each entrance. */}
-      {state.activeHall === 'symphony' && (
-        <WideOnly what="The Symphony mixer"><SymphonyViewport state={state} /></WideOnly>
-      )}
+      {/* THE DESK, ungated (user ruling 2026-09-01: "why are we omitting
+          anything from mobile?"). It was wrapped in `WideOnly` on a ruling
+          inherited from a session log rather than asked for. What a phone does
+          with three channel strips, a routing matrix and an FX rack is a real
+          design problem — but hiding it was never the answer to that. */}
+      {state.activeHall === 'symphony' && <SymphonyViewport state={state} />}
 
       {state.activeHall === 'archive' && <ArchiveViewport state={state} />}
 

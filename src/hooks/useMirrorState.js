@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { getResponsiveImage, getDefaultParams, findVariant, DISPLACEMENT_VARIANTS, COPIES_VARIANTS, MOVEMENT_VARIANTS } from '../data/mirrorVariants'
-import { rasterDims } from '../utils/processImageUpload'
+import { rasterDims, capRaster } from '../utils/processImageUpload'
 import { applyPatch, buildPatchEntry } from './patchFile'
 import { addToLibrary } from './useLibraryStore'
 
@@ -178,10 +178,18 @@ export function useMirrorState() {
       reader.readAsText(file)
     } else {
       const reader = new FileReader()
+      /* `capRaster` — the raster branch went to the GPU at the file's own size
+         while the SVG branch above has been budgeted since 2026-08-27. This is
+         the mobile picker's path: `MobileStudio`'s camera-roll input is
+         `accept="image/*"`, so it is the one entry point GUARANTEED to hand
+         this a 12 MP photo, on the weakest device the app runs on. Under
+         `maxChannelPixels` the data URL passes through untouched. */
       reader.onload = (event) => {
-        if (activeVariant) {
-          setCustomImages(prev => ({ ...prev, [activeVariant]: event.target.result }))
-        }
+        capRaster(event.target.result).then((dataUrl) => {
+          if (activeVariant) {
+            setCustomImages(prev => ({ ...prev, [activeVariant]: dataUrl }))
+          }
+        })
       }
       reader.readAsDataURL(file)
     }

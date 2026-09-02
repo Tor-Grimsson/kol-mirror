@@ -9,6 +9,10 @@
 // THREE KINDS, TWO FOLDERS (2026-08-28, plan 1.3):
 //   variants + generators → public/previews/variants/<id>.png
 //   canvas FX units       → public/previews/fx/<id>.png
+//   the desk's modules    → public/previews/modules/<id>.png   (2026-09-02)
+// A desk module has no output image — its preview is a photograph of the module
+// itself, which is what a module catalogue shows anyway. Without them the
+// Library and /create cards drew the glyph for every desk unit.
 // Generators sit with the variants because they ARE sources — the card asks for
 // `/previews/variants/${id}.png` and gets one, no branch. FX units are a
 // different kind of thing (a unit applied to a still, not a source), so they get
@@ -25,6 +29,7 @@ const PORT = 5177
 const BASE = `http://localhost:${PORT}`
 const VARIANT_DIR = join(ROOT, 'public/previews/variants')
 const FX_DIR = join(ROOT, 'public/previews/fx')
+const MODULE_DIR = join(ROOT, 'public/previews/modules')
 
 const arg = (flag) => {
   const i = process.argv.indexOf(flag)
@@ -64,6 +69,7 @@ async function startDevServer() {
 async function main() {
   mkdirSync(VARIANT_DIR, { recursive: true })
   mkdirSync(FX_DIR, { recursive: true })
+  mkdirSync(MODULE_DIR, { recursive: true })
 
   console.log('Starting dev server...')
   const server = await startDevServer()
@@ -86,8 +92,22 @@ async function main() {
       permissions: ['camera'],
     })
 
+    /* CAPTURE IN DARK (user 2026-09-02: *"i want dark mode images not light"*).
+       kol-framework's boot script stamps `data-theme` from `kol-theme` before
+       first paint and wipes that key unless `kol-theme-v` is current — so both
+       go in, and they go in as an init script so the stamp is right on the
+       FIRST paint rather than a flash of light that a fast capture could catch.
+       Only the module shots actually change: a variant, generator or FX preview
+       is a full-bleed picture with no surface showing. */
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('kol-theme-v', '3')
+        localStorage.setItem('kol-theme', 'dark')
+      } catch { /* storage blocked */ }
+    })
+
     await page.goto(`${BASE}/dev/capture?kind=list`, { waitUntil: 'networkidle', timeout: 15000 })
-    const { variantIds, generatorIds, fxIds } = JSON.parse(await page.locator('#capture-list').textContent({ timeout: 10000 }))
+    const { variantIds, generatorIds, fxIds, moduleIds = [] } = JSON.parse(await page.locator('#capture-list').textContent({ timeout: 10000 }))
 
     /* One flat job list — the only differences are the query key, the output
        folder and how long the thing needs before it is worth photographing. */
@@ -98,9 +118,11 @@ async function main() {
       ...generatorIds.map((id) => ({ id, kind: 'generators', url: `variant=${id}`, dir: VARIANT_DIR, settle: 2000 })),
       // FX drift the still for 24 frames and then flag ready themselves.
       ...fxIds.map((id) => ({ id, kind: 'fx', url: `fx=${id}`, dir: FX_DIR, settle: 0, waitReady: true })),
+      // A module front is static markup — it only needs its fonts and icons.
+      ...moduleIds.map((id) => ({ id, kind: 'modules', url: `module=${id}`, dir: MODULE_DIR, settle: 600 })),
     ].filter((j) => (!KIND || j.kind === KIND) && (!ONLY || j.id === ONLY))
 
-    console.log(`Capturing ${jobs.length} of ${variantIds.length + generatorIds.length + fxIds.length}`)
+    console.log(`Capturing ${jobs.length} of ${variantIds.length + generatorIds.length + fxIds.length + moduleIds.length}`)
 
     let failed = 0
     for (const job of jobs) {
@@ -127,7 +149,19 @@ async function main() {
         }
         // Settle: Pixi textures load, GSAP variants reach mid-motion.
         if (job.settle) await page.waitForTimeout(job.settle)
-        await page.locator('#capture-target').screenshot({ path: join(job.dir, `${job.id}.png`), type: 'png' })
+        // A module front is whatever width its component is — the widest (the
+        // master's meter bank, the routing matrix) overflow the frame and get
+        // their edges cut off in the card. Scale it to fit, once, here: the
+        // capture route cannot know the width, and hardcoding one per module
+        // would go stale the first time a panel gains a column.
+        /* A module is shot AT ITS OWN SIZE, not inside the 800×500 frame the
+           variants use. A variant preview is a picture and fills the frame; a
+           module is an object, so a fixed frame either crops it (cover) or
+           letterboxes it (contain) — both measured in the Library grid,
+           2026-09-02. Cropping the capture to the panel means the card shows
+           the module as large as its aspect allows, whatever the column count. */
+        const target = job.kind === 'modules' ? '#capture-fit' : '#capture-target'
+        await page.locator(target).screenshot({ path: join(job.dir, `${job.id}.png`), type: 'png' })
         console.log(' ok')
       } catch (err) {
         failed++

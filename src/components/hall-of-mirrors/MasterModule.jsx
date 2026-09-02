@@ -636,7 +636,11 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
               <span className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === 'mst' ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`} onClick={() => setBottomTab('mst')}>MST</span>
             </div>
           </div>
-          <div className="flex items-stretch flex-1 gap-4 px-2 py-2">
+          {/* `kol-helper-12` — the tab row above already carries it and the
+              content row did not, so any plain string in here (the "No input —
+              patch a channel" notice) fell through to the body sans while every
+              label around it was the mono. 2026-09-02. */}
+          <div className="flex items-stretch flex-1 gap-4 px-2 py-2 kol-helper-12">
             {renderBottomContent()}
           </div>
         </div>

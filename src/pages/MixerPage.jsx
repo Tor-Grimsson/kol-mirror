@@ -1,16 +1,5 @@
-import { useState } from 'react'
-import { CatalogPage } from '@kolkrabbi/kol-shell'
-import ChannelPatchPanel from '../components/hall-of-mirrors/ChannelPatchPanel'
-import { Icon } from '../components/icons'
-import SpecList from '@kolkrabbi/kol-component/molecules/SpecList'
-import Coverflow from '../components/Coverflow'
-import { Channel } from '../components/hall-of-mirrors/SymphonyMixer'
-import MasterModule from '../components/hall-of-mirrors/MasterModule'
-import RoutingMatrix from '../components/hall-of-mirrors/RoutingMatrix'
-import PlaybackModule from '../components/hall-of-mirrors/PlaybackModule'
-import ChannelModules from '../components/hall-of-mirrors/ChannelModules'
-import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
-import { MIXER_MODULES } from '../data/mixerModules'
+import CatalogLibrary from '../components/CatalogLibrary'
+import { MODULE_REGISTRY } from '../data/moduleRegistry'
 
 /**
  * MixerPage — /mixer, the RACK (user ruling 2026-08-28: "don't list cards in a
@@ -22,125 +11,57 @@ import { MIXER_MODULES } from '../data/mixerModules'
  * a centred one were all wrong in turn. The DS page is the answer that was
  * already in the repo: header, filter row, card grid, expand in place.
  *
- * A module's card MEDIA is its drawn front — jack strip, knob row, fader, keys,
- * chosen by KIND — so the grid reads as a rack rather than as text. Clicking a
- * card expands it to the specs. A REFERENCE surface, not a second instrument
- * (ARCHITECTURE §1, same standing as /expressions); the desk itself is still
- * state, and nothing here touches it.
+ * ORDINARY CARDS, on `toCard` (user ruling 2026-09-01: "scrap this skewing
+ * module card it was a bad idea, just use normal cards like monitor"). What was
+ * here until then was a `Coverflow` — a 3-D skewed carousel of 640px cards, each
+ * rendering a LIVE front panel. On a desk it read as a rack; at 390 the Channel
+ * Strip's panel simply lay across the Master Module's card, because a drawn
+ * front has a desk's width and a phone does not. Retired to
+ * `_tmp/2026-09-01-mixer-coverflow/`.
+ *
+ * `toCard` is the whole contract, so `CatalogPage` draws the grid AND the list
+ * itself — which is how this page inherits `CatalogPageMobileColumns` (kol-shell
+ * 0.33.0: cols is a ceiling, not a command) for free instead of carrying its own
+ * geometry. Same shape kol-monitor's CreatePage uses for its rack modules.
+ *
+ * Clicking a card still expands it to the specs — `expanded` / `expandedContent`
+ * reach `ContentCard catalog`'s 2×2 cell, and the page hides the neighbours
+ * itself. A REFERENCE surface, not a second instrument (ARCHITECTURE §1, same
+ * standing as /expressions); the desk itself is still state, and nothing here
+ * touches it.
  */
 
-/* THE FRONT of each card — the real unit, read-only. Everything here is off an
-   EMPTY_CHANNEL / empty master with no-op handlers, and the card's dead zone
-   keeps the pointer out (ARCHITECTURE §1: nothing on this page touches the
-   desk). A module with no standalone component renders its specs alone rather
-   than a drawing of itself — a fake front is worse than none. */
-const EMPTY_MASTER = { inputs: [null, null, null], fx: [], sends: {}, opacity: 100 }
-const noop = () => {}
+/* `module: m` is the whole contract with `CatalogLibrary`'s card: it branches
+   on what an item IS, and a registry unit is the branch that opens its own
+   page. Without it these fell through to the VARIANT branch and tried to load
+   the Master into the studio. Same shape `/library`'s effects use. */
+const asItem = (m) => ({ name: m.id, title: m.name, tags: m.tags || [], group: m.group, kind: m.kind, detail: m.detail, module: m })
+const modules = MODULE_REGISTRY.filter((m) => m.front?.kind === 'desk').map(asItem)
+const registryPatches = MODULE_REGISTRY.filter((m) => m.kind === 'Patch' && !m.front).map(asItem)
 
-function ModuleFront({ id, flipped, onFlip }) {
-  switch (id) {
-    case 'channel':
-      return (
-        <Channel
-          channelId={0}
-          flipped={flipped}
-          onFlip={onFlip}
-          patchPanel={<ChannelPatchPanel channelIndex={0} channel={EMPTY_CHANNEL} channels={[EMPTY_CHANNEL]} master={EMPTY_MASTER} onChannelUpdate={noop} />}
-          value={EMPTY_CHANNEL.intensity}
-          opacity={EMPTY_CHANNEL.opacity}
-          params={EMPTY_CHANNEL.params}
-          controls={[]}
-          enabled={false}
-          boosted={false}
-          items={[]}
-          fx={[]}
-          defaultName="Channel 1"
-        />
-      )
-    case 'master':
-      return <MasterModule master={EMPTY_MASTER} onMasterChange={noop} channels={[EMPTY_CHANNEL]} onChannelUpdate={noop} />
-    case 'routing':
-      return <RoutingMatrix channels={[EMPTY_CHANNEL]} onChannelUpdate={noop} master={EMPTY_MASTER} onMasterChange={noop} />
-    case 'playback':
-      return <PlaybackModule />
-    case 'generators':
-    case 'field':
-      return <ChannelModules index={0} channel={EMPTY_CHANNEL} onChannelUpdate={noop} onMediaChange={noop} onRecalc={noop} />
-    default:
-      return null
-  }
-}
+const VIEW_MODE_OPTIONS = [
+  { value: 'modules', label: 'Modules' },
+  { value: 'patches', label: 'Patches' },
+]
 
-function Specs({ mod }) {
-  return (
-    <div>
-      {/* the intro is SANS and darker than the table below it — it is prose,
-          the table is data, and the hierarchy should say so */}
-      <div className="kol-sans-body-02 text-fg-96" style={{ marginBottom: 20 }}>{mod.role}</div>
-      <SpecList
-        framed
-        items={[
-          { label: 'In', value: mod.io.in },
-          { label: 'Out', value: mod.io.out },
-          ...mod.controls.map(([label, detail]) => ({ label, value: detail })),
-        ]}
-      />
-    </div>
-  )
+/* what each view feeds the one page — monitor's `VIEWS` */
+const VIEWS = {
+  modules: {
+    items: modules, title: 'All Modules',
+    filterGroups: [{ label: 'Modules', key: 'group', stack: true, values: [...new Set(modules.map((m) => m.group))].sort() }],
+  },
+  patches: {
+    items: registryPatches, title: 'All Patches',
+    filterGroups: [{ label: 'Tags', key: 'tags', values: [...new Set(registryPatches.flatMap((m) => m.tags || []))].sort() }],
+  },
 }
 
 export default function MixerPage() {
-  /* the ONLY interactive thing on the page — the strip's OWN flip control, in
-     its header (user 2026-08-28: "the card has a patch button in its header").
-     The separate Patch toggle above the card is gone. */
-  const [flipped, setFlipped] = useState(false)
-
-  const items = MIXER_MODULES.map((m) => ({ ...m, title: m.name }))
-
   return (
-    <CatalogPage
-      className="mixer-spec"
-      header={{ title: 'Mixer', subtitle: 'Every module in the desk, and what it does', size: 'sm', voice: 'mono' }}
-      items={items}
-      filtersTitle="All Modules"
-      filterGroups={[{ label: 'Kind', key: 'kind', stack: true, values: [...new Set(MIXER_MODULES.map((m) => m.kind))] }]}
-      filtersProps={{
-        tone: 'sunken',
-        /* CatalogPage's own card is `variant="catalog"`, which has no eyebrow
-           slot. `article` is the one whose order is media → eyebrow → title →
-           body (ContentText's SLOTS), which is the layout asked for: the strip
-           on top, the section eyebrow above the heading, the text below. */
-        renderItem: (rows) => {
-          /* one card per module (user 2026-08-28) */
-          const cards = rows
-          /* tighter step + shorter radius: the cards ride closer together and
-             overlap at the shoulders (user 2026-08-28: "make the cards overlap
-             maybe? so they feel a bit together") */
-          return (
-            <Coverflow count={cards.length} cardWidth={640} height={1160} step={17} radius={1050}>
-              {(i) => {
-                const m = cards[i]
-                return (
-                  /* locked: 640 wide, 3:5. A plain div, not ContentCard — the
-                     DS card boxes its media to a ratio and clips it. Section,
-                     header, module, text. */
-                  <div
-                    className="flex flex-col"
-                    style={{ width: 640, aspectRatio: '3 / 5', background: 'var(--kol-oq-12)', border: '1px solid var(--kol-fg-08)', borderRadius: 'var(--kol-radius-xs)', padding: 16, gap: 12, overflow: 'hidden' }}
-                  >
-                    <div className="kol-helper-10 uppercase text-fg-32">{m.kind}</div>
-                    <div className="kol-mono-16 text-fg-96">{m.name}</div>
-                    <div className="flex justify-center">
-                      <ModuleFront id={m.id} flipped={flipped} onFlip={() => setFlipped((f) => !f)} />
-                    </div>
-                    <Specs mod={m} />
-                  </div>
-                )
-              }}
-            </Coverflow>
-          )
-        },
-      }}
+    <CatalogLibrary
+      storageKey="mixer-tab"
+      views={VIEW_MODE_OPTIONS}
+      viewsConfig={VIEWS}
     />
   )
 }

@@ -186,7 +186,10 @@ export default function PixiGlitchSliceVariant({
     >
       <div
         className="absolute inset-0"
-        style={{ pointerEvents: grab ? 'auto' : 'none', cursor: grab ? 'grab' : 'default' }}
+        /* touch-action: none — without it a touch device claims the drag for scroll and
+           fires pointercancel, so grab never starts on a phone. preventDefault on
+           pointerdown does not substitute. */
+        style={{ pointerEvents: grab ? 'auto' : 'none', cursor: grab ? 'grab' : 'default', touchAction: 'none' }}
         onPointerDown={grab ? (e) => {
           e.preventDefault()
           const startX = e.clientX

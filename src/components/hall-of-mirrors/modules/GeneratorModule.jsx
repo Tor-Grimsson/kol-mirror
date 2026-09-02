@@ -38,8 +38,12 @@ const edgeFor = (q) => Math.round(QUALITY_MIN + (QUALITY_MAX - QUALITY_MIN) * (q
 
 const PREVIEW_H = 120
 
-export default function GeneratorModule({ onLoadToChannel, flipped = false, back = null }) {
-  const [genId, setGenId] = useState('gen-noise')
+export default function GeneratorModule({ onLoadToChannel, flipped = false, back = null, initialId = 'gen-noise' }) {
+  /* `initialId` — which of the seven this instance IS. The registry names one
+     per entry (2026-09-02), so `gen-noise` and `gen-wave` are two modules, not
+     one module with a dropdown. The dropdown stays: a module you can retune is
+     still that module, the way monitor's LFO keeps its shape selector. */
+  const [genId, setGenId] = useState(initialId)
   const [params, setParams] = useState(() => getDefaultParams(findVariant('gen-noise').controls))
   const [quality, setQuality] = useState(40)
   const [enabled, setEnabled] = useState(true)

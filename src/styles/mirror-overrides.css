@@ -27,3 +27,16 @@
   color: var(--kol-surface-on-primary);
 }
 
+/* ── /create: LIFT THE CHROME, NEVER SINK THE CANVAS (kol-monitor §3, ported
+ * 2026-09-02). Their `z-index: -1` on the canvas put it under its own
+ * transparent wrappers and killed touch, so the canvas stays at the natural
+ * rung and everything above it is lifted instead.
+ *
+ * `ContentFilters` renders [header row, divider, content] at every rung, and
+ * the MOBILE rung has no `.kol-filters-row` to select — so the lift is by
+ * POSITION: every child but the last, which is the content the canvas lives
+ * in. Monitor's selector verbatim. */
+.create-canvas > * > :not(:last-child) {
+  position: relative;
+  z-index: var(--kol-z-sticky);
+}

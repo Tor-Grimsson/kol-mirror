@@ -69,7 +69,7 @@ export default function VariantFrame({
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="kol-helper-12 text-fg-48 font-mono">
+        <div className="kol-helper-12 text-fg-48">
           {stats}
         </div>
         <label className="kol-helper-14 text-absolute-white cursor-pointer hover:opacity-80">

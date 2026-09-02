@@ -5,7 +5,7 @@ function ParamRow({ label, value, isMapped }) {
   return (
     <div className="flex items-center justify-between" style={{ height: '20px' }}>
       <span className={`kol-helper-12 ${isMapped ? 'text-fg-96' : 'text-fg-32'}`}>{label}</span>
-      <span className={`kol-helper-12 font-mono ${isMapped ? 'accentYellow' : 'text-fg-32'}`}>{String(value)}</span>
+      <span className={`kol-helper-12 ${isMapped ? 'accentYellow' : 'text-fg-32'}`}>{String(value)}</span>
     </div>
   )
 }
@@ -23,7 +23,7 @@ function HallColumn({ name, variants }) {
             <div key={variant.id}>
               {i > 0 && <Divider className="mb-4" />}
               <div className="flex flex-col gap-1">
-                <div className="kol-helper-12 text-fg-96 font-mono mb-1">{variant.title}</div>
+                <div className="kol-helper-12 text-fg-96 mb-1">{variant.title}</div>
                 <div className="px-3 flex flex-col gap-1">
                   {variant.controls
                     .filter(c => c.key !== 'animate')

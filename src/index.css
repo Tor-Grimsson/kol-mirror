@@ -74,12 +74,22 @@
 .symphony-mixer-container { flex-shrink: 0; margin-top: auto; padding-top: 24px; margin-right: -16px; }
 .symphony-mobile-toggle { display: none; }
 
-@media not all and (min-width: 768px) and (pointer: fine) {
+/* A WIDTH, matching `useNarrow`'s FOLD and AppShell's `drawerBelow` (768).
+   This block keyed on `(min-width: 768px) and (pointer: fine)` until
+   2026-09-01 — flagged as stale in session 52 and true: an iPad is coarse, so
+   it took this mobile branch while the JS fold gave it the desktop tree, and
+   the two disagreed about what the device was. Pointer still rules
+   interaction (ARCHITECTURE §2); width rules layout. */
+@media (max-width: 767px) {
   .symphony-viewport-root { padding: 0; position: relative; }
   .symphony-viewport-header { display: none; }
   .symphony-canvas-container { position: absolute; inset: 0; align-items: center; justify-content: center; }
   .symphony-mixer-container { position: relative; z-index: 1; margin-top: auto; padding: 8px; margin-right: 0; }
-  .symphony-mobile-toggle { display: block; position: absolute; top: 8px; right: 8px; z-index: 2; }
+  /* TOP-LEFT, not top-right: AppShell's drawer trigger is fixed top-right in
+     both states (kol-shell 0.34.0+), and this sat directly under it —
+     measured, the trigger is at x 346 and this was at right: 8. The two are
+     both small taps in the same 44px corner. */
+  .symphony-mobile-toggle { display: block; position: absolute; top: 8px; left: 8px; z-index: 2; }
 }
 
 /* Full-bleed wrapper for Pixi variants — hides card chrome, stretches canvas */
