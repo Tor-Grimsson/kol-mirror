@@ -1,6 +1,7 @@
-import Slider from '../../atoms/Slider'
-import { Icon } from '../../icons'
-import { CANVAS_FX_DEFS } from '../../../hooks/useCanvasFx'
+import Slider from '../../atoms/Slider.jsx'
+import { Icon } from '../../icons/index.js'
+import { CANVAS_FX_DEFS } from '../../../hooks/useCanvasFx.js'
+import { Jack } from '../ChannelPatchPanel'
 
 /**
  * FxModule — ONE effect as a self-contained front panel.
@@ -33,6 +34,16 @@ import { CANVAS_FX_DEFS } from '../../../hooks/useCanvasFx'
  *                             create desk — it is not in a chain, and the badge
  *                             sat under the desk's own remove ✕ (2026-09-02).
  * @param {string}   channelName  what it is patched into, for the OUT row
+ * @param {Object}   jacks    ON THE STUDIO'S DESK (2026-10-03): the module stands on its own, with a
+ *                            real IN and a real OUT and no cable it was not given — user: *"no
+ *                            preconfigured paths ever. just load the fx. the whole point is to
+ *                            patch yourself."* `{ id, input, inputLabel, onInput(src | null),
+ *                            isSource, pendingOut, setPendingOut }` — the channel bay's grammar:
+ *                            drag an OUT onto the IN, or click OUT then IN; click a patched IN to
+ *                            pull the cable. Absent, the footer is the chain's two lines of text.
+ *
+ * Moved here from apps/mixer-hub the same day: the tool draws it now, and the hub's Create desk
+ * and module page import it from the tool like every other front.
  */
 export default function FxModule({
   defId,
@@ -43,6 +54,7 @@ export default function FxModule({
   onRemove,
   position,
   channelName,
+  jacks,
 }) {
   const def = CANVAS_FX_DEFS.find((d) => d.id === defId)
   if (!def) return null
@@ -52,7 +64,7 @@ export default function FxModule({
   return (
     <div
       className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08"
-      style={{ width: '320px', borderRadius: '4px' }}
+      style={{ width: '320px', borderRadius: '4px', ...(jacks ? { height: '100%' } : null) }}
     >
       {/* header on the desk's own contract: name left, state right, 29px —
           `PatchModule`'s row and the channel strip's */}
@@ -72,7 +84,7 @@ export default function FxModule({
         <span className="flex items-center gap-2">
           {position != null && <span className="kol-helper-10 text-fg-32">#{position}</span>}
           {onRemove && (
-            <span className="cursor-pointer text-fg-32 hover:text-fg-96 flex" onClick={onRemove} title="Remove">
+            <span className="cursor-pointer text-oq-32 hover:text-oq-96 flex" onClick={onRemove} title="Remove">
               <Icon name="x" size={12} />
             </span>
           )}
@@ -129,16 +141,53 @@ export default function FxModule({
           knob — the desk gives every module a fixed height, so an FX unit with
           two params has blank panel between its controls and its jacks. That is
           what the hardware looks like. */}
-      <div className="flex flex-col gap-1 px-3 py-2 border-t border-fg-08 kol-helper-10" style={{ marginTop: 'auto' }}>
-        <div className="flex items-center justify-between">
-          <span className="text-fg-32">IN</span>
-          <span className="text-fg-64">{position > 1 ? `chain #${position - 1}` : 'channel frame'}</span>
+      {jacks ? (
+        /* THE JACKS — the channel bay's IN / OUT row, on the module's own face (it has no back).
+           Both start empty. The IN takes any OUT there is: a channel, a bus return, another
+           module, this one. */
+        <div className="flex items-center justify-between px-3 py-2 border-t border-fg-08 kol-helper-12" style={{ marginTop: 'auto' }}>
+          <span className="flex items-center" style={{ gap: 6 }}>
+            <Jack
+              jackId={`fxm-${jacks.id}-in`}
+              connected={jacks.input != null}
+              color={jacks.inputColor}
+              pending={!!jacks.pendingOut && jacks.input == null}
+              onClick={() => {
+                if (jacks.input != null) { jacks.onInput(null); return }
+                if (!jacks.pendingOut) return
+                jacks.onInput(jacks.pendingOut)
+                jacks.setPendingOut(null)
+              }}
+              onDrop={jacks.onInput}
+              title={jacks.input != null ? `Patched from ${jacks.inputLabel} — click to unpatch` : jacks.pendingOut ? 'Click to patch pending source here' : 'IN — drop an OUT jack here'}
+            />
+            <span className="text-fg-64">IN</span>
+            <span className="text-fg-32">{jacks.input != null ? jacks.inputLabel : '—'}</span>
+          </span>
+          <span className="flex items-center" style={{ gap: 6 }}>
+            <span className="text-fg-64">OUT</span>
+            <Jack
+              jackId={`fxm-${jacks.id}-out`}
+              connected={jacks.isSource}
+              pending={jacks.pendingOut?.type === 'fxm' && jacks.pendingOut.id === jacks.id}
+              source={{ type: 'fxm', id: jacks.id, key: `fxm:${jacks.id}` }}
+              onClick={() => jacks.setPendingOut((prev) => (prev?.type === 'fxm' && prev.id === jacks.id) ? null : { type: 'fxm', id: jacks.id, key: `fxm:${jacks.id}` })}
+              title={jacks.pendingOut?.type === 'fxm' && jacks.pendingOut.id === jacks.id ? 'Pending — click an IN jack to connect, or click again to cancel' : 'OUT — drag to an IN jack'}
+            />
+          </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-fg-32">OUT</span>
-          <span className="text-fg-64">{channelName || 'next in chain'}</span>
+      ) : (
+        <div className="flex flex-col gap-1 px-3 py-2 border-t border-fg-08 kol-helper-10" style={{ marginTop: 'auto' }}>
+          <div className="flex items-center justify-between">
+            <span className="text-fg-32">IN</span>
+            <span className="text-fg-64">{position > 1 ? `chain #${position - 1}` : 'channel frame'}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-fg-32">OUT</span>
+            <span className="text-fg-64">{channelName || 'next in chain'}</span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

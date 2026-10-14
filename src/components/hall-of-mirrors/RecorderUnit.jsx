@@ -134,7 +134,7 @@ export default function RecorderUnit({
                 <label className="text-fg-32 hover:text-fg-64 cursor-pointer select-none">
                   [Upload]<input type="file" accept="video/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadRecSlot(si, f); e.target.value = '' }} />
                 </label>
-                <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => onRemoveRecSlot(si)}><Icon name="x" size={12} /></span>
+                <span className="text-oq-32 hover:text-oq-64 cursor-pointer select-none" onClick={() => onRemoveRecSlot(si)}><Icon name="x" size={12} /></span>
               </div>
             </div>
           )
@@ -178,7 +178,7 @@ export default function RecorderUnit({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => { const a = document.createElement('a'); a.href = slot.blobUrl; a.download = slot.fileName; a.click() }}>[Download]</span>
-                  <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={() => onRemoveRecSlot(si)}><Icon name="x" size={12} /></span>
+                  <span className="text-oq-32 hover:text-oq-64 cursor-pointer select-none" onClick={() => onRemoveRecSlot(si)}><Icon name="x" size={12} /></span>
                 </div>
               </div>
               <Divider />

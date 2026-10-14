@@ -3,6 +3,7 @@ import { getResponsiveImage, getDefaultParams, findVariant, DISPLACEMENT_VARIANT
 import { rasterDims, capRaster } from '../utils/processImageUpload'
 import { applyPatch, buildPatchEntry } from './patchFile'
 import { addToLibrary } from './useLibraryStore'
+import { pushMemory } from './librarySync'
 
 const FIRST_VARIANT = {
   displacement: DISPLACEMENT_VARIANTS[0]?.id,
@@ -56,7 +57,11 @@ export function useMirrorState() {
       // Data-URL images (custom uploads) can blow the ~5MB quota — persist the
       // slot without them; loadSlotToHall falls back to the responsive default.
       const safe = archiveSlots.map(s => s ? { ...s, imageSrc: s.imageSrc?.startsWith('data:') ? null : s.imageSrc } : null)
-      localStorage.setItem('mirror-archive', JSON.stringify(safe))
+      const json = JSON.stringify(safe)
+      /* only a real change stamps and syncs — this effect also runs on every mount */
+      if (json === localStorage.getItem('mirror-archive')) return
+      localStorage.setItem('mirror-archive', json)
+      pushMemory(safe)
     } catch { /* quota exceeded — skip persistence, keep session state */ }
   }, [archiveSlots])
 
@@ -300,6 +305,13 @@ export function useMirrorState() {
      same state, two layouts: forking the state would guarantee drift, forking
      the arrangement costs nothing. */
   const [symphonyDeskMode, setSymphonyDeskMode] = useState('card')
+  /* FX MODULES (2026-10-03) — effects placed on the desk as modules of their own:
+     `{ id, type, params, enabled, input }`. `input` is what the IN jack is cabled to — a channel
+     index, a bus key, another module's key — and starts null: a module lands with no cable, and
+     every path is patched by hand (rules in hooks/patchGraph.js).
+     ponytail: not in the undo snapshot and not in a saved patch file yet — add both when the
+     module is kept. */
+  const [symphonyFxModules, setSymphonyFxModules] = useState([])
   const [symphonyRatio, setSymphonyRatio] = useState('16:9')
   const [symphonyCustomWidth, setSymphonyCustomWidth] = useState(1024)
   const [symphonyCustomHeight, setSymphonyCustomHeight] = useState(600)
@@ -479,6 +491,8 @@ export function useMirrorState() {
     setSymphonyLayout,
     symphonyDeskMode,
     setSymphonyDeskMode,
+    symphonyFxModules,
+    setSymphonyFxModules,
     symphonyRatio,
     setSymphonyRatio,
     symphonyCustomWidth,

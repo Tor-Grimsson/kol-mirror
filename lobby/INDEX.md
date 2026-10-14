@@ -30,12 +30,13 @@ Not documentation — a work queue, deliberately outside `docs/`.
 verified by running it, cited by file. **The agent closes on that evidence.**
 Parking, declaring stale, reopening and any design decision stay the **user's call**.
 
-## Queue — 0 entries
+## Queue — 1 entries
 The queue holds LIVE TASKS ONLY. Both settings tickets closed 2026-09-01 on the
 first browser pass this repo has ever had.
 
 | | Entry | About | Staged | State |
 |---|---|---|---|---|
+| 🟠 | [media-client-0-4-1-api-on-media](inbox/media-client-0-4-1-api-on-media.md) | bump `kol-media-client` 0.3.2 → 0.4.1 and redeploy: the media API moved to `media.kolkrabbi.io`, `admin.` only redirects until it is detached | 2026-10-06 | `addressed` 2026-10-13 — **kol-media-client 0.6.0** in (0.4.1/0.5.0 superseded on the registry); no `admin.kolkrabbi.io` in `src/` or the built `dist/`, the one doc comment now says `media.`; nothing passes `adminBase`. 🟢 when the push deploys and the live bundle names `media.` — the receipt to kol-website is written then |
 
 ## Closed
 
@@ -76,6 +77,7 @@ that does. The **Remainder** is this repo's to do; the state is theirs to report
 
 | Date | Event |
 |---|---|
+| 2026-10-06 | **`media-client-0-4-1-api-on-media` filed from kol-website** — the media admin has one hostname; this repo's live bundle still calls `admin.` through kol-media-client 0.3.2. |
 | 2026-08-15 | **AppShellSet's remainder is served — both halves.** kol-shell 0.1.0 adopted (8 local shell files → `_tmp/2026-08-15-shell-upstream/`, plus PageShell + SettingsScaffold + TabStrip taken up), and the dead `Workshop*` shell swept — `WorkshopLayout.jsx` + `WorkshopSidebar.jsx`, zero references, retired to `_tmp/2026-08-15-shell-upstream/workshop-shell/`; lint fell 122→120 errors with them. The sweep was **missed on the first pass and caught by the user**: the adoption ran off a chat-level plan without this ledger being read, so only the half that had been discussed got done. `KolSourcesPnpmResolution` filed to kol-ds-ui the same day — receipt above |
 | 2026-08-15 | lobby created and registered in `~/.dotfiles/files/folders.md` § `lobby`. Flag `--kol-mirror` falls out of the path; no `/lobby-<name>` skill until this repo starts receiving tickets from elsewhere often |
 | 2026-08-15 | **Work owed here is recorded in another repo's outbox.** `kol-monitor/lobby/outbox/AppShellSet.md` — 🟢 closed in kol-ds-ui 2026-08-14 (kol-shell 0.1.0 + theme 0.41.0 + framework 0.20.0) — carries a 📌 remainder and names kol-mirror as sharing it: adopt the DS shell, retire the local copies to `_tmp/`, plus this repo's dead `Workshop*` shell sweep. **No receipt stub was written into this repo's `outbox/`** — that filing was kol-monitor's, and inventing a second stub would fabricate a filing this repo never made. Whether kol-mirror gets its own copy is the user's call |
@@ -105,3 +107,4 @@ that does. The **Remainder** is this repo's to do; the state is theirs to report
 | 2026-09-01 | **Caught not following my own outbox.** The user asked whether I was tracking the tickets I file; I was not. `ShellRailCollapsedWithTapOpen` and `ShellDrawerOpenOnUnstableDep` had both been filed to kol-ds-ui, both CLOSED there while I was building the create page, and neither had a receipt stub or a ledger row on this side — they existed only as files in another repo's `done/`, which is the raw-`ls` read this ledger exists to replace. Both remainders were owed and unstarted. Squared: bumped **kol-shell 0.38.0 + kol-theme 0.123.0**, took the per-route `touch` the tap disc finally makes possible, deleted the frozen-array workaround, wrote both receipts, and re-synced FOUR stub headers that still read 🔵 `filed` against a ledger that had them 🟢 — `ContentCardExpandedSplitStacks`, `ShellDrawerOpenOnRoute`, and both Sliders from 2026-08-30 |
 | 2026-09-02 | **`ContentFiltersViewStripOverflow` filed to kol-ds-ui** — the Library became five views on monitor's kinds-as-views shape and the DS view strip clipped at 390 (440px in a 390 page, two views unreachable). LIST / GRID already has a narrow placement; the view family has none. Carried here as one scoped cascade rule under `.library-catalog`, the wrong mechanism, recorded as such |
 | 2026-09-02 | **`ContentFiltersViewStripOverflow` closed and adopted, same day as filing** — kol-component 0.163.0, `viewPlacement`. The scoped cascade rule and its class are gone; at 390 the five views wrap onto two rows under the title, all reachable, at 1280 they are back on the title row |
+| 2026-10-13 | **`media-client-0-4-1-api-on-media` addressed on the MBP, inside the hub-adoption sitting** — the whole `@kolkrabbi/*` tier taken to its head in one move (component 0.163.0 → **0.257.0** · shell 0.40.0 → **0.63.0** · theme 0.128.0 → **0.173.0** · framework 0.36.0 → **0.49.0** · icons 0.25.0 → **0.37.0** · media-client 0.3.2 → **0.6.0**), `PageHeader` moved to kol-component (bulletin 2026-10-02), the shell onto kol-shell's `AppHub`. Source and bundle name `media.` only; 🟢 waits on the deploy, and the receipt goes back to kol-website with it |

@@ -95,3 +95,40 @@ export function patchIntoFreeInput(master, idx) {
   inputs[free] = idx
   return inputs
 }
+
+/* ── FX MODULES (2026-10-03) ──────────────────────────────────────────────────────────────────
+ * An FX module is a node of its own: one effect, one IN, one OUT, and no cable it did not get
+ * from the user (*"no preconfigured paths ever … the whole point is to patch yourself"*). Its
+ * `input` is stored the way a channel's `routeFrom` is — a channel INDEX, or a string key for a
+ * bus or another module — and its OUT is the key below, which goes wherever a bus key goes:
+ * a channel's `routeFrom`, another module's `input` (its own included — a one-frame loop, his
+ * choice), a master input slot. */
+
+/** The frame key of an FX module's OUT. */
+export const fxKey = (id) => `fxm:${id}`
+export const isFxKey = (v) => typeof v === 'string' && v.startsWith('fxm:')
+
+/** Numeric channel indices the FX modules read a frame from. */
+export function fxModuleChannels(modules = []) {
+  const needed = new Set()
+  for (const m of modules) if (typeof m.input === 'number') needed.add(m.input)
+  return needed
+}
+
+/** A channel was removed: a module input that is a channel index shifts like every other reference. */
+export function shiftFxModules(modules = [], removed) {
+  return modules.map((m) => (typeof m.input === 'number' ? { ...m, input: shift(m.input, removed) } : m))
+}
+
+/**
+ * Remove an FX module AND every cable into or out of it.
+ * @returns {{modules: Array, channels: Array, master: Object}} new state
+ */
+export function removeFxModule(modules = [], channels = [], master, id) {
+  const key = fxKey(id)
+  return {
+    modules: modules.filter((m) => m.id !== id).map((m) => (m.input === key ? { ...m, input: null } : m)),
+    channels: channels.map((ch) => (ch.routeFrom === key ? { ...ch, routeFrom: null } : ch)),
+    master: { ...master, inputs: (master?.inputs || []).map((src) => (src === key ? null : src)) },
+  }
+}

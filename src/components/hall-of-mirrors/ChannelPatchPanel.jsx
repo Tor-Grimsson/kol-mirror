@@ -27,15 +27,17 @@ const SEND_LABEL = { aux1: 'AUX 1', aux2: 'AUX 2', rtn1: 'RTN 1', rtn2: 'RTN 2',
 /* The flip control, in the header of every face — a real slot, not an overlay
    (it sat over the master's Reset). `onFlip` absent = the decorative mark. */
 export function FlipIcon({ onFlip, title = 'Flip', size = 12 }) {
-  if (!onFlip) return <Icon name="flip-y" size={size} className="text-fg-32" />
+  if (!onFlip) return <Icon name="flip-y" size={size} className="text-oq-32" />
   return (
-    <span className="cursor-pointer select-none text-fg-32 hover:text-fg-96 flex" onClick={onFlip} title={title}>
+    <span className="cursor-pointer select-none text-oq-32 hover:text-oq-96 flex" onClick={onFlip} title={title}>
       <Icon name="flip-y" size={size} />
     </span>
   )
 }
 
 const wireOf = (i) => WIRE_COLORS[i % WIRE_COLORS.length]
+/* what a patched slot reads as: a channel by its number, an FX module's OUT as FX */
+const srcLabel = (src) => (typeof src === 'number' ? `Ch ${src + 1}` : 'FX')
 
 const hitJack = (e) => document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-jack]')?.dataset.jack ?? null
 
@@ -152,9 +154,15 @@ export function MasterPatchPanel({ channels, onChannelUpdate, master, onMasterCh
      IN; the slot is `master.inputs[n]`, and patching turns the channel on. */
   const inputs = master?.inputs || [null, null, null]
   const setInput = (n, src) => onMasterChange?.({ inputs: inputs.map((v, i) => (i === n ? src : v)) })
-  const patchInput = (n, src) => { if (src.type !== 'ch') return; setInput(n, src.idx); if (!channels[src.idx]?.enabled) onChannelUpdate(src.idx, { enabled: true }) }
+  /* an FX module's OUT goes into a slot as its key (2026-10-03) — it is a source like a channel is */
+  const patchInput = (n, src) => {
+    if (src.type === 'fxm') { setInput(n, src.key); return }
+    if (src.type !== 'ch') return
+    setInput(n, src.idx)
+    if (!channels[src.idx]?.enabled) onChannelUpdate(src.idx, { enabled: true })
+  }
   const onInput = (n) => {
-    if (pendingOut?.type === 'ch') { patchInput(n, pendingOut); setPendingOut(null); return }
+    if (pendingOut?.type === 'ch' || pendingOut?.type === 'fxm') { patchInput(n, pendingOut); setPendingOut(null); return }
     if (inputs[n] != null) setInput(n, null)
   }
   const busConnected = (key) => channels.some(ch => (ch.sends?.[key] || 0) > 0)
@@ -196,14 +204,14 @@ export function MasterPatchPanel({ channels, onChannelUpdate, master, onMasterCh
               <Jack
                 jackId={`mst-in-${n}`}
                 connected={src != null}
-                color={src != null ? wireOf(src) : undefined}
-                pending={pendingOut?.type === 'ch' && src == null}
+                color={typeof src === 'number' ? wireOf(src) : undefined}
+                pending={(pendingOut?.type === 'ch' || pendingOut?.type === 'fxm') && src == null}
                 onClick={() => onInput(n)}
                 onDrop={(s) => patchInput(n, s)}
-                title={src != null ? `Ch ${src + 1} → IN ${n + 1} — click to unpatch` : `IN ${n + 1} — drop a channel OUT here`}
+                title={src != null ? `${srcLabel(src)} → IN ${n + 1} — click to unpatch` : `IN ${n + 1} — drop a channel OUT here`}
               />
               <span className="text-fg-64">IN {n + 1}</span>
-              <span className="text-fg-32">{src != null ? `CH ${src + 1}` : '—'}</span>
+              <span className="text-fg-32">{src != null ? srcLabel(src).toUpperCase() : '—'}</span>
             </span>
           ))}
         </div>
@@ -291,6 +299,7 @@ function MatrixBay({ channels, onChannelUpdate, master, onMasterChange, screen2,
 
   const patchChannelIn = (i, src) => onChannelUpdate(i, { routeFrom: src.type === 'ch' ? src.idx : src.key })
   const patchMasterIn = (n, src) => {
+    if (src.type === 'fxm') { setInput(n, src.key); return }
     if (src.type !== 'ch') return
     setInput(n, src.idx)
     if (!channels[src.idx]?.enabled) onChannelUpdate(src.idx, { enabled: true })
@@ -367,11 +376,11 @@ function MatrixBay({ channels, onChannelUpdate, master, onMasterChange, screen2,
               <Jack
                 jackId={`mx-mst-in-${n}`}
                 connected={src != null}
-                color={src != null ? wireOf(src) : undefined}
-                pending={pendingOut?.type === 'ch' && src == null}
+                color={typeof src === 'number' ? wireOf(src) : undefined}
+                pending={(pendingOut?.type === 'ch' || pendingOut?.type === 'fxm') && src == null}
                 onClick={() => { if (src != null) setInput(n, null); else if (pendingOut) { patchMasterIn(n, pendingOut); setPendingOut(null) } }}
                 onDrop={(s) => patchMasterIn(n, s)}
-                title={src != null ? `IN ${n + 1} <- Ch ${src + 1}` : `Master in ${n + 1}`}
+                title={src != null ? `IN ${n + 1} <- ${srcLabel(src)}` : `Master in ${n + 1}`}
               />
               <span className="text-fg-64">IN {n + 1}</span>
             </span>
@@ -419,12 +428,12 @@ export function RoutingPatchPanel({ channels, onChannelUpdate, master, onMasterC
   const rows = []
   const inputs = master?.inputs || []
   inputs.forEach((src, n) => {
-    if (src != null) rows.push({ key: `in-${n}`, label: `CH ${src + 1} → MASTER IN ${n + 1}`, color: wireOf(src), off: () => onMasterChange?.({ inputs: inputs.map((v, i) => (i === n ? null : v)) }) })
+    if (src != null) rows.push({ key: `in-${n}`, label: `${srcLabel(src).toUpperCase()} → MASTER IN ${n + 1}`, color: typeof src === 'number' ? wireOf(src) : undefined, off: () => onMasterChange?.({ inputs: inputs.map((v, i) => (i === n ? null : v)) }) })
   })
   if (/^\d+$/.test(screen2)) rows.push({ key: 'mon', label: `CH ${+screen2 + 1} → MON IN · Screen 2`, color: wireOf(+screen2), off: () => setScreen2?.('off') })
   channels.forEach((ch, i) => {
     if (ch.routeFrom != null) {
-      const from = typeof ch.routeFrom === 'string' ? ch.routeFrom.toUpperCase() : `CH ${ch.routeFrom + 1}`
+      const from = typeof ch.routeFrom === 'string' ? (ch.routeFrom.startsWith('fxm:') ? 'FX' : ch.routeFrom.toUpperCase()) : `CH ${ch.routeFrom + 1}`
       rows.push({ key: `route-${i}`, label: `${from} → CH ${i + 1} IN`, color: typeof ch.routeFrom === 'number' ? wireOf(ch.routeFrom) : undefined, off: () => onChannelUpdate(i, { routeFrom: null }) })
     }
     Object.entries(ch.sends || {}).forEach(([bus, lvl]) => {
@@ -491,7 +500,7 @@ export default function ChannelPatchPanel({ channelIndex, channel, channels = []
 
   const routeLabel = routeFrom == null
     ? '—'
-    : typeof routeFrom === 'string' ? routeFrom.toUpperCase() : `CH ${routeFrom + 1}`
+    : typeof routeFrom === 'string' ? (routeFrom.startsWith('fxm:') ? 'FX' : routeFrom.toUpperCase()) : `CH ${routeFrom + 1}`
 
   // Any source, including this channel's own OUT — a mixer doesn't argue; a
   // self-patch is a one-frame feedback route like any other cycle.

@@ -1,18 +1,20 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { PageShell, PageHeader } from '@kolkrabbi/kol-shell'
+import { PageShell } from '@kolkrabbi/kol-shell'
+import { PageHeader } from '@kolkrabbi/kol-component'
 import { Divider } from '@kolkrabbi/kol-component'
 import { useNarrow } from '../hooks/useNarrow'
 import Button from '../components/atoms/Button'
 import ModuleFront from '../components/hall-of-mirrors/ModuleFront'
 import ModuleMedia from '../components/ModuleMedia'
 import { MODULE_REGISTRY, slugFor } from '../data/moduleRegistry'
-import { MIXER_MODULES } from '../data/mixerModules'
+import { MIXER_MODULES, HAS_FRONT } from '../data/mixerModules'
 import { findVariant } from '../data/mirrorVariants'
 import { CANVAS_FX_DEFS } from '../hooks/useCanvasFx'
 import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
 
 /**
- * ModuleDetailPage — `/mixer/:id`, one module's own page. Ported from
+ * ModuleDetailPage — `/library/:id`, one module's own page (under the Library since 2026-10-14,
+ * monitor's shape — the Mixer sheet is retired). Ported from
  * kol-monitor's `src/pages/ModuleDetailPage.jsx` (route `/library/:moduleType`):
  * `PageShell mode="fixed"`, `PageHeader size="sm" voice="mono"` with the
  * module's label and its one-line spec as subtitle, a `Divider`, the control
@@ -89,12 +91,12 @@ export default function ModuleDetailPage() {
         subtitle={entry?.group ? `${kind} — ${entry.group}` : kind}
         /* `‹ Back` as the eyebrow, wired to HISTORY (monitor §5) — conditional
            by construction: from the create canvas it returns there, from the
-           mixer catalogue it returns to the catalogue, and a cold load with no
-           history falls back to /mixer. */
+           Library it returns to the Library, and a cold load with no
+           history falls back to /library. */
         eyebrow={
           <span
             className="cursor-pointer select-none text-fg-48 hover:text-fg-96"
-            onClick={() => ((history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate('/mixer'))}
+            onClick={() => ((history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate('/library'))}
           >
             ‹ Back
           </span>
@@ -143,7 +145,10 @@ export default function ModuleDetailPage() {
               `overflow: hidden` at 160 cut it in half. `zoom` shrinks the whole
               front and the box collapses to its scaled size. */}
           <div style={narrow ? { zoom: 0.5 } : undefined}>
-            {front
+            {/* a registry unit draws by `front`; a catalogue PART draws by id
+                when `HAS_FRONT` says `ModuleFront` has a case for it (2026-10-13 —
+                until then every part showed the dashed box, fronts or not) */}
+            {(front || HAS_FRONT.has(bare))
               ? <ModuleFront front={front} id={bare} channel={{ ...EMPTY_CHANNEL }} channels={[{ ...EMPTY_CHANNEL }]} master={EMPTY_MASTER} onChannelUpdate={noop} onMasterChange={noop} />
               : <div className="kol-helper-12 text-fg-32" style={{ width: 320, padding: 24, border: '1px dashed var(--kol-fg-08)', borderRadius: 4 }}>No standalone front yet</div>}
           </div>
@@ -152,11 +157,8 @@ export default function ModuleDetailPage() {
 
       <Divider className="my-6" />
       <div className="flex" style={{ gap: 8 }}>
-        <Button variant="grey" size="md" onClick={() => navigate('/mixer', { state: { expandedModule: bare } })}>
-          Open in Mixer
-        </Button>
         {entry?.add && (
-          <Button variant="grey" size="md" onClick={() => navigate('/create', { state: { add: entry.id } })}>
+          <Button tone="grey" size="md" onClick={() => navigate('/create', { state: { add: entry.id } })}>
             Add to Create
           </Button>
         )}

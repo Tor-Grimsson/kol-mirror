@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useNavHidden } from '@kolkrabbi/kol-shell'
+import { ShellSearchOverlay } from '@kolkrabbi/kol-component'
+import { MODULE_REGISTRY, searchModules } from '../data/moduleRegistry'
 import ModulePalette from '../components/mirror/ModulePalette'
 import PatchTableOverlay from '../components/hall-of-mirrors/PatchTableOverlay'
 import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
@@ -14,7 +16,15 @@ import MirrorViewport from '../components/mirror/MirrorViewport'
 import MobileStudio from '../components/mirror/MobileStudio'
 import { useNarrow } from '../hooks/useNarrow'
 
-export default function MirrorPlayground() {
+/* the registry as rows for kol-component's `ShellSearchOverlay` — the name, with the group and
+   the detail as the row's own; `add` rides along and is what a pick runs */
+const moduleRow = (m) => ({ id: m.id, label: m.name, group: m.group, hint: m.detail, add: m.add })
+const MODULE_ROWS = MODULE_REGISTRY.map(moduleRow)
+
+/* `arrangement` — 'float' (THE studio since 2026-10-14, user: Studio B is the default and the old
+   one goes: the desk takes the view and the monitor is a bare frame over it — `SymphonyViewport`)
+   or 'stage' (the older layout, kept in code, mounted nowhere). */
+export default function MirrorPlayground({ arrangement = 'float' }) {
   const state = useMirrorState()
   const narrow = useNarrow()
 
@@ -83,6 +93,7 @@ export default function MirrorPlayground() {
      an entry DOES is its own `add`, run against this api — so the palette never
      learns what kind of thing it is adding. */
   const [palette, setPalette] = useState(null)
+  const [moduleQuery, setModuleQuery] = useState('')
   /* THE PATCH TABLE (kol-monitor's `PatchTableOverlay`, user 2026-09-01:
      "a mobile and structure friendly patch bay … follow suit"). `p` toggles
      it, as over there; on a phone the `Patch` control beside `Modules` does. */
@@ -127,6 +138,27 @@ export default function MirrorPlayground() {
           ? { ...c, enabled: true, canvasFx: [...(c.canvasFx || []), { type: fxId, enabled: true, params: getDefaultCanvasFxParams(fxId) }] }
           : c
       )))
+      stateRef.current.selectHall('symphony')
+    },
+    /* PLACING A UNIT (2026-10-03). The registry gives the FX units and the desk's own modules
+       `add: api.placeUnit(…)`, and this api never had the verb — picking any of the fifteen from
+       ⌘K or the shelf threw "api.placeUnit is not a function".
+       AN FX PICK LOADS THE MODULE AND NOTHING ELSE (user, same day: *"it should go into a
+       independednt fx module with inputs and outputs"*, then *"no preconfigured paths ever. just
+       load the fx. the whole point is to patch yourself … think about a physical mixer, does it
+       ever do anything on auto"*). So: one module on the desk, its IN and its OUT empty. No
+       channel, no bus, no master slot — every cable is his, a loop into itself included.
+       A one-per-desk module is already on this desk, so its pick does nothing. */
+    placeUnit: (entryId) => {
+      if (!entryId.startsWith('fx:')) return
+      const type = entryId.slice(3)
+      stateRef.current.setSymphonyFxModules((prev) => [...prev, {
+        id: String(prev.reduce((n, m) => Math.max(n, Number(m.id) || 0), 0) + 1),
+        type,
+        params: getDefaultCanvasFxParams(type),
+        enabled: true,
+        input: null,
+      }])
       stateRef.current.selectHall('symphony')
     },
     /* The cable. A channel that is not in `master.inputs` is force-disabled by
@@ -237,6 +269,26 @@ export default function MirrorPlayground() {
      it never mounts at all (which is exactly what happened on the first
      attempt: the button sat in the desktop tree below and a phone never
      reached it). */
+  /* ⌘K IS THE DS SEARCH MODAL (2026-10-03, the rack's wiring) — mirror drew its own in
+     `ModulePalette`, which is now only the E shelf; its search chrome is no longer reached. A unit
+     with no `add` (one per desk) is listed and a pick on it does nothing. */
+  const modulePalette = (
+    <>
+      <ModulePalette mode={palette === 'shelf' ? 'shelf' : null} onClose={() => setPalette(null)} api={paletteApi} />
+      <ShellSearchOverlay
+        open={palette === 'search'}
+        onClose={() => { setPalette(null); setModuleQuery('') }}
+        query={moduleQuery}
+        onQueryChange={setModuleQuery}
+        results={moduleQuery.trim() ? searchModules(moduleQuery).map(moduleRow) : []}
+        suggestions={MODULE_ROWS}
+        placeholder="Search modules…"
+        selectLabel="Add module"
+        onSelect={(m) => m.add?.(paletteApi)}
+      />
+    </>
+  )
+
   if (narrow) return (
     <>
       <MobileStudio state={state} />
@@ -273,7 +325,7 @@ export default function MirrorPlayground() {
         </button>
       )}
 
-      <ModulePalette mode={palette} onClose={() => setPalette(null)} api={paletteApi} />
+      {modulePalette}
       <PatchTableOverlay
         open={patchTable}
         onClose={() => setPatchTable(false)}
@@ -291,7 +343,7 @@ export default function MirrorPlayground() {
        primary back, PageShell reads the wash var — this root paints its own, so it
        reads the same var to stay in step with the other routes. */
     <div className="flex h-dvh w-full overflow-hidden" style={{ background: 'var(--kol-shell-page-wash, var(--kol-surface-primary))' }}>
-      <ModulePalette mode={palette} onClose={() => setPalette(null)} api={paletteApi} />
+      {modulePalette}
       <PatchTableOverlay
         open={patchTable}
         onClose={() => setPatchTable(false)}
@@ -349,7 +401,7 @@ export default function MirrorPlayground() {
         className="mirror-viewport flex-1 relative"
         style={sidebarOpen ? { paddingLeft: (sidebarWidth ?? getDefaultWidth()) + 24 } : undefined}
       >
-        <MirrorViewport state={state} />
+        <MirrorViewport state={state} arrangement={arrangement} />
       </main>
 
     </div>

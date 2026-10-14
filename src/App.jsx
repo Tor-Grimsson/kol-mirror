@@ -1,64 +1,58 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { AppShell, ShortcutsOverlay } from '@kolkrabbi/kol-shell'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { MediaLibrary, ModalProvider, useModal } from '@kolkrabbi/kol-component'
+import Studio from './components/Studio'
+import { ThemeToggle } from '@kolkrabbi/kol-framework'
 import logomarkUrl from '@kolkrabbi/kol-brand/svg/favicon-01.svg?url'
 import { Icon as DSIcon, registerIcons } from '@kolkrabbi/kol-icons'
-import HomePage from './pages/HomePage'
-import LibraryPage from './pages/LibraryPage'
+import { useHomeProps } from './pages/HomePage'
+import LibrarySheet from './pages/LibraryPage'
+import DevPage from './pages/DevPage'
 import CreatePage from './pages/CreatePage'
 import { CreateDeskProvider } from './hooks/useCreateDesk'
 import ModuleDetailPage from './pages/ModuleDetailPage'
 import MirrorPlayground from './pages/MirrorPlayground'
-import ExpressionsPage from './pages/ExpressionsPage'
-import SettingsPage from './pages/SettingsPage'
-import MixerPage from './pages/MixerPage'
-import FrontsPage from './pages/FrontsPage'
-import IconsPage from './pages/IconsPage'
-import TapePage from './pages/TapePage'
-import WideOnly from './components/WideOnly'
+import { SettingsContent, PerformanceContent, AboutContent } from './pages/SettingsPage'
 import { KEYBOARD_SHORTCUTS } from './data/shortcuts'
 import { transport } from './hooks/transport'
 import { useRenderStats, setStatsEnabled } from './hooks/renderStats'
 import { useRenderQuality } from './hooks/renderQuality'
 import { useAdaptiveQuality } from './hooks/adaptiveQuality'
+import { setLibraryApi, getLibraryApi, useLibrarySession, signInLibrary, signOutLibrary, UnauthorizedError } from './hooks/librarySync'
+import { client as mediaClient } from './hooks/useMediaLibrary'
+
+/* Where the saves sync to (`api/`, `mirror-api.kolkrabbi.io`). Unset — the `pnpm dev` default without
+   `.env.local` — there is no Sign in and everything is localStorage, as before. */
+setLibraryApi(import.meta.env.VITE_MIRROR_API)
 
 // Dev-only render surface for scripts/generate-previews.mjs — dropped from
 // prod builds entirely. Not instrument navigation (ARCHITECTURE §1).
 const DevCapturePage = import.meta.env.DEV ? lazy(() => import('./pages/DevCapturePage')) : null
 
-// The rail's `nav-*` glyphs ship in kol-icons ≥0.20.0 (ShellHomeSystem); the
-// generic `library` / `rack` / `slider-01` stand-ins retired 2026-08-27.
-const NAV_ITEMS = [
-  { icon: 'nav-library', path: '/library', label: 'Library' },
-  /* CREATE IS A ROUTE AGAIN (user ruling 2026-09-01, asked four times). It was
-     merged into /library as a view on 2026-08-28; that note is superseded —
-     kol-monitor keeps `/create` as a route with its own rail row
-     (`AppLayout.jsx:32`), and monitor is the reference. */
-  { icon: 'nav-create', path: '/create', label: 'Create' },
-  // The DS set has no `wave` (the mixer tab's local glyph); `frequency` is the
-  // nearest mark and already names the channel strip's expressions shelf.
-  { icon: 'frequency', path: '/expressions', label: 'Expression' },
-  // /mixer is the rack SHEET — every module and its specs (ARCHITECTURE §1: a
-  // reference surface, like /expressions; the desk itself stays state).
-  { icon: 'rack', path: '/mixer', label: 'Mixer' },
-  { icon: 'dith-radial', path: '/tape', label: 'Tape' },
-  // Studio last in the top group (user 2026-08-28) — the instrument sits at
-  // the end of the reference surfaces that lead to it.
-  { icon: 'nav-studio', path: '/studio', label: 'Studio' },
-  // Reference surfaces, same class as /expressions and /mixer: `component` for
-  // the front-panel sketchbook (it IS a parts catalogue), `grid-02` for the
-  // icon sheet — a grid of marks is literally what that page is.
-  { icon: 'component', path: '/fronts', label: 'Fronts' },
-  { icon: 'grid-02', path: '/icons', label: 'Icons' },
-]
 
-const BOTTOM_ITEMS = [
-  { icon: 'nav-settings', path: '/settings', label: 'Settings' },
-]
+/* THE APP, as the Hub reads it: the masthead on Home, the mark's title, About
+   and the repo links on Settings. The logomark ships from kol-brand — one
+   source for the rail and the studio sidebar's nav header. */
+const APP = {
+  name: 'Mirror',
+  subtitle: 'Interactive image distortion playground',
+  logomark: logomarkUrl,
+  about: <AboutContent />,
+  links: [
+    { label: 'GitHub', url: 'https://github.com/Tor-Grimsson/kol-mirror' },
+    { label: 'Kolkrabbi', url: 'https://mirror.kolkrabbi.io' },
+    { label: 'Vercel', url: 'https://vercel.com/tor-grimssons-projects/kol-mirror' },
+  ],
+}
 
-// The logomark ships from kol-brand — one source for the rail and the studio
-// sidebar's nav header; the local /svg copy is retired.
-const LOGOMARK = { svgUrl: logomarkUrl, title: 'Mirror' }
+/* HubSettings' pieces: the Memory section above the Hub's shortcut rows, and
+   the PERFORMANCE tab between SETTINGS and ABOUT · REPO */
+const SETTINGS = {
+  content: <SettingsContent />,
+  tabs: [
+    { value: 'performance', label: 'PERFORMANCE', title: 'Performance', subtitle: 'Render budget and quality limits', content: <PerformanceContent /> },
+  ],
+}
 
 /* Mirror's own glyphs, handed to the DS resolver ONCE at boot. `resolveIcon` is
    consumer → v1 → signal, so a registered name wins over both packaged sets —
@@ -72,19 +66,17 @@ const LOGOMARK = { svgUrl: logomarkUrl, title: 'Mirror' }
 registerIcons(import.meta.glob('./components/icons/svg/**/*.svg', { eager: true, query: '?raw', import: 'default' }))
 
 /**
- * Shell — kol-shell's `AppShell`, whose rail is the flat 48px column this repo
- * built and filed as `RailFlatGrabOpen` (kol-shell 0.16.0 · kol-theme 0.88.0,
- * closed 2026-08-28). The local `NavRail.jsx` and its `.rail-grab` block are
- * retired to `_tmp/2026-08-28-rail-upstream/`; what came back is the same rail
- * with the app-specific bits generalised — `--kol-z-sticky` instead of a
- * hardcoded 70, the open width read off `--kol-sidenav-w`'s ladder, and the
- * pill's numbers in kol-component's `utilities/motion`.
+ * Shell — kol-shell's `AppStudio` (2026-10-14): the Hub plus the workstation's
+ * page set, the shape ui.kolkrabbi.io/apps/mixer-hub runs mirror in. Home
+ * (`HubHome`), Settings (`HubSettings`), the `S` sheet, `,`, `\` and ⌥1…9 are
+ * the Hub's; the Studio routes its slots off `currentPath`. One day on
+ * `AppHub` (2026-10-13) ended when mixer-hub showed the Library slot takes
+ * mirror's catalogue as props (`useLibraryCatalog`) — the reason given for
+ * AppHub was wrong.
  *
  * `NavHiddenContext` is still the seam AppShell provides: the studio hides the
  * rail while its own sidebar is open (MirrorPlayground), and it returns on
- * every route change. `railToggleKey` and `navKeys` are AppShell's again, so
- * the local `\` and ⌥-digit handlers go with them — except ⌥1, which is HOME
- * here and not a rail item, so that one stays.
+ * every route change.
  */
 /* F — the frame budget, top-right. Not just fps: where the frame GOES, so a
    slow mixer names its own bottleneck instead of being guessed at. Mounting
@@ -137,80 +129,130 @@ function FpsMeter() {
   )
 }
 
+/* The rail's two sign-in rows are sentinels: they act, they do not route. */
+const SIGN_IN_PATH = '#sign-in'
+const MEDIA_PATH = '#media'
+
+/* Sign in · sign out, under the ModalProvider so the KOL prompt serves it on every route (fxr's). */
+function useSignIn() {
+  const modal = useModal()
+  const session = useLibrarySession()
+  return async () => {
+    if (session) {
+      if (await modal.confirm('Sign out of the sync? Saves stay on this device only.', { okLabel: 'Sign out' })) signOutLibrary()
+      return
+    }
+    const pw = await modal.prompt('Password for the mirror sync:', '')
+    if (!pw) return
+    try {
+      const n = await signInLibrary(pw)
+      await modal.alert(`Signed in. ${n} ${n === 1 ? 'save' : 'saves'} in the library; saves and memory slots now sync, and Media is in the rail.`)
+    } catch (e) {
+      await modal.alert(e instanceof UnauthorizedError ? 'Wrong password. Still local only.' : `Sign in failed: ${e?.message || e}`)
+    }
+  }
+}
+
 function Shell() {
+  return <ModalProvider><CreateDeskProvider><ShellBody /></CreateDeskProvider></ModalProvider>
+}
+
+function ShellBody() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [showShortcuts, setShowShortcuts] = useState(false)
   const [showFps, setShowFps] = useState(false)
+  const [mediaOpen, setMediaOpen] = useState(false)
   useAdaptiveQuality()
+  const { home, walkthrough } = useHomeProps()
+  const session = useLibrarySession()
+  const signIn = useSignIn()
 
-  /* The Settings rung TOGGLES (user, 2026-08-28: "click settings opens
-     settings, click again closes") — the shell's own since kol-shell 0.25.0 /
-     0.26.0 (SettingsToggleGesture: three repos had each built this), so the
-     local `lastPage` ref and the branch in `onNavigate` are gone. Passed as
-     `settingsPath` + `settingsKey` below; `onNavigate` is a plain navigate
-     again. */
+  /* the pinned foot: Media (signed in — the R2 / B2 stores) and Sign in (when there is an API) above
+     Settings. A `shell.bottomItems` replaces AppHub's own list, so Settings is named here too. */
+  const bottomItems = [
+    ...(session ? [{ icon: 'image', path: MEDIA_PATH, label: 'Media' }] : []),
+    ...(getLibraryApi() ? [{ icon: session ? 'cloud' : 'user', path: SIGN_IN_PATH, label: session ? 'Synced · sign out' : 'Sign in' }] : []),
+    { icon: 'nav-settings', path: '/settings', label: 'Settings' },
+  ]
+  const onNavigate = (path) => {
+    if (path === SIGN_IN_PATH) return signIn()
+    if (path === MEDIA_PATH) return setMediaOpen(true)
+    navigate(path)
+  }
+  /* a pick lands on channel 1 through the studio's own `slot` deep link — the SRC shelf's fields: an
+     image is the channel's media, a video is the live-input source pointed at the file */
+  const onMediaPick = (url, { kind } = {}) => {
+    const src = mediaClient.proxied(url)
+    const name = decodeURIComponent(url.split('/').pop())
+    setMediaOpen(false)
+    navigate('/studio', {
+      state: {
+        channelIndex: 0,
+        slot: kind === 'video'
+          ? { variantId: 'gen-live', params: { source: 'file', fileUrl: src, mirrored: 0, animate: true }, customImageName: name }
+          : { customImageSrc: src, customRasterSrc: src, customImageName: name },
+      },
+    })
+  }
 
-  /* App-wide keys — S (the shortcuts sheet), Space (the timeline) and
-     Option+1..N. The rail's own `\` and its nav-hidden state are AppShell's
-     since kol-shell 0.16.0, so they are gone from here; ⌥-digit is NOT, because
-     AppShell's `navKeys` maps ⌥n to `items[n-1]` and mirror's ⌥1 is HOME — the
-     logomark's row, which is not a rail item. The studio's keys stay in
+  /* App-wide keys that are MIRROR'S — Space (the timeline) and F (the frame
+     budget). `S`, `,`, `\` and ⌥1…9 are the Hub's since 2026-10-13: its
+     `navKeys` walks mark → items → Settings, which is exactly the ⌥1 = HOME
+     form the local handler existed for. The studio's keys stay in
      MirrorPlayground. */
   useEffect(() => {
     const onKey = (e) => {
       const t = e.target
       if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
-      const digit = e.altKey && !e.metaKey && !e.ctrlKey && /^Digit([1-9])$/.exec(e.code)
-      if (digit) {
-        // ⌥1 is HOME — the logomark's row (user 2026-08-28); the rail's items
-        // start at ⌥2, so the digit is the row's position in the rail
-        const n = Number(digit[1])
-        const path = n === 1 ? '/' : NAV_ITEMS[n - 2]?.path
-        if (path) { e.preventDefault(); navigate(path) }
-        return
-      }
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return
       if (e.key === ' ') { if (t.tagName === 'BUTTON') return; e.preventDefault(); transport.toggle() }
-      else if (e.key.toLowerCase() === 's') setShowShortcuts((v) => !v)
       else if (e.key.toLowerCase() === 'f') setShowFps((v) => !v)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [navigate])
+  }, [])
 
   return (
-    <AppShell
-      items={NAV_ITEMS}
-      bottomItems={BOTTOM_ITEMS}
-      logomark={LOGOMARK}
-      currentPath={location.pathname}
-      onNavigate={navigate}
-      iconComponent={DSIcon}
-      railToggleKey={'\\'}
-      settingsPath="/settings"
-      settingsKey=","
-      pageWash="var(--kol-fg-02)"
-      /* Below 768 the rail goes off-canvas and gives its 48px back (kol-shell
-         0.31.0). On a 390px phone that column is 12.3% of the viewport, and
-         `railToggleKey` cannot help there — it is a KEY, and a phone has no
-         keyboard. A WIDTH, not a pointer test: an iPad is coarse and has the
-         room, so ARCHITECTURE §2's pointer rule is not what governs this one. */
-      /* `drawer` everywhere, home included (user ruling 2026-09-02: "i still
-         think the card is too big, if its a tradeoff, then just hide the
-         sidenav on home as well"). The collapsed rail on home was his first
-         ask and it was served — kol-shell 0.38.0's tap disc made it possible —
-         but the 48px it costs is exactly the width that flips `CatalogPage`'s
-         grid from two tracks to one at 390 (302px fits one 160px-floor track,
-         350 fits two), so a lone card went full width. He'd rather have the
-         two-column card than the rail. `ShellRailCollapsedWithTapOpen` stays
-         shipped for whoever wants the other side of that trade. */
-      touch="drawer"
-    >
-      <Outlet />
-      {showShortcuts && <ShortcutsOverlay shortcuts={KEYBOARD_SHORTCUTS} onClose={() => setShowShortcuts(false)} />}
+    <>
+      {/* THE STUDIO (2026-10-14, the user's seven points): kol-shell's AppStudio through the local
+          `Studio` fork (one seam — a Library with sub-pages). The rail: Mirror · Library · Create ·
+          Studio · Dev · Settings. Library is Modules · Patches, monitor's shape, with every module's
+          page under it; the Studio is the float arrangement, the monitor a bare frame; Expression is
+          a module on the desk, not a row; the Mixer sheet, Tape, Fronts and Icons are gone from the
+          rail — the three sketchbooks live under Dev. */}
+      <Studio
+        app={APP}
+        currentPath={location.pathname}
+        onNavigate={onNavigate}
+        iconComponent={DSIcon}
+        shortcuts={KEYBOARD_SHORTCUTS}
+        walkthrough={walkthrough}
+        /* the Settings masthead toggle — a NODE, because kol-framework is not a peer of kol-shell */
+        themeToggle={<ThemeToggle fill="none" tone="sunken" label={false} size="sm" />}
+        home={home}
+        library={{
+          children: (
+            <Routes>
+              <Route path="/library" element={<LibrarySheet />} />
+              {/* a module's own page — monitor's `/library/:moduleType` */}
+              <Route path="/library/:id" element={<ModuleDetailPage />} />
+            </Routes>
+          ),
+        }}
+        create={{ children: <CreatePage /> }}
+        use={{ path: '/studio', label: 'Studio', icon: 'nav-studio', children: <MirrorPlayground /> }}
+        pages={[
+          { path: '/dev', icon: 'component', label: 'Dev', children: <DevPage /> },
+        ]}
+        settings={SETTINGS}
+        /* `drawer` below 768, not the Hub's phone bar — the bar and the studio's bottom sheet would
+           both own the phone's bottom edge */
+        shell={{ touch: 'drawer', bottomItems }}
+      />
+      {/* outside the Hub so F works on every route, Home and Settings included */}
       {showFps && <FpsMeter />}
-    </AppShell>
+      <MediaLibrary variant="modal" open={mediaOpen} client={mediaClient} accept={['image', 'video']} onClose={() => setMediaOpen(false)} onSelect={onMediaPick} />
+    </>
   )
 }
 
@@ -218,37 +260,11 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<Shell />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/library" element={<LibraryPage />} />
-          <Route path="/studio" element={<MirrorPlayground />} />
-          {/* WIDE ONLY. Five reference surfaces that are not small-screen
-              objects: five 320px scroll columns, a module spec sheet, an icon
-              grid, ten tape decks side by side, a front-panel sketchbook. A
-              phone gets the note, not a broken layout. `/` `/library`
-              `/settings` and the studio's halls are the mobile app. */}
-          <Route path="/expressions" element={<ExpressionsPage />} />
-          <Route path="/mixer" element={<MixerPage />} />
-          {/* THE CREATE GROUP. `/create` and a module's own page share one
-              provider so the desk survives canvas → module page → Back
-              (kol-monitor §6: "the item routes moved INSIDE the rack
-              provider's route group so state survives"). `CreatePage`
-              unmounts on navigation, so no amount of `location.key`
-              bookkeeping can hold the desk from inside it — measured. */}
-          <Route element={<CreateDeskProvider><Outlet /></CreateDeskProvider>}>
-            <Route path="/create" element={<CreatePage />} />
-            {/* a desk module's own page — monitor's `/library/:moduleType` */}
-            <Route path="/mixer/:id" element={<ModuleDetailPage />} />
-          </Route>
-          <Route path="/icons" element={<WideOnly what="The icon sheet"><IconsPage /></WideOnly>} />
-          <Route path="/tape" element={<TapePage />} />
-          {/* a sketchbook of module-front ideas — not wired to the instrument */}
-          <Route path="/fronts" element={<WideOnly what="The front sketchbook"><FrontsPage /></WideOnly>} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
         {DevCapturePage && (
           <Route path="/dev/capture" element={<Suspense fallback={null}><DevCapturePage /></Suspense>} />
         )}
+        {/* the Studio routes itself off `currentPath` — one catch-all hands it every other path */}
+        <Route path="*" element={<Shell />} />
       </Routes>
     </BrowserRouter>
   )

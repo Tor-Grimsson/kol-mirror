@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { PageHeader, PageShell } from '@kolkrabbi/kol-shell'
-import Icon from '../components/icons/Icon'
+import Icon from '../../components/icons/Icon'
 
 /**
  * IconsPage — /icons, every glyph in mirror's local registry, searchable
@@ -10,7 +9,7 @@ import Icon from '../components/icons/Icon'
  *
  * Click a tile to copy its name.
  */
-const svgModules = import.meta.glob('../components/icons/svg/**/*.svg', { eager: true, query: '?raw', import: 'default' })
+const svgModules = import.meta.glob('../../components/icons/svg/**/*.svg', { eager: true, query: '?raw', import: 'default' })
 
 const ICONS = Object.keys(svgModules)
   .map((path) => {
@@ -21,7 +20,7 @@ const ICONS = Object.keys(svgModules)
 
 const GROUPS = [...new Set(ICONS.map((i) => i.group))]
 
-export default function IconsPage() {
+export default function Icons() {
   const [q, setQ] = useState('')
   const [group, setGroup] = useState(null)
   const [copied, setCopied] = useState(null)
@@ -31,8 +30,7 @@ export default function IconsPage() {
   )
 
   return (
-    <PageShell>
-      <PageHeader title="Icons" subtitle={`${ICONS.length} glyphs in the local registry`} size="sm" voice="mono" />
+    <div>
 
       <div className="flex items-center gap-3 flex-wrap" style={{ marginBottom: 20 }}>
         <input
@@ -75,6 +73,6 @@ export default function IconsPage() {
           </div>
         ))}
       </div>
-    </PageShell>
+    </div>
   )
 }

@@ -24,6 +24,8 @@
 /* @source manifest — KOL packages ship raw JSX and Tailwind skips node_modules,
  * so utilities used inside DS components are never generated without this. */
 @import "@kolkrabbi/kol-theme/kol-sources.css";
+/* the hardware cap tokens the desk's dials draw with — `Knob variant="panel"` (DS mixer bug round, 2026-10-03) */
+@import "@kolkrabbi/kol-theme/kol-components-controls.css" layer(components);
 /* kol-framework.css is NOT imported (2026-08-28). It was required by kol-shell
    0.13–0.15, whose rail was framework's SideNav inside a `.kol-brand-layout`
    grid. Since 0.16.0 the rail is the flat column again (RailFlatGrabOpen) and

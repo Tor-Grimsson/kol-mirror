@@ -131,7 +131,7 @@ export default function FxUnit({
                     )
                   })}
                   <span
-                    className="text-fg-96 cursor-pointer select-none shrink-0 inline-flex"
+                    className="text-oq-96 cursor-pointer select-none shrink-0 inline-flex"
                     onClick={() => {
                       const next = fx.filter((_, i) => i !== fi)
                       onFxChange(next)

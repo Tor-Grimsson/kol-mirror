@@ -1,146 +1,44 @@
 import { useState } from 'react'
+// Subpath import — the barrel export pulls every organism into the bundle (see atoms/Button.jsx)
+import Stepper from '@kolkrabbi/kol-component/molecules/Stepper'
 
-const QuantityInput = ({
-  value = 1,
-  onChange,
-  min = 1,
-  max = 99,
-  className = ''
-}) => {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(String(value))
-
-  const increment = () => {
-    if (value < max) onChange?.(value + 1)
-  }
-
-  const decrement = () => {
-    if (value > min) onChange?.(value - 1)
-  }
-
-  const startEditing = () => {
-    setDraft(String(value))
-    setEditing(true)
-  }
-
-  const commitEdit = () => {
-    setEditing(false)
-    const num = parseInt(draft, 10)
-    if (!isNaN(num)) {
-      onChange?.(Math.max(min, Math.min(max, num)))
-    }
+/**
+ * QuantityInput — an adapter over the DS `Stepper` (@kolkrabbi/kol-component), 2026-10-03 (user
+ * ruling). The hand-built field is retired to `_tmp/2026-10-03-mixer-own-controls/QuantityInput.jsx`;
+ * the four call sites (the two Resolution rows) are unchanged.
+ *
+ * `Stepper`, NOT the DS `QuantityInput`: that one is a display-only quantity picker ("for an
+ * editable number field with bump chevrons use `Stepper`"), and this is a typed pixel size.
+ *
+ * THE DRAFT IS THE REASON FOR THIS FILE. `Stepper` checks `min` / `max` on every keystroke, so a
+ * field whose floor is 100 refuses the first digit of anything typed into it. The bounds are
+ * held here instead: the text is a draft while it is typed and is clamped when it is committed
+ * (blur or Enter) — what the local field did. A chevron reports a number and commits at once.
+ */
+const QuantityInput = ({ value = 1, onChange, min = 1, max = 99, className = '' }) => {
+  const [draft, setDraft] = useState(null)
+  const clamp = (n) => Math.max(min, Math.min(max, n))
+  const commit = () => {
+    if (draft == null) return
+    const n = parseInt(draft, 10)
+    if (!isNaN(n)) onChange?.(clamp(n))
+    setDraft(null)
   }
 
   return (
-    <div
-      className={`relative flex items-center ${className}`}
-      style={{
-        height: '24px',
-        border: '1px solid var(--kol-fg-16)',
-        borderRadius: '4px',
-        backgroundColor: 'transparent',
-        color: 'var(--kol-surface-on-primary)',
-        paddingLeft: '8px',
-        paddingRight: '20px',
-        fontSize: '12px',
-        lineHeight: '120%',
-        fontFamily: 'var(--kol-font-family-mono)',
-        minWidth: '52px',
+    <Stepper
+      size="sm"
+      value={draft ?? value}
+      onChange={(e) => {
+        const next = e.target.value
+        if (typeof next === 'number') { setDraft(null); onChange?.(clamp(next)) }
+        else setDraft(next)
       }}
-    >
-      {editing ? (
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={(e) => { if (e.key === 'Enter') commitEdit() }}
-          autoFocus
-          style={{
-            width: '100%',
-            backgroundColor: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: 'inherit',
-            fontSize: 'inherit',
-            fontFamily: 'inherit',
-            padding: 0,
-          }}
-        />
-      ) : (
-        <span
-          onClick={startEditing}
-          style={{ cursor: 'text' }}
-        >
-          {value}
-        </span>
-      )}
-
-      <div
-        style={{
-          position: 'absolute',
-          right: '4px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-        }}
-      >
-        <button
-          type="button"
-          onClick={increment}
-          disabled={value >= max}
-          style={{
-            backgroundColor: 'transparent',
-            border: 'none',
-            padding: '0',
-            cursor: value >= max ? 'not-allowed' : 'pointer',
-            opacity: value >= max ? 0.3 : 1,
-            lineHeight: 0,
-            display: 'block',
-            color: 'inherit',
-          }}
-          aria-label="Increase"
-        >
-          <svg width="8" height="5" viewBox="2 3.5 8 5" fill="none">
-            <path
-              d="m3 7 3-3 3 3"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={decrement}
-          disabled={value <= min}
-          style={{
-            backgroundColor: 'transparent',
-            border: 'none',
-            padding: '0',
-            cursor: value <= min ? 'not-allowed' : 'pointer',
-            opacity: value <= min ? 0.3 : 1,
-            lineHeight: 0,
-            display: 'block',
-            color: 'inherit',
-          }}
-          aria-label="Decrease"
-        >
-          <svg width="8" height="5" viewBox="2 3.5 8 5" fill="none">
-            <path
-              d="m3 5 3 3 3-3"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      </div>
-    </div>
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') commit() }}
+      className={className}
+      style={{ width: 72 }}
+    />
   )
 }
 

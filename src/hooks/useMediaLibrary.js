@@ -4,7 +4,7 @@ import { createMediaClient, isImageType, isVideoType } from '@kolkrabbi/kol-medi
 /**
  * useMediaLibrary — the Kolkrabbi CDN as channel sources.
  *
- * Three stores behind one CORS-open listing API (`admin.kolkrabbi.io/api/list`,
+ * Three stores behind one CORS-open listing API (`media.kolkrabbi.io/api/list`,
  * `bucket=r2|b2|b2vault`). The TABLE — which host each bucket is on and which
  * needs proxying — is `KOL_BUCKETS` in `@kolkrabbi/kol-media-client`, filed by
  * mirror and kol-fxr because both of us were carrying a copy. Do not restate it
@@ -22,8 +22,13 @@ import { createMediaClient, isImageType, isVideoType } from '@kolkrabbi/kol-medi
  * Adopted at 0.3.2. 0.3.0 and 0.3.1 are deprecated — they ran `process.argv` at
  * module scope for a self-test guard, which is a ReferenceError in a browser and
  * white-screened the studio on import.
+ *
+ * 0.6.0 since 2026-10-13 (`media-client-0-4-1-api-on-media`): the media app has
+ * ONE hostname, `media.kolkrabbi.io`, and the client's default `adminBase` is
+ * that. `admin.` is a redirect on its way out — nothing in this repo names it,
+ * and nothing passes `adminBase`, so the default is the whole configuration.
  */
-const client = createMediaClient({ buckets: true })
+export const client = createMediaClient({ buckets: true })
 
 export const BUCKET_OPTIONS = client.buckets().map((b) => ({ value: b.id, label: b.label }))
 

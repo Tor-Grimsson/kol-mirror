@@ -227,4 +227,8 @@ export const HAS_FRONT = new Set([
   /* wired 2026-09-02 — these three had real components all along (`PatchModule`,
      `RecorderUnit`, `FxUnit`) and were only missing from the id → component map */
   'patch', 'recorder', 'canvas-fx',
+  /* 2026-10-13 — the last three catalogue rows with no panel: FeedbackModule,
+     ExpressionModule, MemoryModule in modules/. Parts with a face, still
+     not registry modules (user ruling 2026-09-02). */
+  'feedback', 'expressions', 'memory',
 ])

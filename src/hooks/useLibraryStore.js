@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { pushSave, pushRemove } from './librarySync'
 
 /**
  * The library store — user saves in ONE localStorage list plus the shipped
@@ -38,12 +39,18 @@ export function addToLibrary(entry) {
   const { id: _id, preset: _preset, ...rest } = entry
   const item = { version: 1, description: '', tags: [], ...rest, id: `usr:${Date.now().toString(36)}`, savedAt: Date.now() }
   write([...items, item])
+  pushSave(item)
   return item
 }
 
 export function removeFromLibrary(id) {
   write(items.filter((i) => i.id !== id))
+  pushRemove(id)
 }
+
+/* the sign-in merge (`librarySync.js`) reads the saves and writes the merged list back */
+export const getSaved = () => items
+export const replaceSaved = (next) => write(next)
 
 /** Presets + user saves, newest save last; `kind` narrows. */
 export function useLibrary(kind) {

@@ -100,7 +100,7 @@ export default function MixerBuilder({ slots, active, onActive, onClear, onMoveU
           a strip you had to name. The receiver merges per index and skips an
           empty entry, so a builder with only Ch 2 filled does not blank the
           others (`MirrorPlayground`'s deep-link handler). */}
-      <Button variant="primary" size="md" disabled={!filled} onClick={onOpen}>
+      <Button tone="primary" size="md" disabled={!filled} onClick={onOpen}>
         {filled ? `Open ${filled} channel${filled > 1 ? 's' : ''} in the studio` : 'Add a source to begin'}
       </Button>
     </div>

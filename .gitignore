@@ -44,3 +44,9 @@ LLM_RULES.md
 # Ephemeral agent state — per-session goal file (/kol-goal)
 .kol/llm-context/.active-goal*.md
 .playwright-mcp/
+
+# Worker secrets + wrangler local state (api/)
+.dev.vars
+.wrangler/
+.vercel
+.env*

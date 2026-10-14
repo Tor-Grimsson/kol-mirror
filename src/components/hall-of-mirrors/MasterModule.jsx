@@ -110,7 +110,7 @@ function FxList({ fx, onFxChange }) {
               />
             )}
             <span
-              className="text-fg-96 cursor-pointer select-none shrink-0 inline-flex"
+              className="text-oq-96 cursor-pointer select-none shrink-0 inline-flex"
               onClick={() => onFxChange(fx.filter((_, i) => i !== fi))}
             >
               <Icon name="x" size={12} />
@@ -188,7 +188,7 @@ function CanvasFxList({ fx, onFxChange }) {
                 )}
               </span>
               <span
-                className="text-fg-96 cursor-pointer select-none shrink-0 inline-flex"
+                className="text-oq-96 cursor-pointer select-none shrink-0 inline-flex"
                 onClick={() => onFxChange(fx.filter((_, i) => i !== fi))}
                 title="Remove"
               >
@@ -252,7 +252,10 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
      module just share a name, nothing else"). Everything on this module that
      is per-strip goes through `master.inputs` — strip n is whatever channel is
      patched into IN n, and nothing until then. */
-  const slots = (master.inputs || [null, null, null]).map((src, n) => ({ n, src, ch: src != null ? channels[src] : null }))
+  /* a slot holds a channel index — or an FX module's OUT key (2026-10-03), which has no strip of its
+     own here: `ch` is null for it and `srcLabel` names it */
+  const slots = (master.inputs || [null, null, null]).map((src, n) => ({ n, src, ch: typeof src === 'number' ? channels[src] : null }))
+  const srcLabel = (src) => (typeof src === 'number' ? `Ch ${src + 1}` : 'FX')
   const [bottomTab, setBottomTab] = useState('in-0')
 
   const enabled = master.enabled ?? true
@@ -272,7 +275,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
           </div>
           {slots.map(({ n, src, ch }) => (
             <div key={n} className="flex items-center justify-between" style={{ height: '24px' }}>
-              <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · Ch ${src + 1}` : ''}</span>
+              <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · ${srcLabel(src)}` : ''}</span>
               <span className="text-fg-64 truncate" style={{ maxWidth: '160px' }}>{ch ? (ch.customImageName || '—') : 'No input'}</span>
             </div>
           ))}
@@ -304,7 +307,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
           {slots.map(({ n, src, ch }) => (
             <div key={n} className="flex flex-col gap-1">
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
-                <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · Ch ${src + 1}` : ''}</span>
+                <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · ${srcLabel(src)}` : ''}</span>
                 <span className="text-fg-32">{ch ? `${((ch.fx || []).length + (ch.canvasFx || []).length) || 'No'} FX` : 'No input'}</span>
               </div>
               {ch && <FxList fx={ch.fx || []} onFxChange={(newFx) => onChannelUpdate(src, { fx: newFx })} />}
@@ -330,7 +333,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
           {slots.map(({ n, src, ch }) => (
             <div key={n} className="flex flex-col gap-2">
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
-                <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · Ch ${src + 1}` : ''}</span>
+                <span className={ch?.enabled ? 'text-fg-96' : 'text-fg-32'}>In {n + 1}{src != null ? ` · ${srcLabel(src)}` : ''}</span>
                 {!ch && <span className="text-fg-32">No input</span>}
               </div>
               {ch && (
@@ -455,7 +458,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
     const inMatch = bottomTab.match(/^in-(\d+)$/)
     if (inMatch) {
       const slot = slots[parseInt(inMatch[1])]
-      if (!slot?.ch) return <span className="text-fg-32 self-center">No input — patch a channel into IN {parseInt(inMatch[1]) + 1}</span>
+      if (!slot?.ch) return <span className="text-fg-32 self-center">{slot?.src != null ? `FX module in IN ${parseInt(inMatch[1]) + 1}` : `No input — patch a channel into IN ${parseInt(inMatch[1]) + 1}`}</span>
       const ci = slot.src
       const ch = slot.ch
       const sends = ch.sends || {}
@@ -600,7 +603,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
               ].map(btn => (
                 <div
                   key={btn.key}
-                  className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+                  className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
                   style={{ borderRadius: '4px', width: '28px', height: '28px' }}
                   onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
                   title={btn.title}
@@ -626,7 +629,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                   key={`in-${n}`}
                   className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === `in-${n}` ? 'text-fg-96' : src != null ? 'text-fg-32 hover:text-fg-64' : 'text-fg-16 hover:text-fg-48'}`}
                   onClick={() => setBottomTab(`in-${n}`)}
-                  title={src != null ? `IN ${n + 1} ← Ch ${src + 1}` : `IN ${n + 1} — nothing patched`}
+                  title={src != null ? `IN ${n + 1} ← ${srcLabel(src)}` : `IN ${n + 1} — nothing patched`}
                 >
                   {`IN${n + 1}`}
                 </span>

@@ -117,7 +117,7 @@ export default function MobileStudio({ state }) {
               {variantData?.title ?? 'Choose an effect'}
             </span>
           </span>
-          <span className="text-fg-64 shrink-0" style={{ transform: open ? 'rotate(180deg)' : undefined }}>
+          <span className="text-oq-64 shrink-0" style={{ transform: open ? 'rotate(180deg)' : undefined }}>
             <Icon name="chevron-up" size={20} />
           </span>
         </button>
@@ -236,7 +236,7 @@ export default function MobileStudio({ state }) {
                 }}
               />
               <Button
-                variant="primary"
+                tone="primary"
                 size="lg"
                 onClick={() => fileRef.current?.click()}
                 disabled={!state.activeVariant}

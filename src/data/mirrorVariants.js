@@ -507,3 +507,13 @@ export function buildChannelFxStyle(fxArray) {
   if (transforms.length) style.transform = transforms.join(' ')
   return style
 }
+
+/* Which hall a variant belongs to — the memory label's "[M1] Hall: Variant".
+   Lived in `ArchiveViewport.jsx` until 2026-10-13; `MemoryModule` needed it
+   too, and a helper exported from a component file breaks react-refresh. */
+export function getHallForVariant(variantId) {
+  if (DISPLACEMENT_VARIANTS.some((v) => v.id === variantId)) return 'displacement'
+  if (COPIES_VARIANTS.some((v) => v.id === variantId)) return 'copies'
+  if (MOVEMENT_VARIANTS.some((v) => v.id === variantId)) return 'movement'
+  return null
+}

@@ -4,6 +4,7 @@ import { DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, GENERATOR_VA
 import { GENERATOR_COMPONENTS } from '../components/hall-of-mirrors/generators'
 import ModuleFront from '../components/hall-of-mirrors/ModuleFront'
 import { MODULE_REGISTRY, MODULE_HEIGHT } from '../data/moduleRegistry'
+import { HAS_FRONT } from '../data/mixerModules'
 import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx, fxPath, fxCapability } from '../hooks/useCanvasFx'
 import { buildPasses } from '../hooks/gpuFxShaders'
@@ -170,7 +171,8 @@ export default function DevCapturePage() {
        module itself — which is what a module catalogue shows anyway. Without
        these the Library and `/create` cards drew the glyph for every desk unit
        (2026-09-02). */
-    const moduleIds = MODULE_REGISTRY.filter(m => m.front?.kind === 'desk').map(m => m.front.id)
+    /* every id `ModuleFront` draws — the registry desk units AND the catalogue parts (2026-10-13) */
+    const moduleIds = [...new Set([...MODULE_REGISTRY.filter(m => m.front?.kind === 'desk').map(m => m.front.id), ...HAS_FRONT])]
     return <pre id="capture-list">{JSON.stringify({ variantIds, generatorIds, fxIds, moduleIds })}</pre>
   }
 

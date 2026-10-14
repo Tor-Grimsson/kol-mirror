@@ -16,13 +16,31 @@ const themeBoot = {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), themeBoot],
-  // kol-icons resolves its glyphs with `import.meta.glob` over its own
-  // kol-icon-set-v1/ folder. Pre-bundling the package skips that transform, so
-  // the map comes back empty and every <Icon> logs "not found in icon set" —
-  // which is why the rail's ThemeToggle rendered blank. Excluding it from
-  // optimizeDeps leaves the glob for Vite to expand from source.
+  // THE RAW-SOURCE KOL PACKAGES ARE NOT PRE-BUNDLED. They publish JSX, and two
+  // things in them break under the dep optimizer: kol-icons builds its registry
+  // via `import.meta.glob(...svg)`, which only expands when Vite source-transforms
+  // the file (pre-bundled, every icon resolves to "not found" — the rail's
+  // ThemeToggle rendered blank); and since kol-component 0.240.0 `PdfPage.jsx`
+  // does `import('pdfjs-dist/…?url')`, which the optimizer reads as a literal
+  // filename and fails the whole dev start (2026-10-13, this repo's bump to
+  // 0.257.0: `vite --force` died in "dependency optimization"; fxr hit it
+  // 2026-10-07). Excluded, they ride the plugin pipeline like app source. Their
+  // CJS deps then skip the optimizer's interop, so those are pre-bundled by
+  // name — fxr's and kol-website's shape.
   optimizeDeps: {
-    exclude: ['@kolkrabbi/kol-icons'],
+    exclude: [
+      '@kolkrabbi/kol-icons',
+      '@kolkrabbi/kol-component',
+      '@kolkrabbi/kol-framework',
+      '@kolkrabbi/kol-brand',
+      '@kolkrabbi/kol-shell',
+      '@kolkrabbi/kol-theme',
+      '@kolkrabbi/kol-hardware',
+    ],
+    include: [
+      '@kolkrabbi/kol-component > react-syntax-highlighter',
+      '@kolkrabbi/kol-component > embla-carousel-react',
+    ],
   },
   server: {
     host: true,

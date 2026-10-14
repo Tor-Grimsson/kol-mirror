@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { findVariant, getDefaultParams, getIntensityDialValue, getRasterTier, DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, GENERATOR_VARIANTS, buildChannelFxStyle, CHANNEL_FX_DEFS, getDefaultFxParams } from '../../data/mirrorVariants'
 import { CSS_BLEND_MODES, ALL_VECTORS, loadVectorSvg } from '../hall-of-mirrors/SymphonyMixer'
 import { begin, end, endFrame, tickIdle } from '../../hooks/renderStats'
 import { qualityRef } from '../../hooks/renderQuality'
 import { rasterDims } from '../../utils/processImageUpload'
-import { consumedChannels, removeChannelAt } from '../../hooks/patchGraph'
+import { consumedChannels, removeChannelAt, fxModuleChannels, shiftFxModules, removeFxModule, isFxKey } from '../../hooks/patchGraph'
 import useImageTiers from '../../hooks/useImageTiers'
 import useChannelRecorder from '../../hooks/useChannelRecorder'
 import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
@@ -12,6 +12,9 @@ import useFrameBuffer, { resolveRenderOrder } from '../../hooks/useFrameBuffer'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import TapeDelay from './TapeDelay'
 import InfiniteCanvas from './InfiniteCanvas'
+import FloatingFrame from './FloatingFrame'
+import { useFloating } from '../../hooks/useFloating'
+import { useNarrow } from '../../hooks/useNarrow'
 import ChannelLayer from './ChannelLayer'
 import RotaryDial from '../hall-of-mirrors/RotaryDial'
 import { Oscilloscope } from '../hall-of-mirrors/ExpressionReference'
@@ -205,6 +208,9 @@ const BEZEL_S = 20
 const BEZEL_B = 92
 const BEZEL_X = BEZEL_S * 2
 const BEZEL_Y = BEZEL_T + BEZEL_B
+const DECK_GAP = 24 // the air kept between the monitor and the tape deck — the deck's own inset from the stage edge
+const FLOAT_W = 560 // the float arrangement's picture width at scale 1 (the grip runs 0.35–2.5)
+const FX_SLOT = { enabled: true, returnLevel: 100, blendMode: 'normal' } // how an FX module's OUT draws in a master slot
 
 /* Each screw sits at a different angle, the way driven screws actually do. */
 const SCREWS = [
@@ -414,9 +420,43 @@ function Bezel({ style, tally, screenStyle, strip, children }) {
   )
 }
 
-export default function SymphonyViewport({ state }) {
+/* THE BARE FRAME (user 2026-10-14: "just show a fucking frame nothing else"): the float
+   arrangement's monitor is the picture in a box — no bezel, no knobs, no key strip. Drag it by the
+   body, scale it from the corner (`FloatingFrame`), V hides it. `Bezel` stays for the stage
+   arrangement and Screen 2. */
+function Frame({ style, screenStyle, children }) {
+  return (
+    <div className="relative shrink-0 overflow-hidden border border-fg-08" style={{ ...style, borderRadius: 4, ...screenStyle }}>
+      {children}
+    </div>
+  )
+}
+
+export default function SymphonyViewport({ state, arrangement = 'float' }) {
   const canvasContainerRef = useRef(null)
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
+  const deckRef = useRef(null)
+  const narrow = useNarrow()
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0, shift: 0 })
+  /* THE FLOAT ARRANGEMENT (2026-10-03, the user's idea, built beside the stage to compare):
+     the desk takes the whole view, the monitor is a window over it — dragged, scaled from its
+     corner, hidden on V — and the tape deck is a module on the desk. `arrangement="stage"` (the
+     default) is the studio exactly as it was; nothing below changes for it. Above the fold only —
+     a phone has `MobileStudio`. */
+  const floating = arrangement === 'float' && !narrow
+  const rootRef = useRef(null)
+  const frame = useFloating({ x: 24, y: 24, scale: 0.8 })
+  const [frameHidden, setFrameHidden] = useState(false)
+  useEffect(() => {
+    if (!floating) return undefined
+    const onKey = (e) => {
+      const t = e.target
+      if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key.toLowerCase() === 'v') setFrameHidden((v) => !v)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [floating])
   const [openNineDropdown, setOpenNineDropdown] = useState(null)
 
   // Channels persisted in global state
@@ -425,7 +465,12 @@ export default function SymphonyViewport({ state }) {
      mixer UI reads the raw list (its ON dot is the channel's own switch); the
      render path reads this one, so an unpatched channel paints nothing. */
   const masterInputs = state.symphonyMaster.inputs
-  const channels = useMemo(() => rawChannels.map((ch, i) => (ch.enabled && !(masterInputs || []).includes(i)) ? { ...ch, enabled: false } : ch), [rawChannels, masterInputs])
+  /* FX MODULES (2026-10-03). A channel cabled into a module's IN has to RENDER for the module to
+     have a frame — but it is not in the mix unless it is also in a master slot, so it draws
+     hidden (`feedsFxOnly`, below). */
+  const fxModules = state.symphonyFxModules
+  const fxChannels = useMemo(() => fxModuleChannels(fxModules), [fxModules])
+  const channels = useMemo(() => rawChannels.map((ch, i) => (ch.enabled && !((masterInputs || []).includes(i) || fxChannels.has(i))) ? { ...ch, enabled: false } : ch), [rawChannels, masterInputs, fxChannels])
   const setChannels = state.setSymphonyChannels
 
   // Screen 2 — second canvas source ('off' | channel index string | 'expr')
@@ -500,6 +545,8 @@ export default function SymphonyViewport({ state }) {
   channelsRef.current = channels
   const masterRef = useRef(state.symphonyMaster)
   masterRef.current = state.symphonyMaster
+  const fxModulesRef = useRef(fxModules)
+  fxModulesRef.current = fxModules
 
   // Bus canvas registration for zero-delay rendering
   const busCanvasMapRef = useRef(new Map())
@@ -694,13 +741,53 @@ export default function SymphonyViewport({ state }) {
       }
       const nw = Math.floor(w)
       const nh = Math.floor(h)
-      setCanvasSize(prev => (prev.width === nw && prev.height === nh) ? prev : { width: nw, height: nh })
+      /* CLEAR OF THE DECK (2026-10-03). The deck is out of flow at the stage's
+         right edge and the monitor is centred, so below about 1900 wide a
+         monitor of any real size sits under the deck's corner. The monitor
+         slides left by exactly the overlap, and no further than the stage's
+         left edge — where there is room it is dead centre, as it was. Its size
+         is never touched. Not below the fold, and not with Screen 2, whose
+         bezels fill the row. */
+      let shift = 0
+      const deck = deckRef.current
+      if (deck && !narrow && !screen2Active) {
+        const frameW = nw + BEZEL_X
+        const frameTop = parseFloat(cs.paddingTop) + (ch - nh - BEZEL_Y) / 2
+        const deckBottom = deck.offsetTop - el.offsetTop + deck.offsetHeight
+        const room = deck.offsetLeft - el.offsetLeft - parseFloat(cs.paddingLeft) - DECK_GAP
+        if (frameTop < deckBottom + DECK_GAP) {
+          shift = Math.round(Math.max(0, Math.min((cw + frameW) / 2 - room, (cw - frameW) / 2)))
+        }
+      }
+      setCanvasSize(prev => (prev.width === nw && prev.height === nh && prev.shift === shift) ? prev : { width: nw, height: nh, shift })
     }
     update()
     const observer = new ResizeObserver(update)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [rw, rh, screen2Active])
+  }, [rw, rh, screen2Active, narrow])
+
+  /* The float arrangement sizes the monitor from its own window, not from a stage: the picture is
+     FLOAT_W wide at scale 1 and the grip moves the scale. It opens in the bottom-right corner of
+     the view, over the empty desk under the modules. */
+  const floatW = Math.round(FLOAT_W * frame.box.scale)
+  const size = floating ? { width: floatW, height: Math.round(floatW * rh / rw), shift: 0 } : canvasSize
+  /* the bare frame has no bezel to add to the picture */
+  const bx = floating ? 0 : BEZEL_X
+  const by = floating ? 0 : BEZEL_Y
+  /* ponytail: Screen 2 is not drawn in the float arrangement — one window. A second window when it is asked for. */
+  const twoScreens = screen2Active && !floating
+  useLayoutEffect(() => {
+    const r = rootRef.current
+    if (!floating || !r) return
+    frame.setBox((b) => ({
+      ...b,
+      x: Math.max(24, r.clientWidth - FLOAT_W * b.scale - 24),
+      y: Math.max(24, r.clientHeight - FLOAT_W * b.scale * rh / rw - 24),
+    }))
+    // placed once, on entering the arrangement — after that the window is where he left it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floating])
 
   // Periodic tier re-evaluation during animation (every 500ms)
   const [tierTick, setTierTick] = useState(0)
@@ -717,8 +804,10 @@ export default function SymphonyViewport({ state }) {
   const hasSends = channels.some(ch => ch.enabled && ch.sends && Object.values(ch.sends).some(v => v > 0))
   const hasFeedback = channels.some(ch => ch.enabled && ch.feedback?.enabled)
   const hasScreen2 = screen2Active && screen2 !== 'expr'
+  /* a module with a cable in its IN needs the loop; one with none holds nothing */
+  const hasFxModules = fxModules.some((m) => m.input != null)
   useEffect(() => {
-    if (!hasRouting && !hasSends && !hasFeedback && !hasCanvasFx && !hasScreen2) return
+    if (!hasRouting && !hasSends && !hasFeedback && !hasCanvasFx && !hasScreen2 && !hasFxModules) return
     let frameNo = 0
     const tick = () => {
       /* Re-arm BEFORE the work (imweb): a throw mid-frame must not kill the
@@ -734,6 +823,7 @@ export default function SymphonyViewport({ state }) {
          anything read the result — with one channel wired, two thirds of the
          capture stage was thrown away. Rules live in patchGraph (tested). */
       const needed = consumedChannels(channelsRef.current, screen2)
+      for (const i of fxModuleChannels(fxModulesRef.current)) needed.add(i)
       frameBuffer.captureAll(needed)
       // Apply canvas FX to channel buffers after capture
       const chs = channelsRef.current
@@ -751,6 +841,8 @@ export default function SymphonyViewport({ state }) {
         }
       }
       frameBuffer.compositeBuses(channelsRef.current, masterRef.current)
+      // FX modules run after the channels and the buses they may read
+      frameBuffer.processFxModules(fxModulesRef.current)
       // Copy bus frames to visible canvases
       const tPaint = begin()
       busCanvasMapRef.current.forEach((canvas, key) => {
@@ -771,7 +863,7 @@ export default function SymphonyViewport({ state }) {
     }
     frameRafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frameRafRef.current)
-  }, [hasRouting, hasSends, hasFeedback, hasCanvasFx, hasScreen2, screen2, frameBuffer])
+  }, [hasRouting, hasSends, hasFeedback, hasCanvasFx, hasScreen2, hasFxModules, screen2, frameBuffer])
 
   // Also re-evaluate when recalc is triggered
   const _recalc = state.rasterRecalcCounter + tierTick
@@ -962,8 +1054,14 @@ export default function SymphonyViewport({ state }) {
   }
 
 
+  /* the float arrangement swaps the stage for a window; the monitor inside is the same tree */
+  const Stage = floating ? FloatingFrame : InfiniteCanvas
+  const stageProps = floating ? { frame, hidden: frameHidden } : { style: { flex: 1, minHeight: 0 } }
+  /* and the monitor inside it: a bare frame in the window, the bezel on the stage */
+  const Screen = floating ? Frame : Bezel
+
   return (
-    <div className="absolute inset-0 symphony-viewport-root">
+    <div ref={rootRef} className="absolute inset-0 symphony-viewport-root">
       {/* Mixer toggle — mobile only */}
       <div className="symphony-mobile-toggle">
         <span className="kol-helper-12 text-fg-64 cursor-pointer select-none" onClick={() => setMixerVisible(v => !v)}>[{mixerVisible ? 'Hide' : 'Show'}]</span>
@@ -977,13 +1075,13 @@ export default function SymphonyViewport({ state }) {
           monitor and the deck ride a pannable, zoomable layer; the mixer below
           is chrome and stays put. Drag the background, space-drag or middle-
           drag to pan; ⌘/ctrl-wheel zooms about the pointer. */}
-      <InfiniteCanvas style={{ flex: 1, minHeight: 0 }}>
-      <div ref={canvasContainerRef} className="symphony-canvas-container" style={{ height: '100%' }}>
-        {canvasSize.width > 0 && canvasSize.height > 0 && (
-          <Bezel
-            style={screen2Active
+      <Stage {...stageProps}>
+      <div ref={floating ? undefined : canvasContainerRef} className={floating ? undefined : 'symphony-canvas-container'} style={floating ? undefined : { height: '100%' }}>
+        {size.width > 0 && size.height > 0 && (
+          <Screen
+            style={twoScreens
               ? { width: `calc(${(split * 100).toFixed(2)}% - 8px)`, height: '100%' }
-              : { width: `${canvasSize.width + BEZEL_X}px`, height: `${canvasSize.height + BEZEL_Y}px` }}
+              : { width: `${size.width + bx}px`, height: `${size.height + by}px`, marginRight: size.shift * 2 }}
             tally={isAnimating}
             strip={{
               master: state.symphonyMaster,
@@ -1032,6 +1130,9 @@ export default function SymphonyViewport({ state }) {
                    drawing (opacity does not stop a rAF, and capture reads the
                    backing store), it is just no longer the thing on screen. */
                 const fxLive = ch.enabled && ch.canvasFx?.some((f) => f.enabled)
+                /* on only because an FX module reads it: it renders for the capture and is not
+                   shown — it is in the mix when it is in a master slot, not before */
+                const feedsFxOnly = fxChannels.has(i) && !(masterInputs || []).includes(i)
                 return (
                 <React.Fragment key={i}>
                 <FeedbackLayer
@@ -1039,11 +1140,11 @@ export default function SymphonyViewport({ state }) {
                   feedback={ch.feedback}
                   getFeedbackFrame={frameBuffer.getFeedbackFrame}
                 />
-                <div className="absolute inset-0" style={fxLive ? { opacity: 0 } : undefined}>
+                <div className="absolute inset-0" style={fxLive || feedsFxOnly ? { opacity: 0 } : undefined}>
                 <ChannelLayer
                   channel={resolvedChannel}
                   channelIndex={i}
-                  forceCapture={hasScreen2 && screen2 === String(i)}
+                  forceCapture={(hasScreen2 && screen2 === String(i)) || fxChannels.has(i)}
                   imageSrc={channelImageSrc}
                   rasterSrc={rasterForChannel}
                   defaultSvgSrc={channelDefaultSrc}
@@ -1069,7 +1170,7 @@ export default function SymphonyViewport({ state }) {
                   }}
                 />
                 </div>
-                {fxLive && (
+                {fxLive && !feedsFxOnly && (
                   <FxLayer
                     channelIndex={i}
                     getChannelFrame={frameBuffer.getChannelFrame}
@@ -1080,6 +1181,11 @@ export default function SymphonyViewport({ state }) {
                 </React.Fragment>
                 )
               })}
+              {/* An FX module's OUT cabled into a master slot — its frame, drawn like a bus return.
+                  ponytail: full level; the slot's strip has no fader for it yet. */}
+              {(masterInputs || []).filter(isFxKey).map((key) => (
+                <BusLayer key={key} busKey={key} bus={FX_SLOT} onRegister={registerBusCanvas} />
+              ))}
               {/* Bus return layers — composited channel sends rendered at returnLevel */}
               {BUS_RENDER_KEYS.map(busKey => (
                 <BusLayer
@@ -1090,12 +1196,12 @@ export default function SymphonyViewport({ state }) {
                 />
               ))}
             </div>
-          </Bezel>
+          </Screen>
         )}
 
         {/* Divider — drag to redistribute width between the screens.
             Pill indicator on hover (kol-website sidenav-grab idiom). */}
-        {screen2Active && (
+        {twoScreens && (
           <div
             className="group flex items-center justify-center self-stretch shrink-0"
             style={{ width: 16, cursor: 'ew-resize' }}
@@ -1110,7 +1216,7 @@ export default function SymphonyViewport({ state }) {
         )}
 
         {/* Screen 2 — second canvas beside the main one */}
-        {screen2Active && (
+        {twoScreens && (
           <Bezel
             style={{ flex: '1 1 0', minWidth: 0, height: '100%' }}
             tally={isAnimating}
@@ -1131,10 +1237,25 @@ export default function SymphonyViewport({ state }) {
           row is exactly what it was before this existed — the monitor's box,
           its centring and its size are untouched. */}
       {/* right: 24 and the deck's own width — it was hanging past the viewport */}
-      <div style={{ position: 'absolute', right: 24, top: 16, zIndex: 5 }}><TapeDelay /></div>
-      </InfiniteCanvas>
+      {!floating && <div ref={deckRef} style={{ position: 'absolute', right: 24, top: 16, zIndex: 5 }}><TapeDelay /></div>}
+      </Stage>
       <div className="symphony-mixer-container" style={{ display: mixerVisible ? 'block' : 'none' }}>
         <SymphonyMixer
+          /* the float arrangement: the desk fills the view, the deck is one of its modules, and
+             the tab row carries the monitor's show / hide */
+          fxModules={fxModules}
+          onFxModuleUpdate={(id, patch) => state.setSymphonyFxModules((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)))}
+          onFxModuleRemove={(id) => {
+            /* computed OUTSIDE the updaters, like a channel's removal: the module goes with every
+               cable into or out of it */
+            const out = removeFxModule(fxModules, rawChannels, state.symphonyMaster, id)
+            state.setSymphonyFxModules(out.modules)
+            setChannels(out.channels)
+            state.setSymphonyMaster((m) => ({ ...m, inputs: out.master.inputs }))
+          }}
+          fill={floating}
+          deck={floating ? <TapeDelay /> : null}
+          frameToggle={floating ? { on: !frameHidden, onToggle: () => setFrameHidden((v) => !v) } : null}
           /* The patch module's three verbs. Bundled as one prop rather than
              three: SymphonyMixer already threads 40, and these only ever move
              together. `clear` pulls the master input cables and leaves the
@@ -1195,6 +1316,7 @@ export default function SymphonyViewport({ state }) {
                (patchGraph.test.mjs covers the cases). Computed OUTSIDE the
                updater: a setState inside one runs twice under StrictMode. */
             const out = removeChannelAt(channels, state.symphonyMaster, screen2, idx)
+            state.setSymphonyFxModules(shiftFxModules(fxModules, idx))
             setChannels(out.channels)
             state.setSymphonyMaster(m => ({ ...m, inputs: out.master.inputs }))
             if (out.screen2 !== screen2) state.setSymphonyScreen2(out.screen2)

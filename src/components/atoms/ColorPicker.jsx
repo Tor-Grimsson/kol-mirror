@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { RgbaColorPicker } from 'react-colorful'
+// Subpath import — the barrel export pulls every organism into the bundle (see atoms/Button.jsx)
+import ColorSwatch from '@kolkrabbi/kol-component/molecules/ColorSwatch'
 
 function hexToRgba(hex) {
   if (!hex || !hex.startsWith('#')) return { r: 0, g: 0, b: 0, a: 1 }
@@ -80,40 +82,30 @@ export default function ColorPicker({ color, onChange, className = '', defaultVa
 
   return (
     <div className={`relative ${className}`}>
-      <div
-        ref={swatchRef}
-        onClick={(e) => {
-          if (e.altKey) { if (defaultValue !== undefined && onChange) onChange(defaultValue); return }
-          if (!open && swatchRef.current) {
-            const rect = swatchRef.current.getBoundingClientRect()
-            const spaceBelow = window.innerHeight - rect.bottom
-            setOpenDirection(spaceBelow < 260 ? 'up' : 'down')
-          }
-          setOpen(!open)
-        }}
-        style={{
-          width: '16px',
-          height: '16px',
-          borderRadius: '4px',
-          border: '1px solid var(--kol-border-default)',
-          backgroundColor: swatchBg,
-          cursor: 'pointer',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {isNone && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '-6px',
-            right: '-6px',
-            height: '2px',
-            backgroundColor: '#e74c3c',
-            transform: 'rotate(-45deg)',
-          }} />
-        )}
-      </div>
+      {/* THE CHIP IS THE DS `ColorSwatch` (2026-10-03, user ruling) — its fill, its radius and its
+          "no colour" slash. The hand-drawn chip is in `_tmp/2026-10-03-mixer-own-controls/`. The
+          popover below stays this file's: the DS ships a chip and a hex row, not an RGBA field.
+          The span carries the ref — the popover's anchor and the resolved-colour read. */}
+      <span ref={swatchRef} className="inline-flex">
+        <ColorSwatch
+          hex={swatchBg}
+          size={16}
+          showTransparent={isNone}
+          transparentTone="error"
+          hoverable={false}
+          /* the chip keeps an edge: a dark colour on the dark desk has none of its own */
+          className="border border-fg-16"
+          onClick={(e) => {
+            if (e.altKey) { if (defaultValue !== undefined && onChange) onChange(defaultValue); return }
+            if (!open && swatchRef.current) {
+              const rect = swatchRef.current.getBoundingClientRect()
+              const spaceBelow = window.innerHeight - rect.bottom
+              setOpenDirection(spaceBelow < 260 ? 'up' : 'down')
+            }
+            setOpen(!open)
+          }}
+        />
+      </span>
       {open && createPortal(
         <div
           ref={popoverRef}

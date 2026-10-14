@@ -84,7 +84,7 @@ export default function PatchTableOverlay({ open, onClose, channels = [], master
               <span className="text-fg-80 truncate">{c.from}</span>
               <span className="text-fg-32">→</span>
               <span className="text-fg-80 truncate flex-1">{c.to}</span>
-              <Button variant="grey" size="sm" aria-label="Remove cable" onClick={c.remove}>×</Button>
+              <Button tone="grey" size="sm" aria-label="Remove cable" onClick={c.remove}>×</Button>
             </div>
           ))}
         </div>
@@ -96,7 +96,7 @@ export default function PatchTableOverlay({ open, onClose, channels = [], master
             <Dropdown className="flex-1" options={fromOptions} value={pick.from} onChange={(from) => setPick((p) => ({ ...p, from }))} />
             <Dropdown className="flex-1" options={toOptions} value={pick.to} onChange={(to) => setPick((p) => ({ ...p, to }))} />
           </div>
-          <Button variant="grey" size="md" disabled={!canAdd} onClick={add}>Add cable</Button>
+          <Button tone="grey" size="md" disabled={!canAdd} onClick={add}>Add cable</Button>
         </div>
       </div>
     </ShellDrawer>

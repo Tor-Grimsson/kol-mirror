@@ -1,12 +1,5 @@
-import { DISPLACEMENT_VARIANTS, COPIES_VARIANTS, MOVEMENT_VARIANTS, findVariant } from '../../data/mirrorVariants'
+import { findVariant, getHallForVariant } from '../../data/mirrorVariants'
 import ChannelLayer from './ChannelLayer'
-
-function getHallForVariant(variantId) {
-  if (DISPLACEMENT_VARIANTS.some(v => v.id === variantId)) return 'displacement'
-  if (COPIES_VARIANTS.some(v => v.id === variantId)) return 'copies'
-  if (MOVEMENT_VARIANTS.some(v => v.id === variantId)) return 'movement'
-  return null
-}
 
 export default function ArchiveViewport({ state }) {
   return (

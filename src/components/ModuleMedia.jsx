@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Icon } from './icons'
+import { Icon } from '../components/icons/index.js'
 
 /**
  * ModuleMedia — a catalogue card's thumbnail, or an honest blank.
@@ -26,7 +26,7 @@ export default function ModuleMedia({ src, glyph = 'frequency', contain = false 
   const [failed, setFailed] = useState(false)
   if (failed || !src) {
     return (
-      <div className="flex items-center justify-center h-full text-fg-32">
+      <div className="flex items-center justify-center h-full text-oq-32">
         <Icon name={glyph} size={24} />
       </div>
     )

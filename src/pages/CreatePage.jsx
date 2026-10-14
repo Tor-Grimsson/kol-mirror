@@ -1,19 +1,18 @@
 import { useState, useRef, useMemo, useLayoutEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { PageShell, PageHeader } from '@kolkrabbi/kol-shell'
-import { ContentFilters, ContentCard, ContentRow } from '@kolkrabbi/kol-component'
-import { useNarrow } from '../hooks/useNarrow'
-import { Icon } from '../components/icons'
+import { ContentFilters, ContentCard, ContentRow, PageHeader } from '@kolkrabbi/kol-component'
+import { useNarrow } from '../hooks/useNarrow.js'
+import { Icon } from '../components/icons/index.js'
 import ModuleMedia from '../components/ModuleMedia'
-import InfiniteCanvas from '../components/mirror/InfiniteCanvas'
+import InfiniteCanvas from '../components/mirror/InfiniteCanvas.jsx'
 import ModuleFront from '../components/hall-of-mirrors/ModuleFront'
-import PatchTableOverlay from '../components/hall-of-mirrors/PatchTableOverlay'
+import PatchTableOverlay from '../components/hall-of-mirrors/PatchTableOverlay.jsx'
 import usePersistedState from '../hooks/usePersistedState'
-import { MODULE_REGISTRY, KINDS, MODULE_HEIGHT, slugFor } from '../data/moduleRegistry'
-import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
+import { MODULE_REGISTRY, KINDS, MODULE_HEIGHT, slugFor } from '../data/moduleRegistry.js'
+import { EMPTY_CHANNEL } from '../hooks/useMirrorState.js'
 import { useCreateDesk, EMPTY_MASTER } from '../hooks/createDeskContext'
-import { findVariant, getDefaultParams } from '../data/mirrorVariants'
-import { getDefaultCanvasFxParams } from '../hooks/useCanvasFx'
+import { findVariant, getDefaultParams } from '../data/mirrorVariants.js'
+import { getDefaultCanvasFxParams } from '../hooks/useCanvasFx.js'
 
 /**
  * CreatePage — `/create`, its own route, ported from kol-monitor's
@@ -253,7 +252,9 @@ export default function CreatePage() {
 
   /* the list is a page that SCROLLS, the canvas is FIXED — monitor's §3 */
   return (
-    <PageShell mode={view === 'mixer' ? 'fixed' : 'scroll'} className="create-canvas" style={{ '--kol-shell-page-wash': 'var(--kol-fg-02)', position: 'relative', isolation: 'isolate' }}>
+    /* ON THE HUB (apps/mixer-hub): `AppStudio`'s Create slot is the `PageShell` — padding, wash and
+       height — so mirror's own shell here is a plain column that fills it. */
+    <div className="create-canvas" style={{ position: 'relative', isolation: 'isolate', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* NO `z-index: -1`. Monitor put it on its canvas and it went UNDER its
           own transparent wrappers, killing touch. The rule there: lift the
           chrome, never sink the canvas. So the grid sits at the natural rung
@@ -290,7 +291,7 @@ export default function CreatePage() {
               type="button"
               aria-label="Rename mixer"
               title="Rename mixer"
-              className="text-fg-48 hover:text-fg-96 cursor-pointer"
+              className="text-oq-48 hover:text-oq-96 cursor-pointer"
               style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0 }}
               onPointerDown={(e) => {
                 e.preventDefault()
@@ -380,7 +381,7 @@ export default function CreatePage() {
                             type="button"
                             aria-label="Remove module"
                             onClick={() => removePlaced(m.id)}
-                            className="absolute text-fg-32 hover:text-fg-96 cursor-pointer"
+                            className="absolute text-oq-32 hover:text-oq-96 cursor-pointer"
                             style={{ top: 6, right: 6, background: 'none', border: 'none', padding: 4, lineHeight: 0 }}
                           >
                             <Icon name="x" size={12} />
@@ -433,7 +434,7 @@ export default function CreatePage() {
                         title={m.name}
                         detail={detail(m)}
                         media={<ModuleMedia src={m.preview} contain={m.front?.kind === 'desk'} />}
-                        onClick={() => navigate(`/mixer/${slugFor(m)}`)}
+                        onClick={() => navigate(`/library/${slugFor(m)}`)}
                       />
                       {/* INSERT IN ITS OWN STRIP under the card — the user
                           rejected it inside the text plate twice (monitor §4).
@@ -459,7 +460,7 @@ export default function CreatePage() {
                       title={m.name}
                       detail={detail(m)}
                       actions={insertAction(m)}
-                      onClick={() => navigate(`/mixer/${slugFor(m)}`)}
+                      onClick={() => navigate(`/library/${slugFor(m)}`)}
                     />
                   </div>
                 ))}
@@ -525,15 +526,15 @@ export default function CreatePage() {
               type="button"
               onClick={() => channels.length && setPatchTable((v) => !v)}
               title="Patch table"
-              className={`cursor-pointer ${channels.length ? 'text-fg-80 hover:text-fg-96' : 'text-fg-32'}`}
+              className={`cursor-pointer ${channels.length ? 'text-oq-80 hover:text-oq-96' : 'text-oq-32'}`}
               style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0 }}
             >
               <Icon name="flip-y" size={20} />
             </button>
-            <button type="button" onClick={() => setDots((v) => !v)} title="Dot grid" className="text-fg-80 hover:text-fg-96 cursor-pointer" style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0, opacity: dots ? 1 : 0.4 }}>
+            <button type="button" onClick={() => setDots((v) => !v)} title="Dot grid" className="text-oq-80 hover:text-oq-96 cursor-pointer" style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0, opacity: dots ? 1 : 0.4 }}>
               <Icon name="grid-02" size={20} />
             </button>
-            <button type="button" onClick={clear} title="Clear the mixer" className="text-fg-80 hover:text-fg-96 cursor-pointer" style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0 }}>
+            <button type="button" onClick={clear} title="Clear the mixer" className="text-oq-80 hover:text-oq-96 cursor-pointer" style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0 }}>
               <Icon name="x" size={20} />
             </button>
           </div>
@@ -554,6 +555,6 @@ export default function CreatePage() {
           {draggingModule.name}
         </div>
       )}
-    </PageShell>
+    </div>
   )
 }

@@ -1,15 +1,19 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CatalogPage } from '@kolkrabbi/kol-shell'
 import { findVariant } from '../data/mirrorVariants'
 import Button from '../components/atoms/Button'
 
 /**
- * HomePage — /, on kol-shell's `CatalogPage` (ShellHomeSystemAdoption,
- * 2026-08-27 — this page, fxr's and monitor's were the same page written
- * three times). Recent = the one Empty Studio card (monitor's "Empty 7U");
- * Saved = the persisted memory slots. The full catalogue lives in /library.
- * Walkthrough is the panel over the catalog; grey action buttons bottom-left.
+ * HomePage — `/`, as the DATA the Hub's `HubHome` renders (kol-shell `AppHub`,
+ * 2026-10-13). This page, fxr's and monitor's were the same `CatalogPage`
+ * written three times (ShellHomeSystemAdoption, 2026-08-27); the Hub is that
+ * page made once, so what is left here is only what is mirror's: the one Empty
+ * Studio card under RECENT, the persisted memory slots under SAVED, the
+ * walkthrough's five steps, and where the buttons go. `App.jsx` hands
+ * `useHomeProps()` to `AppHub home=` / `walkthrough=`; the route itself
+ * renders nothing because the Hub owns `/`.
+ *
+ * The walkthrough is the Hub's: its button follows `actions`, its X closes it,
+ * and a step whose `actions` is a FUNCTION receives `close`.
  */
 
 const WALKTHROUGH_STEPS = [
@@ -53,31 +57,20 @@ const WALKTHROUGH_STEPS = [
 
 const PREVIEW_SRC = '/images/stack-hero-400.jpg'
 
-const VIEWS = [
-  { value: 'recent', label: 'Recent' },
-  { value: 'saved', label: 'Saved' },
-]
-
 const EMPTY_STUDIO = [
   { name: 'empty-studio', title: 'Empty Studio', detail: '3 channels — mixer, buses, routing', src: PREVIEW_SRC, alt: 'Empty Studio' },
 ]
 
-export default function HomePage() {
-  const navigate = useNavigate()
-  const [view, setView] = useState('recent')
-  const [showWalkthrough, setShowWalkthrough] = useState(false)
-
-  // Parsed once per mount — slots only change in the studio, and navigating
-  // back remounts this page (audit: was re-parsing on every render).
-  const [memory] = useState(() => {
-    try {
-      const raw = localStorage.getItem('mirror-archive')
-      if (raw) return (JSON.parse(raw) || []).map((s, i) => ({ slot: s, i })).filter(({ slot }) => slot)
-    } catch { /* no memory */ }
-    return []
-  })
-
-  const saved = memory.map(({ slot, i }) => ({
+/* Read on every SAVED render, not once per Shell mount: the Shell is mounted
+   for the app's whole life, and a slot saved in the studio has to be on Home
+   when you come back. Nine rows of JSON — cheaper than the stale card. */
+const savedItems = () => {
+  let slots = []
+  try {
+    const raw = localStorage.getItem('mirror-archive')
+    if (raw) slots = JSON.parse(raw) || []
+  } catch { /* no memory */ }
+  return slots.map((slot, i) => ({ slot, i })).filter(({ slot }) => slot).map(({ slot, i }) => ({
     name: `m${i + 1}`,
     title: `M${i + 1} — ${findVariant(slot.variantId)?.title || slot.variantId}`,
     detail: slot.variantId,
@@ -85,49 +78,38 @@ export default function HomePage() {
     alt: '',
     slotIndex: i,
   }))
-  const items = view === 'recent' ? EMPTY_STUDIO : saved
+}
+
+export function useHomeProps() {
+  const navigate = useNavigate()
 
   const illustration = <img src="/images/stack-hero-800.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} />
-  const steps = WALKTHROUGH_STEPS.map((s) => s.actions
+  const walkthrough = WALKTHROUGH_STEPS.map((s) => s.actions
     ? {
         ...s,
-        actions: (
+        actions: (close) => (
           <>
-            <Button variant="grey" size="md" onClick={() => { setShowWalkthrough(false); navigate('/studio') }}>Enter Studio</Button>
-            <Button variant="grey" size="md" onClick={() => { setShowWalkthrough(false); navigate('/library') }}>Browse Library</Button>
+            <Button tone="grey" size="md" onClick={() => { close(); navigate('/studio') }}>Enter Studio</Button>
+            <Button tone="grey" size="md" onClick={() => { close(); navigate('/library') }}>Browse Library</Button>
           </>
         ),
       }
     : { ...s, illustration })
 
-  return (
-    <CatalogPage
-      header={{ title: 'Hall of Mirrors', subtitle: 'Interactive image distortion playground', size: 'sm', voice: 'mono' }}
-      items={items}
-      filtersTitle="Studio"
-      views={VIEWS}
-      view={view}
-      onViewChange={setView}
-      toCard={(item) => ({
-        key: item.name,
-        title: item.title,
-        detail: item.detail,
-        media: <img src={item.src} alt={item.alt} />,
-        onClick: item.slotIndex != null
-          ? () => navigate('/studio', { state: { slotIndex: item.slotIndex } })
-          : () => navigate('/studio'),
-      })}
-      walkthrough={{ open: showWalkthrough, steps }}
-      actions={
-        <>
-          <Button variant="grey" size="md" onClick={() => navigate('/studio')}>Enter Studio</Button>
-          <Button variant="grey" size="md" onClick={() => setShowWalkthrough((w) => !w)}>Walkthrough</Button>
-        </>
-      }
-    >
-      {view === 'saved' && memory.length === 0 && (
-        <p className="kol-helper-12 text-fg-32">No saved slots yet — save one from the studio sidebar.</p>
-      )}
-    </CatalogPage>
-  )
+  const home = {
+    items: (view) => (view === 'recent' ? EMPTY_STUDIO : savedItems()),
+    filtersTitle: 'Studio',
+    toCard: (item) => ({
+      key: item.name,
+      title: item.title,
+      detail: item.detail,
+      media: <img src={item.src} alt={item.alt} />,
+      onClick: item.slotIndex != null
+        ? () => navigate('/studio', { state: { slotIndex: item.slotIndex } })
+        : () => navigate('/studio'),
+    }),
+    actions: <Button tone="grey" size="md" onClick={() => navigate('/studio')}>Enter Studio</Button>,
+  }
+
+  return { home, walkthrough }
 }

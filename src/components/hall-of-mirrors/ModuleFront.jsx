@@ -9,6 +9,9 @@ import RecorderUnit from './RecorderUnit'
 import FxUnit from './FxUnit'
 import FxModule from './modules/FxModule'
 import InputModule from './modules/InputModule'
+import FeedbackModule from './modules/FeedbackModule'
+import ExpressionModule from './modules/ExpressionModule'
+import MemoryModule from './modules/MemoryModule'
 import { GENERATOR_VARIANTS } from '../../data/mirrorVariants'
 import { findVariant } from '../../data/mirrorVariants'
 
@@ -165,6 +168,18 @@ export default function ModuleFront({ id, index = 0, channel, channels = [], mas
     case 'generators':
     case 'field':
       return <ChannelModules index={index} channel={channel || channels[0]} onChannelUpdate={(patch) => onChannelUpdate(index, patch)} onMediaChange={noop} onRecalc={noop} />
+    /* THE LAST THREE (2026-10-13). Parts, not registry modules — feedback is a
+       strip tab, expressions and memory are desk-wide surfaces (user ruling
+       2026-09-02) — but a catalogue row with no face read as unfinished. Each
+       is the desk's own component in the panel frame: `TrailUnit`, the
+       `Oscilloscope`, the `mirror-archive` slots. Self-held off a design
+       surface, exactly like `patch` above. */
+    case 'feedback':
+      return <FeedbackModule feedback={channel?.feedback} />
+    case 'expressions':
+      return <ExpressionModule />
+    case 'memory':
+      return <MemoryModule />
     default:
       return null
   }

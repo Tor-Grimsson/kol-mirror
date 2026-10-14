@@ -427,7 +427,7 @@ function SavedSection({ scopeExpr, append, load, boxed }) {
           <Code text={item.data.expr} onAppend={append} onLoad={load} />
           <span className="flex items-center gap-2 shrink-0 text-fg-48">
             {item.name}
-            {!item.preset && <span className="cursor-pointer hover:text-fg-96 flex" onClick={() => removeFromLibrary(item.id)} title="Remove"><Icon name="x" size={10} /></span>}
+            {!item.preset && <span className="cursor-pointer hover:text-oq-96 flex" onClick={() => removeFromLibrary(item.id)} title="Remove"><Icon name="x" size={10} /></span>}
           </span>
         </div>
       ))}

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MODULE_REGISTRY, searchModules, KINDS } from '../../data/moduleRegistry'
+import { searchModules, KINDS } from '../../data/moduleRegistry'
 
 /**
- * ModulePalette — the two ways in to the registry (user 2026-08-28, from
- * kol-monitor): ⌘K is a SEARCH over every unit, E is a SHELF of them along the
- * bottom. One component, because they are the same list with two chromes — a
- * second implementation would drift the moment a unit is added.
+ * ModulePalette — the SHELF: E opens the registry along the bottom (user
+ * 2026-08-28, from kol-monitor).
  *
- * `mode` is 'search' | 'shelf' | null. The keys live in MirrorPlayground, so
- * this component owns no shortcut of its own — it is told what to show.
+ * IT WAS TWO CHROMES — ⌘K a search, E this shelf. ⌘K is kol-component's
+ * `ShellSearchOverlay` since 2026-10-03 (MirrorPlayground), so the search half
+ * was no longer reached and is retired to `_tmp/2026-10-03-module-palette-search/`.
+ *
+ * `mode` is 'shelf' | null. The keys live in MirrorPlayground, so this
+ * component owns no shortcut of its own — it is told what to show.
  *
  * An entry with no `add` is one-per-desk (Master, Routing, Playback): it is
  * listed, because "what does this instrument have" is half of what a palette is
@@ -18,7 +20,6 @@ export default function ModulePalette({ mode, onClose, api }) {
   const [q, setQ] = useState('')
   const [sel, setSel] = useState(0)
   const [kind, setKind] = useState(null)
-  const inputRef = useRef(null)
   const listRef = useRef(null)
 
   const items = useMemo(() => {
@@ -31,8 +32,6 @@ export default function ModulePalette({ mode, onClose, api }) {
      effect, which would cascade a second render every keystroke */
   const [seen, setSeen] = useState({ q, kind })
   if (seen.q !== q || seen.kind !== kind) { setSeen({ q, kind }); setSel(0) }
-
-  useEffect(() => { if (mode === 'search') inputRef.current?.focus() }, [mode])
 
   /* arrows move, Enter adds, Escape closes — the palette's own keys, live only
      while it is open */
@@ -77,39 +76,6 @@ export default function ModulePalette({ mode, onClose, api }) {
       <span className="kol-helper-10 uppercase text-fg-24 shrink-0" style={{ width: 92, textAlign: 'right' }}>{m.detail}</span>
     </div>
   )
-
-  /* ⌘K — a centred field with the list under it */
-  if (mode === 'search') {
-    return (
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, zIndex: 'var(--kol-z-overlay, 50)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '18vh', background: 'rgb(0 0 0 / 0.4)' }}
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{ width: 620, maxHeight: '60vh', display: 'flex', flexDirection: 'column', background: 'var(--kol-surface-primary)', border: '1px solid var(--kol-fg-16)', borderRadius: 'var(--kol-radius-xs)', boxShadow: '0 30px 80px rgb(0 0 0 / 0.5)' }}
-        >
-          <input
-            ref={inputRef}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search modules…"
-            className="kol-mono-14 text-fg-96 bg-transparent outline-none"
-            style={{ padding: '14px 16px', borderBottom: '1px solid var(--kol-fg-08)' }}
-          />
-          <div ref={listRef} style={{ overflowY: 'auto', padding: '4px 0' }}>
-            {items.length === 0
-              ? <div className="kol-mono-14 text-fg-32" style={{ padding: '12px 16px' }}>Nothing matches “{q}”.</div>
-              : items.map(row)}
-          </div>
-          <div className="flex items-center gap-4 kol-helper-10 text-fg-24" style={{ padding: '8px 16px', borderTop: '1px solid var(--kol-fg-08)' }}>
-            <span>↑↓ move</span><span>⏎ add</span><span>esc close</span>
-            <span style={{ marginLeft: 'auto' }}>{items.length} of {MODULE_REGISTRY.length}</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   /* E — a shelf along the bottom, grouped, the whole registry at a glance */
   return (

@@ -4,6 +4,7 @@ import { begin, end } from './renderStats'
 import { runChain, gpuAvailable } from './gpuFx'
 import { buildPasses } from './gpuFxShaders'
 import { runSlitscan } from './gpuSlitscan'
+import { feedbackStep } from './feedbackStep'
 
 /* Every offscreen buffer is sized through here, so ONE knob shrinks the whole
    pipeline — capture, canvas FX, feedback and bus compositing all read it.
@@ -104,16 +105,9 @@ export default function useFrameBuffer(channelCount, qualityRef) {
     const fbBuf = ensureFeedbackBuffer(index, w, h)
     if (feedback.freeze) return // hold buffer, don't update
     const t = begin()
-    const ctx = ctx2d(fbBuf)
-    // Decay: lower alpha = faster fade of accumulated content
-    ctx.globalAlpha = feedback.decay / 100
-    // Draw existing feedback onto itself (persistence)
-    // Then composite new frame on top
-    try {
-      // New frame drawn with reduced alpha creates the trail effect
-      ctx.drawImage(frame, 0, 0, w, h)
-    } catch { /* frame not ready */ }
-    ctx.globalAlpha = 1
+    /* buffer ← decay·frame + (1 − decay)·buffer, in alpha as well as colour —
+       `feedbackStep.js` carries the why and `scripts/check-feedback.mjs` the check */
+    feedbackStep(ctx2d(fbBuf), frame, w, h, feedback.decay)
     end('feedback', t)
   }, [ensureFeedbackBuffer])
 
@@ -211,9 +205,10 @@ export default function useFrameBuffer(channelCount, qualityRef) {
    * runs beat six short ones, and a chain that is entirely one path pays
    * exactly what it paid before: one call, no crossings.
    */
-  const processChannelFx = useCallback((index, canvasFxChain) => {
+  /* `runFxOn(buf, chain, stateKey)` is the runner; a channel's chain and an FX module's one unit
+     both go through it. `stateKey` names the GPU passes and the slitscan ring a run keeps. */
+  const runFxOn = useCallback((buf, canvasFxChain, stateKey) => {
     if (!canvasFxChain || canvasFxChain.length === 0) return
-    const buf = buffersRef.current.get(index)
     if (!buf || buf.width <= 0 || buf.height <= 0) return
     const live = canvasFxChain.filter((fx) => fx.enabled)
     if (!live.length) return
@@ -238,7 +233,7 @@ export default function useFrameBuffer(channelCount, qualityRef) {
     const ctx = ctx2d(buf)
     for (const run of runs) {
       if (run.path === 'slit') {
-        const out = runSlitscan(`ch-${index}-${run.slot}`, buf, buf.width, buf.height, run.units[0].params || {})
+        const out = runSlitscan(`${stateKey}-${run.slot}`, buf, buf.width, buf.height, run.units[0].params || {})
         if (out) {
           ctx.clearRect(0, 0, buf.width, buf.height)
           ctx.drawImage(out, 0, 0)
@@ -246,7 +241,7 @@ export default function useFrameBuffer(channelCount, qualityRef) {
           applyCanvasFx(buf, run.units)
         }
       } else if (run.path === 'gpu') {
-        const out = runChain(buf, buf.width, buf.height, buildPasses(run.units, `ch-${index}`))
+        const out = runChain(buf, buf.width, buf.height, buildPasses(run.units, stateKey))
         /* A GPU run that fails to init falls through to the CPU rather than
            dropping the units — the same silent-drop this rewrite exists to end.
            Units with no CPU processor are still no-ops there, which the rack
@@ -264,6 +259,44 @@ export default function useFrameBuffer(channelCount, qualityRef) {
     end('canvasFx', t)
   }, [])
 
+  const processChannelFx = useCallback((index, canvasFxChain) => {
+    runFxOn(buffersRef.current.get(index), canvasFxChain, `ch-${index}`)
+  }, [runFxOn])
+
+  /**
+   * FX MODULES (2026-10-03) — one effect each, patched by hand. A module reads whatever its IN
+   * is cabled to (a channel's frame, a bus, another module, itself), runs its unit, and holds the
+   * result under its own key BESIDE the bus buffers — so `getChannelFrame` / `getBusFrame` hand
+   * it to anything that takes a bus source, and a module's OUT needs no reader of its own.
+   *
+   * Walked in list order. A module that reads one further down the list — or itself — gets that
+   * one's PREVIOUS frame: the same one-frame loop a self-patched channel is. With no cable in,
+   * it holds nothing.
+   */
+  const processFxModules = useCallback((modules) => {
+    const { width: w, height: h } = sizeRef.current
+    const keys = new Set()
+    for (const m of modules || []) {
+      const key = `fxm:${m.id}`
+      keys.add(key)
+      if (m.input == null || w <= 0 || h <= 0) { busBuffersRef.current.delete(key); continue }
+      const src = typeof m.input === 'string' ? busBuffersRef.current.get(m.input) : buffersRef.current.get(m.input)
+      const buf = ensureBusBuffer(key, w, h)
+      /* fed from itself, the buffer already IS the source — last frame's output — so there is
+         nothing to copy and the unit runs over it again */
+      if (src !== buf) {
+        const ctx = ctx2d(buf)
+        ctx.clearRect(0, 0, w, h)
+        if (src) { try { ctx.drawImage(src, 0, 0, w, h) } catch { /* frame not ready */ } }
+      }
+      if (m.enabled) runFxOn(buf, [{ type: m.type, enabled: true, params: m.params }], `fxm-${m.id}`)
+    }
+    // a module that is gone leaves no frame behind for a stale cable to read
+    for (const key of [...busBuffersRef.current.keys()]) {
+      if (key.startsWith('fxm:') && !keys.has(key)) busBuffersRef.current.delete(key)
+    }
+  }, [ensureBusBuffer, runFxOn])
+
   useEffect(() => {
     return () => {
       buffersRef.current.clear()
@@ -273,7 +306,7 @@ export default function useFrameBuffer(channelCount, qualityRef) {
     }
   }, [])
 
-  return { registerCanvas, unregisterCanvas, getChannelFrame, captureAll, compositeBuses, getBusFrame, applyFeedback, getFeedbackFrame, clearFeedbackBuffer, processChannelFx, sizeRef }
+  return { registerCanvas, unregisterCanvas, getChannelFrame, captureAll, compositeBuses, getBusFrame, applyFeedback, getFeedbackFrame, clearFeedbackBuffer, processChannelFx, processFxModules, sizeRef }
 }
 
 export function resolveRenderOrder(channels) {

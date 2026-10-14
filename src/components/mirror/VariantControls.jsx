@@ -85,7 +85,7 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
                     )}
                     {opt.animateKey && (
                       <span
-                        className={`cursor-pointer select-none ${(params[opt.animateKey] ?? false) ? 'text-fg-96' : 'text-fg-32'}`}
+                        className={`cursor-pointer select-none ${(params[opt.animateKey] ?? false) ? 'text-oq-96' : 'text-oq-32'}`}
                         onClick={() => onParamChange(opt.animateKey, !(params[opt.animateKey] ?? false))}
                         title={(params[opt.animateKey] ?? false) ? 'Stop' : 'Animate'}
                       >
@@ -115,7 +115,7 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
                 <span className="cursor-pointer" onClick={() => onParamChange(ctrl.key, !isOn)}>{ctrl.label}</span>
                 {hasVisibility && (
                   <span
-                    className={`cursor-pointer ${isVisible ? 'text-fg-96' : 'text-fg-32'}`}
+                    className={`cursor-pointer ${isVisible ? 'text-oq-96' : 'text-oq-32'}`}
                     onClick={() => onParamChange(ctrl.visibilityKey, !isVisible)}
                   >
                     <Icon name={isVisible ? 'eye-on' : 'eye-off'} size={12} />

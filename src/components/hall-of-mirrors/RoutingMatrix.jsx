@@ -172,7 +172,7 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
             {/* Shelf tab button */}
             <div className="flex flex-col gap-2">
               <div
-                className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === 'output' ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+                className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === 'output' ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
                 style={{ borderRadius: '4px', width: '28px', height: '28px' }}
                 onClick={() => { if (shelfOpen && shelfTab === 'output') { setShelfOpen(false) } else { setShelfTab('output'); setShelfOpen(true) } }}
                 title="Channel Output"
@@ -210,7 +210,7 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
             </div>
             <div className="flex flex-col gap-2">
               <div
-                className="border border-fg-16 text-fg-96 flex items-center justify-center"
+                className="border border-fg-16 text-oq-96 flex items-center justify-center"
                 style={{ borderRadius: '4px', width: '28px', height: '28px', visibility: 'hidden' }}
               >
                 <Icon name="circle" size={16} />

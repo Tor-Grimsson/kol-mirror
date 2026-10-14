@@ -1,7 +1,6 @@
-import { PageHeader, PageShell } from '@kolkrabbi/kol-shell'
-import { transport, useTransportPlaying } from '../hooks/transport'
-import { DECKS } from '../components/mirror/tape/registry'
-import { useReels } from '../components/mirror/tape/useReels'
+import { transport, useTransportPlaying } from '../../hooks/transport'
+import { DECKS } from '../../components/mirror/tape/registry'
+import { useReels } from '../../components/mirror/tape/useReels'
 
 /**
  * TapePage — /tape, ten tape-delay designs side by side (user 2026-08-28).
@@ -25,11 +24,10 @@ function Cell({ name, note, Deck }) {
   )
 }
 
-export default function TapePage() {
+export default function Tape() {
   const playing = useTransportPlaying()
   return (
-    <PageShell>
-      <PageHeader title="Tape" subtitle="Ten decks, one transport" size="sm" voice="mono" />
+    <div>
 
       <div className="flex items-center gap-4" style={{ marginBottom: 24 }}>
         <span
@@ -43,6 +41,6 @@ export default function TapePage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 32 }}>
         {DECKS.map((d) => <Cell key={d.id} {...d} />)}
       </div>
-    </PageShell>
+    </div>
   )
 }

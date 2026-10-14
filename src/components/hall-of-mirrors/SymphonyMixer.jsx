@@ -17,6 +17,10 @@ import MasterModule from './MasterModule'
 import RoutingMatrix from './RoutingMatrix'
 import GeneratorModule from './modules/GeneratorModule'
 import PatchModule from './modules/PatchModule'
+import FxModule from './modules/FxModule'
+import { fxKey, isFxKey } from '../../hooks/patchGraph'
+import { CANVAS_FX_DEFS } from '../../hooks/useCanvasFx'
+import { WIRE_COLORS } from './wireColors'
 import ExpressionReference from './ExpressionReference'
 import Dropdown from '../molecules/Dropdown'
 import GrabEdge from '../GrabEdge'
@@ -93,7 +97,7 @@ function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
     <div className="relative">
       <div
         ref={btnRef}
-        className="cursor-pointer select-none flex items-center justify-center border border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow transition-all"
+        className="cursor-pointer select-none flex items-center justify-center border border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow transition-all"
         style={{ borderRadius: '4px', width: '28px', height: '28px' }}
         onClick={handleClick}
         title="Load from Archive"
@@ -416,7 +420,7 @@ export function Channel({
             ].map(btn => (
               <div
                 key={btn.key}
-                className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
+                className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
                 style={{ borderRadius: '4px', width: '28px', height: '28px' }}
                 onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
                 title={btn.title}
@@ -693,6 +697,18 @@ export default function SymphonyMixer({
   onUploadRecSlot,
   onUpdateRecSlotTrim,
   patchApi,
+  /* THE FLOAT ARRANGEMENT (2026-10-03, `SymphonyViewport arrangement="float"`): `fill` gives the
+     desk the whole view, `deck` is the tape deck as one more module on it, and `frameToggle`
+     `{ on, onToggle }` is the monitor window's show / hide in the tab row. All three absent is
+     the desk as it was. */
+  fill = false,
+  deck = null,
+  frameToggle = null,
+  /* FX MODULES (2026-10-03) — effects standing on the desk as modules of their own, each with
+     an IN and an OUT that start empty (`useMirrorState.symphonyFxModules`). */
+  fxModules = [],
+  onFxModuleUpdate,
+  onFxModuleRemove,
 }) {
   const [masterFxOpen, setMasterFxOpen] = useState(false)
   const [fxOpenAll, setFxOpenAll] = useState({ open: false, tick: 0 })
@@ -899,7 +915,7 @@ export default function SymphonyMixer({
     ro.observe(viewportEl)
     ;[...track.children].forEach((el) => ro.observe(el))
     return () => ro.disconnect()
-  }, [viewportEl, layout, channels.length])
+  }, [viewportEl, layout, channels.length, fxModules.length])
   /* THE DESK'S HEIGHT is grabbable at its top edge (user 2026-08-28: "where
      is the grab to make channel strip taller"). null = content height, which
      is what it was before and what a double-click restores. The drag writes
@@ -919,6 +935,8 @@ export default function SymphonyMixer({
   /* the desk is in patch mode when every card is on its back — the Patch tab's
      active state and its label both read this */
   const allFlipped = channels.length > 0 && channels.every((_, i) => flippedCards[i]) && flippedCards.master && flippedCards.routing
+  /* any card on its back — the wire diagram's cue */
+  const patching = Object.values(flippedCards).some(Boolean)
   return (
     <div className="flex flex-col gap-6">
       {/* Wire diagram — patch-mode only (user ruling 2026-08-12): the signal
@@ -930,12 +948,17 @@ export default function SymphonyMixer({
           flex column — so the viewport above it lost 80px and the output
           monitor rescaled mid-patch. The row now always occupies its height
           and only its CONTENTS come and go, so the desk's top edge never
-          moves and the monitor holds its size. */}
-      <div style={{ height: '80px', overflow: 'hidden' }}>
-        {Object.values(flippedCards).some(Boolean) && (
-          <ChannelWireDiagram channels={channels} master={master} />
-        )}
-      </div>
+          moves and the monitor holds its size.
+          `fill` is the exception: the monitor is a window there and nothing sits
+          above the desk to resize, so the row is back to patch-mode only — a
+          reserved band was 104px of blank page over the tab row. */}
+      {(!fill || patching) && (
+        <div style={{ height: '80px', overflow: 'hidden' }}>
+          {patching && (
+            <ChannelWireDiagram channels={channels} master={master} />
+          )}
+        </div>
+      )}
       {/* the desk is in patch mode when every card is on its back */}
       {/* the rule runs the FULL width (user 2026-08-28: "make the line go all
           the way across") — the row bleeds out past the studio's 16px viewport
@@ -957,7 +980,8 @@ export default function SymphonyMixer({
             LINE"). Drag it down to make the strips taller; double-click
             restores content height. `bottom` rather than `top`: the strip
             straddles the border below it, not the box's own top edge. */}
-        {layout === 'row' && mixerTab === 'mixer' && (
+        {/* not in `fill`: the desk already has the whole view, there is nothing to trade height with */}
+        {layout === 'row' && mixerTab === 'mixer' && !fill && (
           <GrabEdge
             axis="y"
             style={{ top: 'auto', bottom: '-4.5px' }}
@@ -1009,6 +1033,17 @@ export default function SymphonyMixer({
             entirely, as a fixed corner control; on a desk that scrolls inside a
             page, a second row is the equivalent that stays with the desk. */}
         <span className="flex items-center gap-4 w-full pt-2 mt-1 border-t border-fg-08 md:w-auto md:pt-0 md:mt-0 md:border-t-0 md:ml-auto">
+          {frameToggle && (
+            <span
+              className="cursor-pointer select-none kol-helper-14 flex items-center gap-2"
+              style={{ color: frameToggle.on ? 'var(--kol-fg-64)' : 'var(--kol-fg-32)' }}
+              onClick={frameToggle.onToggle}
+              title="Frame (V)"
+            >
+              <Icon name="monitor" size={14} />
+              [{frameToggle.on ? 'Frame' : 'No frame'}]
+            </span>
+          )}
           <span
             className="cursor-pointer select-none kol-helper-14 flex items-center gap-2"
             style={{ color: dots ? 'var(--kol-fg-64)' : 'var(--kol-fg-32)' }}
@@ -1066,7 +1101,7 @@ export default function SymphonyMixer({
       />
       {/* Patch cables (v2, 2026-08-15) — full between flipped bays, ghosted otherwise */}
       {isVisible && mixerTab === 'mixer' && (
-        <PatchCableOverlay channels={channels} flipped={flippedCards} inputs={master.inputs} screen2={screen2} containerRef={deskRef} />
+        <PatchCableOverlay channels={channels} flipped={flippedCards} inputs={master.inputs} screen2={screen2} fxModules={fxModules} containerRef={deskRef} />
       )}
       {/* A Mixer — channels + master section as an EMBLA LOOP (user ruling
           2026-08-12): the desk is a circle, wheel scrolls it endlessly in
@@ -1082,6 +1117,16 @@ export default function SymphonyMixer({
       >
       <div
         ref={layout === 'row' ? deskViewportRef : undefined}
+        /* THE STAGE GETS AT LEAST HALF THE WINDOW (2026-10-03, the crushed
+           viewframe). At content height the desk is 482px under 163px of its
+           own chrome, in a studio padded 32 — a fixed 677px, so on a 1000px
+           window the monitor was left a 63px picture and the tape deck was
+           cut off. Until the rule is dragged the desk box is capped at half
+           the window less that chrome (195), never under the grab's own 240
+           floor; what is cut is reached by the rule, the pan or the zoom. A
+           dragged height wins — the cap is the default only. Above the fold
+           only: the phone desk scrolls in its sheet. */
+        className={!deskH && !fill && layout === 'row' ? 'md:max-h-[max(240px,calc(50dvh-195px))]' : undefined}
         /* THE CLIP LINE SITS OUTSIDE THE PADDING (user 2026-08-28: "just
            don't clip where the padding is"). embla needs `overflow: hidden`,
            but with the box ending on the cards' own edge it cut their padding,
@@ -1101,7 +1146,10 @@ export default function SymphonyMixer({
              intrinsic height and the extra is empty desk. That is also the
              shape an infinite canvas needs later — space to arrange in, not
              modules that resize to fill it. */
-          ...(deskH ? { height: deskH } : null),
+          /* `fill`: the whole view less the same chrome the cap above counts (195), or less 91 while
+             the wire row is away (its 80 and one 24 gap) — the modules keep their height at the
+             top and the rest is empty desk, where the monitor window sits */
+          ...(deskH ? { height: deskH } : fill ? { height: `calc(100dvh - ${patching ? 195 : 91}px)` } : null),
         }}
       >
       <div
@@ -1284,6 +1332,54 @@ export default function SymphonyMixer({
         <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
           <PatchModule api={patchApi} master={master} channels={channels} />
         </div>
+        {/* THE FX MODULES — one panel each, in the order they were loaded. A module arrives with
+            both jacks empty and stays that way until he cables it (user 2026-10-03: "no
+            preconfigured paths ever … think about a physical mixer, does it ever do anything
+            on auto"). What the IN stores is what a channel's `routeFrom` stores. */}
+        {fxModules.map((m) => {
+          const key = fxKey(m.id)
+          const src = m.input
+          const inputLabel = typeof src === 'number'
+            ? `CH ${src + 1}`
+            : isFxKey(src)
+              ? (CANVAS_FX_DEFS.find((d) => d.id === fxModules.find((o) => fxKey(o.id) === src)?.type)?.label || 'FX')
+              : String(src ?? '').toUpperCase()
+          return (
+            <div key={`fxm-${m.id}`} className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+              <FxModule
+                defId={m.type}
+                params={m.params}
+                enabled={m.enabled}
+                onParamChange={(k, v) => onFxModuleUpdate?.(m.id, { params: { ...m.params, [k]: v } })}
+                onToggle={() => onFxModuleUpdate?.(m.id, { enabled: !m.enabled })}
+                onRemove={() => onFxModuleRemove?.(m.id)}
+                jacks={{
+                  id: m.id,
+                  input: src,
+                  inputLabel,
+                  inputColor: typeof src === 'number' ? WIRE_COLORS[src % WIRE_COLORS.length] : undefined,
+                  isSource: channels.some((c) => c.routeFrom === key) || fxModules.some((o) => o.input === key) || (master.inputs || []).includes(key),
+                  pendingOut,
+                  setPendingOut,
+                  onInput: (from) => onFxModuleUpdate?.(m.id, { input: from == null ? null : from.type === 'ch' ? from.idx : from.key }),
+                }}
+              />
+            </div>
+          )
+        })}
+        {/* THE TAPE DECK AS A MODULE (float arrangement, user 2026-10-03: "the tape machine could
+            be folded into a module, its a bit awkward sitting there above the mixer strip") — the
+            deck as it is drawn, in the desk modules' own frame (`PatchModule`'s). */}
+        {deck && (
+          <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+            <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ borderRadius: '4px', height: '100%' }}>
+              <div className="flex items-center kol-helper-12 px-3 border-b border-fg-08 shrink-0" style={{ height: '29px' }}>
+                <span className="text-fg-96">Tape</span>
+              </div>
+              <div className="flex items-center justify-center p-3" style={{ flex: 1, minHeight: 0 }}>{deck}</div>
+            </div>
+          </div>
+        )}
         {ringPad > 0 && [0, 1].map((k) => <div key={`spacer-${k}`} data-spacer="" aria-hidden className="shrink-0" style={{ width: ringPad }} />)}
       </div>
       </div>

@@ -447,9 +447,9 @@ const FRONTS = [
   ['Knob, dark', <RidgedKnob key="u" dark />],
 ]
 
-export default function FrontsPage() {
+export default function Fronts() {
   return (
-    <div style={{ padding: 24, height: '100%', overflowY: 'auto' }}>
+    <div style={{ height: '100%' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
         {FRONTS.map(([name, node], i) => (
           <div key={name} style={{ background: 'var(--kol-surface-secondary)', border: '1px solid var(--kol-fg-08)', borderRadius: 5, overflow: 'hidden' }}>

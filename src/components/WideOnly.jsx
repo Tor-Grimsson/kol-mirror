@@ -34,7 +34,7 @@ export default function WideOnly({ what = 'This view', to, children }) {
       <div className="flex flex-col gap-2" style={{ maxWidth: 320 }}>
         <div className="kol-helper-14 text-fg-96">Needs a bigger screen</div>
         <div className="kol-mono-12 text-fg-64">
-          {what} is built for a wide screen and a mouse. Open Hall of Mirrors on
+          {what} is built for a wide screen and a mouse. Open Mirror on
           a computer to use it.
         </div>
       </div>

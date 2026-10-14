@@ -50,10 +50,10 @@ function loopPath(p) {
   return `M ${p.x - 4} ${p.y + 4} C ${p.x - 18} ${p.y + 32}, ${p.x + 18} ${p.y + 32}, ${p.x + 4} ${p.y + 4}`
 }
 
-export default function PatchCableOverlay({ channels, flipped, inputs = [], screen2 = 'off', containerRef }) {
+export default function PatchCableOverlay({ channels, flipped, inputs = [], screen2 = 'off', fxModules = [], containerRef }) {
   const jacks = usePatchJacks()
-  const stateRef = useRef({ channels, flipped, inputs, screen2 })
-  useEffect(() => { stateRef.current = { channels, flipped, inputs, screen2 } })
+  const stateRef = useRef({ channels, flipped, inputs, screen2, fxModules })
+  useEffect(() => { stateRef.current = { channels, flipped, inputs, screen2, fxModules } })
   const [cables, setCables] = useState([])
   const sigRef = useRef('')
 
@@ -69,11 +69,13 @@ export default function PatchCableOverlay({ channels, flipped, inputs = [], scre
       const container = containerRef.current
       if (!container) return
       const cRect = container.getBoundingClientRect()
-      const { channels, flipped, inputs, screen2 } = stateRef.current
+      const { channels, flipped, inputs, screen2, fxModules } = stateRef.current
 
       const resolve = (id) => {
         const m = id.match(/^ch-(\d+)-/)
-        const ghost = !(m ? flipped[+m[1]] : flipped.master)
+        /* an FX module's jacks are on its FACE — it has no back to flip to, so its end of a
+           cable is never a ghost */
+        const ghost = id.startsWith('fxm-') ? false : !(m ? flipped[+m[1]] : flipped.master)
         const el = jacks.map.get(id)
         if (!el) return null
         const r = el.getBoundingClientRect()
@@ -93,7 +95,9 @@ export default function PatchCableOverlay({ channels, flipped, inputs = [], scre
           const isCh = typeof ch.routeFrom === 'number'
           const from = isCh
             ? resolve(`ch-${ch.routeFrom}-out`)
-            : (resolve(`mst-rtn-${ch.routeFrom}`) || resolve(`ch-${i}-src-${ch.routeFrom}`))
+            : ch.routeFrom.startsWith('fxm:')
+              ? resolve(`fxm-${ch.routeFrom.slice(4)}-out`)
+              : (resolve(`mst-rtn-${ch.routeFrom}`) || resolve(`ch-${i}-src-${ch.routeFrom}`))
           if (from && to) {
             next.push({
               key: `route-${i}`,
@@ -117,12 +121,24 @@ export default function PatchCableOverlay({ channels, flipped, inputs = [], scre
         }
       })
 
-      // The master's input slots — CH src OUT → master IN n.
+      // The master's input slots — CH src OUT (or an FX module's OUT) → master IN n.
       inputs.forEach((src, n) => {
         if (src == null) return
-        const from = resolve(`ch-${src}-out`)
+        const fx = typeof src === 'string'
+        const from = fx ? resolve(`fxm-${src.slice(4)}-out`) : resolve(`ch-${src}-out`)
         const to = resolve(`mst-in-${n}`)
-        if (from && to) next.push({ key: `in-${n}`, d: sagPath(from, to), color: WIRE_COLORS[src % WIRE_COLORS.length], ends: [from, to] })
+        if (from && to) next.push({ key: `in-${n}`, d: sagPath(from, to), color: fx ? 'var(--kol-accent-primary)' : WIRE_COLORS[src % WIRE_COLORS.length], ends: [from, to] })
+      })
+      // FX modules — whatever is cabled into each IN: a channel OUT, a bus return, a module OUT
+      // (its own included, which draws as the loop it is).
+      fxModules.forEach((m) => {
+        if (m.input == null) return
+        const to = resolve(`fxm-${m.id}-in`)
+        const isCh = typeof m.input === 'number'
+        const from = isCh
+          ? resolve(`ch-${m.input}-out`)
+          : m.input.startsWith('fxm:') ? resolve(`fxm-${m.input.slice(4)}-out`) : resolve(`mst-rtn-${m.input}`)
+        if (from && to) next.push({ key: `fxm-${m.id}`, d: sagPath(from, to), color: isCh ? WIRE_COLORS[m.input % WIRE_COLORS.length] : 'var(--kol-accent-primary)', ends: [from, to] })
       })
       // Screen 2 fed from a channel — CH n OUT → the master's MON IN.
       if (/^\d+$/.test(screen2)) {

@@ -1,13 +1,17 @@
 import { useNavigate } from 'react-router-dom'
-import { CatalogPage } from '@kolkrabbi/kol-shell'
-import { ContentCard, ContentRow } from '@kolkrabbi/kol-component'
 import usePersistedState from '../hooks/usePersistedState'
 import ModuleMedia from './ModuleMedia'
-import Button from './atoms/Button'
-import { slugFor } from '../data/moduleRegistry'
-import { exportEntry, importEntry, removeFromLibrary } from '../hooks/useLibraryStore'
+import Button from '../components/atoms/Button.jsx'
+import { slugFor } from '../data/moduleRegistry.js'
+import { exportEntry, importEntry, removeFromLibrary } from '../hooks/useLibraryStore.js'
 
 /**
+ * ON THE HUB (apps/mixer-hub, 2026-10-03): `useCatalogLibrary()` returns kol-shell `CatalogPage`'s
+ * PROPS instead of rendering the page — `AppStudio`'s Library slot takes props, and the Mixer sheet
+ * spreads the same ones. Mirror's hand-drawn grid (`filtersProps.renderItem`) is gone with it: the
+ * cards and the rows are `CatalogPage`'s own, the list one row per line (`listLayout="stack"`).
+ * `toCard` and everything it decides are mirror's, untouched.
+ *
  * CatalogLibrary — the browse surface, once. `/library` and `/mixer` are the
  * same page showing different sets.
  *
@@ -30,8 +34,10 @@ import { exportEntry, importEntry, removeFromLibrary } from '../hooks/useLibrary
  * @param {Function} media        (item) => the card's media, for kinds only the
  *                                page can draw (a patch's signal path, an
  *                                expression's waveform)
+ * @param {string}   subtitle     the masthead's second line — which sets this page holds
+ *                                (2026-10-03: the Mixer page said what the Library says)
  */
-export default function CatalogLibrary({ storageKey, views, viewsConfig, media }) {
+export default function useCatalogLibrary({ storageKey, views, viewsConfig, media, subtitle = 'Every set the instrument has' }) {
   const navigate = useNavigate()
   const [tab, setTab] = usePersistedState(storageKey, views[0].value)
   const view = viewsConfig[tab] ?? viewsConfig[views[0].value]
@@ -46,7 +52,7 @@ export default function CatalogLibrary({ storageKey, views, viewsConfig, media }
         title: item.title,
         detail: item.module.detail,
         media: <ModuleMedia src={item.module.preview} contain={item.module.front?.kind === 'desk'} />,
-        onClick: () => navigate(`/mixer/${slugFor(item.module)}`),
+        onClick: () => navigate(`/library/${slugFor(item.module)}`),
       }
     : item.entry
     ? {
@@ -56,13 +62,13 @@ export default function CatalogLibrary({ storageKey, views, viewsConfig, media }
         media: media?.(item),
         actions: (
           <>
-            <Button variant="grey" size="sm" onClick={(e) => { e.stopPropagation(); exportEntry(item.entry) }}>Export</Button>
-            {!item.entry.preset && <Button variant="grey" size="sm" onClick={(e) => { e.stopPropagation(); removeFromLibrary(item.entry.id) }}>Remove</Button>}
+            <Button tone="grey" size="sm" onClick={(e) => { e.stopPropagation(); exportEntry(item.entry) }}>Export</Button>
+            {!item.entry.preset && <Button tone="grey" size="sm" onClick={(e) => { e.stopPropagation(); removeFromLibrary(item.entry.id) }}>Remove</Button>}
           </>
         ),
         onClick: () => item.entry.kind === 'patch'
           ? navigate('/studio', { state: { patch: item.entry } })
-          : navigate('/expressions', { state: { expr: item.entry.data.expr } }),
+          : navigate('/dev', { state: { expr: item.entry.data.expr } }),
       }
     : item.slotIndex != null
     ? {
@@ -80,64 +86,17 @@ export default function CatalogLibrary({ storageKey, views, viewsConfig, media }
         onClick: () => navigate('/studio', { state: { variantId: item.name } }),
       }
 
-  /* SIX IS A CEILING, NOT A COMMAND. `repeat(6, 1fr)` computed six 38px
-     slivers at 390 and every card title truncated to three characters —
-     measured in the browser 2026-09-01, and the same defect kol-monitor filed
-     against the DS as `CatalogPageMobileColumns` (fixed there in kol-shell
-     0.33.0). This grid is ours, drawn inline, so the DS fix could never reach
-     it. Same idiom as the DS's: a track is never under the 160px floor and
-     never narrower than a sixth of the row, so the column count falls out of
-     the width — 6 on the desk, 2 at 390 — and desktop does not move (at 1400 a
-     sixth is 213px, well over the floor). */
-  const grid = (rows, layout) => (
-    <div style={{ display: 'grid', gridTemplateColumns: layout === 'list' ? '1fr' : 'repeat(auto-fill, minmax(max(160px, calc((100% - 120px) / 6)), 1fr))', gap: layout === 'list' ? 8 : 24 }}>
-      {rows.map((item) => {
-        const c = toCard(item)
-        if (layout === 'list') {
-          return <ContentRow key={c.key} variant="catalog" title={c.title} detail={c.detail} actions={c.actions} onClick={c.onClick} />
-        }
-        /* ACTIONS IN THEIR OWN STRIP UNDER THE CARD, never inside the text
-           plate. Passed as `actions` the Export / Remove buttons sat on top of
-           the title and the expression — "Golden dri[Export]" at 390, the
-           user's screenshot 2026-09-02. Same strip `/create` uses for INSERT,
-           and the same ruling monitor took twice. */
-        return (
-          <div key={c.key}>
-            <ContentCard variant="catalog" fit={c.fit || 'cover'} title={c.title} detail={c.detail} media={c.media} onClick={c.onClick} />
-            {c.actions && (
-              <div className="bg-surface-primary flex items-center justify-end gap-2" style={{ padding: '8px var(--kol-pad-card-md)', marginTop: 1 }}>
-                {c.actions}
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-
-  return (
-    <CatalogPage
-      /* `key={tab}` — monitor's: a chip from one kind must not survive into
-         another and filter everything out */
-      key={tab}
-      header={{ title: 'Library', subtitle: 'Every set the instrument has', size: 'sm', voice: 'mono' }}
-      items={view.items}
-      filtersTitle={view.title}
-      filterGroups={view.filterGroups.filter((g) => g.values.length)}
-      searchKeys={['title', 'name', 'kind', 'group', 'detail']}
-      /* the search field sits on the fg-02 wash, so it takes the sunken chip
-         (ControlToneSunken — theme 0.85.0; `inverse` still aliases it).
-         `renderItem` overrides CatalogPage's: its LIST is `ContentRow
-         variant="catalog"` in a FOUR-column grid, which gives every row a
-         quarter of the width — at the variant's fixed 36px the long expression
-         and patch details collide with the Export button. Same variant, ONE
-         column: the row keeps its mono line and its right-aligned detail and
-         gets the whole width. */
-      filtersProps={{ tone: 'sunken', renderItem: (rows, viewMode, layout) => grid(rows, layout) }}
-      views={views}
-      view={tab}
-      onViewChange={setTab}
-      actions={<Button variant="grey" size="md" onClick={() => importEntry()}>Import</Button>}
-    />
-  )
+  return {
+    header: { title: 'Library', subtitle, size: 'sm' },
+    items: view.items,
+    filtersTitle: view.title,
+    filterGroups: view.filterGroups.filter((g) => g.values.length),
+    searchKeys: ['title', 'name', 'kind', 'group', 'detail'],
+    toCard,
+    listLayout: 'stack',
+    views,
+    view: tab,
+    onViewChange: setTab,
+    actions: <Button tone="grey" size="md" onClick={() => importEntry()}>Import</Button>,
+  }
 }

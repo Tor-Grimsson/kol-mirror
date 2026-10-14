@@ -510,8 +510,8 @@ export default function MirrorSidebar({ state, onClose, onHide }) {
             <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
               <span className="text-fg-96">History</span>
               <div className="flex items-center gap-2">
-                <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => state.symphonyUndo()}><Icon name="undo" size={14} /></span>
-                <span className="text-fg-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => state.symphonyRedo()}><Icon name="redo" size={14} /></span>
+                <span className="text-oq-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => state.symphonyUndo()}><Icon name="undo" size={14} /></span>
+                <span className="text-oq-96 cursor-pointer select-none hover:text-accent-primary" onClick={() => state.symphonyRedo()}><Icon name="redo" size={14} /></span>
               </div>
             </div>
             <div
@@ -533,7 +533,7 @@ export default function MirrorSidebar({ state, onClose, onHide }) {
         {(activeVariantData || state.activeHall === 'symphony') && (
           <>
             <Button
-              variant="primary"
+              tone="primary"
               size="sm"
               onClick={() => fileInputRef.current?.click()}
               style={{ fontSize: '12px', height: '28px', padding: '0 16px' }}
