@@ -30,18 +30,18 @@ Not documentation — a work queue, deliberately outside `docs/`.
 verified by running it, cited by file. **The agent closes on that evidence.**
 Parking, declaring stale, reopening and any design decision stay the **user's call**.
 
-## Queue — 1 entries
+## Queue — 0 entries
 The queue holds LIVE TASKS ONLY. Both settings tickets closed 2026-09-01 on the
 first browser pass this repo has ever had.
 
 | | Entry | About | Staged | State |
 |---|---|---|---|---|
-| 🟠 | [media-client-0-4-1-api-on-media](inbox/media-client-0-4-1-api-on-media.md) | bump `kol-media-client` 0.3.2 → 0.4.1 and redeploy: the media API moved to `media.kolkrabbi.io`, `admin.` only redirects until it is detached | 2026-10-06 | `addressed` 2026-10-13 — **kol-media-client 0.6.0** in (0.4.1/0.5.0 superseded on the registry); no `admin.kolkrabbi.io` in `src/` or the built `dist/`, the one doc comment now says `media.`; nothing passes `adminBase`. 🟢 when the push deploys and the live bundle names `media.` — the receipt to kol-website is written then |
 
 ## Closed
 
 | | Entry | About | Staged | Closed | State |
 |---|---|---|---|---|---|
+| 🟢 | [media-client-0-4-1-api-on-media](done/media-client-0-4-1-api-on-media.md) | bump `kol-media-client` 0.3.2 → 0.4.1: the media API moved to `media.kolkrabbi.io` | 2026-10-06 | 2026-10-15 | `closed` — user ruling, irrelevant; kol-media-client 0.6.0 in, source and bundle name `media.` only |
 | 🟢 | [SettingsMastheadCluster](done/SettingsMastheadCluster.md) | `SettingsScaffold` owns the masthead row — `picker` · `themeToggle` · gear. This repo passed **nothing** into `header.actions` | 2026-08-30 | 2026-09-01 | `closed` — **seen on screen** at 390×844 and on a production build at shell 0.36.0 · theme 0.122.0 · component 0.153.0. The toggle renders right-aligned on the subtitle baseline, fxr's approved row; `picker` + gear omitted by argument, not defect. kol-mirror was the first adopter anywhere, so the ticket's own "the first to adopt is the check" is served |
 | 🟢 | [ShellSettingsPairRetired](done/ShellSettingsPairRetired.md) | kol-shell 0.21.0 dropped `SettingsSection` + `LabelRow`; kol-component's `LabeledControlSection` + `SettingsRow` are the survivors | 2026-08-30 | 2026-09-01 | `closed` — the swap shipped 2026-08-30 under the forcing bump; both deliberate render changes now **confirmed on screen**: section headers are eyebrows (`kol-eyebrow text-fg-80`), row labels uppercase with `align="fill"` holding the four prose rows left |
 | 🟢 | [ShellHomeSystemAdoption](done/ShellHomeSystemAdoption.md) | The shared app tier adopted on kol-fxr's wiring: Home + Library on `CatalogPage`, Settings on `SettingsShortcuts` / `SettingsLinks` / `SettingsColophon`, `AppShell railToggleKey` + `nav-*` + logomark from the DS, the theme boot script, `voice="mono"`, no `GridCard` / `TabStrip` left; `touch` stays default (ARCHITECTURE §2) | 2026-08-27 | 2026-08-27 | `closed` — kol-shell **0.10.0** · component **0.108.0** · theme **0.72.0** · icons **0.22.0**; seen rendering on the user's server (session 44, shell 0.8.0), today's bump build green, lint unchanged |
@@ -108,3 +108,6 @@ that does. The **Remainder** is this repo's to do; the state is theirs to report
 | 2026-09-02 | **`ContentFiltersViewStripOverflow` filed to kol-ds-ui** — the Library became five views on monitor's kinds-as-views shape and the DS view strip clipped at 390 (440px in a 390 page, two views unreachable). LIST / GRID already has a narrow placement; the view family has none. Carried here as one scoped cascade rule under `.library-catalog`, the wrong mechanism, recorded as such |
 | 2026-09-02 | **`ContentFiltersViewStripOverflow` closed and adopted, same day as filing** — kol-component 0.163.0, `viewPlacement`. The scoped cascade rule and its class are gone; at 390 the five views wrap onto two rows under the title, all reachable, at 1280 they are back on the title row |
 | 2026-10-13 | **`media-client-0-4-1-api-on-media` addressed on the MBP, inside the hub-adoption sitting** — the whole `@kolkrabbi/*` tier taken to its head in one move (component 0.163.0 → **0.257.0** · shell 0.40.0 → **0.63.0** · theme 0.128.0 → **0.173.0** · framework 0.36.0 → **0.49.0** · icons 0.25.0 → **0.37.0** · media-client 0.3.2 → **0.6.0**), `PageHeader` moved to kol-component (bulletin 2026-10-02), the shell onto kol-shell's `AppHub`. Source and bundle name `media.` only; 🟢 waits on the deploy, and the receipt goes back to kol-website with it |
+| 2026-10-15 | **`identity-mirror` filed to kol-ds-ui** — the app mark (`glitch-0`) into kol-icons `identity`; stub in `outbox/identity-mirror.md` |
+| 2026-10-15 | **`media-client-0-4-1-api-on-media` closed on the user's ruling** — irrelevant; the `media.` switch was already in at kol-media-client 0.6.0. kol-component 0.257.0 → **0.260.0** the same turn |
+| 2026-10-15 | **`media-library-modal-tiles-broken` filed to kol-ds-ui** — the `modal` variant renders broken; mirror switched to `variant="picker"` (`src/App.jsx:254`) the same turn; stub in `outbox/media-library-modal-tiles-broken.md` |

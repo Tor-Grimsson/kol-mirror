@@ -48,6 +48,18 @@ export function removeFromLibrary(id) {
   pushRemove(id)
 }
 
+/* THE FIRST FILES (user 2026-10-14: *"like fxr once you sign in we need 3 files already saved? not
+   empty studio"*). An account with no patch yet starts with copies of the first shipped patches as
+   its OWN files — removable, exportable, synced. `seedOf` names the preset each came from, so the
+   catalog lists it once. Ids are stable (`usr:seed-<name>`) so two devices never seed twice. */
+export function seedLibrary(presets) {
+  const now = Date.now()
+  const copies = presets.map((p, i) => { const { id, preset: _preset, ...rest } = p; return { ...rest, id: `usr:seed-${id.split(':').pop()}`, seedOf: id, savedAt: now - i } })
+  write([...items, ...copies])
+  copies.forEach(pushSave)
+  return copies
+}
+
 /* the sign-in merge (`librarySync.js`) reads the saves and writes the merged list back */
 export const getSaved = () => items
 export const replaceSaved = (next) => write(next)

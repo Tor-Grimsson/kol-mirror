@@ -52,3 +52,7 @@ Keeping `admin.` attached as a permanent redirect — a second hostname by anoth
 
 🟢 is the deploy. The build is green on the new tier (component 0.257.0 · shell 0.63.0 · theme
 0.173.0 · framework 0.49.0 · icons 0.37.0).
+
+## Resolution — 2026-10-15 · 🟢 `closed`
+
+Closed on the user's ruling: irrelevant. The source side already shipped (kol-media-client 0.6.0, `media.` only, nothing passes `adminBase`); the deploy is the user's push.

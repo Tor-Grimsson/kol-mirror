@@ -15,6 +15,8 @@ import MirrorSidebar from '../components/mirror/MirrorSidebar'
 import MirrorViewport from '../components/mirror/MirrorViewport'
 import MobileStudio from '../components/mirror/MobileStudio'
 import { useNarrow } from '../hooks/useNarrow'
+import { useLibrary } from '../hooks/useLibraryStore'
+import { useLibrarySession } from '../hooks/librarySync'
 
 /* the registry as rows for kol-component's `ShellSearchOverlay` — the name, with the group and
    the detail as the row's own; `add` rides along and is what a pick runs */
@@ -87,6 +89,19 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
   useEffect(() => { cycleRef.current = cycleTheme })
   const stateRef = useRef(state)
   useEffect(() => { stateRef.current = state })
+
+  /* NOT AN EMPTY STUDIO — WHEN SIGNED IN (user 2026-10-14, 2026-10-15). Signed out, the studio opens
+     empty. Signed in, a desk with nothing loaded takes the newest saved patch — on mount, and when the
+     first saves arrive (the sign-in seed). A deep link wins; a desk cleared on purpose stays cleared,
+     because clearing changes no save. */
+  const signedIn = !!useLibrarySession()
+  const newestPatch = useLibrary('patch').filter((p) => signedIn && !p.preset).sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0))[0]
+  useEffect(() => {
+    const st = location.state || {}
+    if (st.patch || st.slots || st.slot || st.variantId || st.slotIndex != null) return
+    if (!newestPatch || stateRef.current.symphonyChannels.some((c) => c.variantId)) return
+    stateRef.current.loadPatch(newestPatch)
+  }, [newestPatch?.id]) // eslint-disable-line react-hooks/exhaustive-deps -- the desk is read, not watched
 
   /* THE MODULE PALETTE (user 2026-08-28, from kol-monitor): ⌘K searches the
      registry, E opens it as a shelf. Both are views over `moduleRegistry`; what

@@ -251,7 +251,7 @@ function ShellBody() {
       />
       {/* outside the Hub so F works on every route, Home and Settings included */}
       {showFps && <FpsMeter />}
-      <MediaLibrary variant="modal" open={mediaOpen} client={mediaClient} accept={['image', 'video']} onClose={() => setMediaOpen(false)} onSelect={onMediaPick} />
+      <MediaLibrary variant="picker" open={mediaOpen} client={mediaClient} accept={['image', 'video']} onClose={() => setMediaOpen(false)} onSelect={onMediaPick} />
     </>
   )
 }

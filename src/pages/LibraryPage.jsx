@@ -9,25 +9,37 @@ import { WIRE_COLORS } from '../components/hall-of-mirrors/wireColors'
  * and mixer patches (like monitor) not expressions and whatever the fuck is going on there"*).
  * Two views and nothing else:
  *
- *   MODULES — every unit `/create` can place: the halls' variants, the generators, the canvas
- *             FX, the desk's own furniture. One set, grouped by where it comes from.
+ *   MODULES — the units that stand on their own: the desk's furniture and the generators.
  *   PATCHES — the desks you saved (and the shipped presets), plus the registry's one-tap patches.
  *
- * Variants · Effects · Expressions as views are gone — a variant IS a module, an effect IS a
- * module, and an expression is something a knob takes, not something you browse. The memory
- * slots list on Home's SAVED. A card opens the unit's page at `/library/:id`, where monitor keeps
- * its module pages; the Mixer sheet that used to be a second library is retired
+ *   FX      — what acts ON a module and does not stand on its own (user, later the same day, on
+ *             seeing the halls' variants in MODULES: *"I said modules and patches, not effects …
+ *             effects and expressions, since they both affect other things, they dont stand on
+ *             their own"*): the halls' variants, the canvas FX, the expressions. A third view, not
+ *             a page — the rail had just been cut; he allowed either.
+ *
+ * The memory slots list on Home's SAVED. A card opens the unit's page at `/library/:id`, where
+ * monitor keeps its module pages; the Mixer sheet that used to be a second library is retired
  * (`_tmp/2026-10-14-rail-cut/`).
  */
 
 const asItem = (m) => ({ name: m.id, title: m.name, tags: m.tags || [], group: m.group, kind: m.kind, detail: m.detail, module: m })
-const modules = MODULE_REGISTRY.filter((m) => m.kind !== 'Patch').map(asItem)
+const FX_GROUPS = ['Displacement', 'Movement', 'Copies', 'Canvas FX']
+const isFx = (m) => FX_GROUPS.includes(m.group)
+const modules = MODULE_REGISTRY.filter((m) => m.kind !== 'Patch' && !isFx(m)).map(asItem)
+const fxUnits = MODULE_REGISTRY.filter(isFx).map(asItem)
 const registryPatches = MODULE_REGISTRY.filter((m) => m.kind === 'Patch' && !m.front).map(asItem)
 
 const VIEW_MODE_OPTIONS = [
   { value: 'modules', label: 'Modules' },
   { value: 'patches', label: 'Patches' },
+  { value: 'fx', label: 'FX' },
 ]
+
+/* an expression reads as its formula */
+function ExprThumb({ expr }) {
+  return <pre className="m-0 p-3 text-[10px] leading-snug whitespace-pre-wrap break-all opacity-70">{expr}</pre>
+}
 
 /* A patch reads as its signal path: one bar per live channel, in wire colour,
    with the master strip at the end. Cheap, and it distinguishes patches at a
@@ -60,8 +72,10 @@ function useLibraryCatalog() {
   const saved = useLibrary('patch').map((e) => ({
     name: e.id, title: e.name, detail: e.description || `${(e.data?.channels || []).filter((c) => c.variantId).length} channels`, tags: e.tags, entry: e, savedAt: e.savedAt ?? 0,
   }))
-  /* newest save first, then the presets, then the registry's one-tap patches */
-  const patches = [...saved.filter((p) => !p.entry.preset)].sort(recent).concat(saved.filter((p) => p.entry.preset), registryPatches)
+  /* newest save first, then the presets (a seeded one listed once, as the user's file), then the registry's one-tap patches */
+  const seeded = new Set(saved.map((p) => p.entry.seedOf).filter(Boolean))
+  const patches = [...saved.filter((p) => !p.entry.preset)].sort(recent).concat(saved.filter((p) => p.entry.preset && !seeded.has(p.entry.id)), registryPatches)
+  const expressions = useLibrary('expression').map((e) => ({ name: e.id, title: e.name, detail: e.description || '', tags: e.tags, group: 'Expressions', entry: e, savedAt: e.savedAt ?? 0 }))
 
   const VIEWS = {
     modules: {
@@ -72,13 +86,17 @@ function useLibraryCatalog() {
       items: patches, title: 'All Patches',
       filterGroups: [{ label: 'Tags', key: 'tags', values: tagsOf(patches) }],
     },
+    fx: {
+      items: [...fxUnits, ...expressions], title: 'All FX',
+      filterGroups: [{ label: 'FX', key: 'group', stack: true, values: [...FX_GROUPS, 'Expressions'] }],
+    },
   }
   return useCatalogLibrary({
     storageKey: 'library-tab',
     views: VIEW_MODE_OPTIONS,
     viewsConfig: VIEWS,
-    subtitle: 'Modules and patches',
-    media: (item) => <PatchThumb patch={item.entry} />,
+    subtitle: 'Modules, patches and FX',
+    media: (item) => (item.entry.kind === 'expression' ? <ExprThumb expr={item.entry.data.expr} /> : <PatchThumb patch={item.entry} />),
   })
 }
 

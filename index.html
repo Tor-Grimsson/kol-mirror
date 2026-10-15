@@ -4,18 +4,37 @@
     <meta charset="UTF-8" />
     <!-- kol-theme-boot: THEME_BOOT_SCRIPT from kol-framework, injected by vite.config.js -->
     <link rel="icon" type="image/svg+xml" href="/svg/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mirror — Video Distortion Playground</title>
-    <meta name="description" content="Real-time video distortion in the browser. Displacement, movement, copies — WebGL, SVG filters, GSAP." />
-    <meta property="og:title" content="Mirror — Video Distortion Playground" />
-    <meta property="og:description" content="Warp, stretch, and multiply video in the browser. Part of the Kolkrabbi design system." />
+    <!-- ADD TO HOME SCREEN (fxr's shape, 2026-10-14): saved to the home screen this runs without
+         Safari's chrome; `black-translucent` puts the page under the status bar, which is what
+         `viewport-fit=cover` below is for. The icon is the favicon's mark on #121215 — dark, because
+         iOS's dark home-screen appearance greys a light web clip. `pnpm icons` regenerates them. -->
+    <link rel="apple-touch-icon" href="/touch-icons/apple-touch-icon-dark.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Mirror" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAFAFA" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121215" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Mirror</title>
+    <!-- SHARE METADATA (the user's pick, 2026-10-14 — brand register, the family's bare name: the unfurl reads
+         "Mirror · Kolkrabbi"). Static on purpose: link-preview crawlers never run the app's JavaScript.
+         Indexable — Mirror has a front door (Home, the walkthrough), unlike fxr. -->
+    <meta name="description" content="A video distortion instrument in the browser. Three halls of distortion, a mixer, routing, feedback and a tape deck. Part of the Kolkrabbi design system." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://mirror.kolkrabbi.io" />
-    <meta property="og:image" content="https://mirror.kolkrabbi.io/images/stack-hero-1200.jpg" />
+    <meta property="og:site_name" content="Kolkrabbi" />
+    <meta property="og:title" content="Mirror" />
+    <meta property="og:description" content="A video distortion instrument in the browser. Three halls of distortion, a mixer, routing, feedback and a tape deck." />
+    <meta property="og:url" content="https://mirror.kolkrabbi.io/" />
+    <meta property="og:image" content="https://mirror.kolkrabbi.io/og/mirror.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Mirror" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Mirror — Video Distortion Playground" />
-    <meta name="twitter:description" content="Warp, stretch, and multiply video in the browser." />
-    <meta name="twitter:image" content="https://mirror.kolkrabbi.io/images/stack-hero-1200.jpg" />
+    <meta name="twitter:title" content="Mirror" />
+    <meta name="twitter:description" content="A video distortion instrument in the browser. Three halls of distortion, a mixer, routing, feedback and a tape deck." />
+    <meta name="twitter:image" content="https://mirror.kolkrabbi.io/og/mirror.png" />
+    <link rel="canonical" href="https://mirror.kolkrabbi.io/" />
     <script defer src="https://kol-umami.vercel.app/script.js" data-website-id="fcd04534-5dcd-44a3-b7b1-256cbdf49ab9"></script>
   </head>
   <body>

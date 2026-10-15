@@ -15,7 +15,7 @@
  * sign-in's merge. Nothing autosaves to it.
  */
 import { useSyncExternalStore } from 'react'
-import { getSaved, replaceSaved } from './useLibraryStore'
+import { getSaved, replaceSaved, seedLibrary, PRESETS } from './useLibraryStore'
 import { mergeLibrary } from './mergeLibrary'
 
 const SESSION_KEY = 'kol.mirror.library-session'
@@ -63,7 +63,19 @@ function restoreSession() {
   try { s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null') } catch { /* unreadable — signed out */ }
   if (!s?.token || s.base !== apiBase || !(s.expiresAt > Date.now())) return
   session = { api: backend(s.token) }
+  seedFirstFiles()
   emit()
+}
+
+/* the first files: no patch after the merge → the three starters become the user's own, pushed now
+   so the next device finds them in D1. Runs on sign-in AND on a restored session — a device signed in
+   before the seed existed gets it too; the stable `usr:seed-*` ids make a second seed an overwrite.
+   SEEDED_KEY stops a restore from re-seeding a library the user emptied on purpose. */
+const SEEDED_KEY = 'kol.mirror.seeded'
+function seedFirstFiles() {
+  try { if (localStorage.getItem(SEEDED_KEY)) return } catch { /* storage blocked — seed on the patch check alone */ }
+  if (!getSaved().some((e) => e.kind === 'patch')) seedLibrary(PRESETS.filter((p) => p.kind === 'patch').slice(0, 3))
+  try { localStorage.setItem(SEEDED_KEY, '1') } catch { /* storage blocked */ }
 }
 
 const archiveStamp = () => Number(localStorage.getItem(ARCHIVE_STAMP) || 0)
@@ -94,9 +106,10 @@ export async function signInLibrary(password) {
   }
 
   session = { api }
+  seedFirstFiles()
   store({ base: apiBase, token, expiresAt })
   emit()
-  return next.length
+  return getSaved().length
 }
 
 export function signOutLibrary() { store(null); if (!session) return; session = null; emit() }
