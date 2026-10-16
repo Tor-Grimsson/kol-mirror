@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import TrailUnit from '../TrailUnit'
+import { ModuleTab } from './ModuleFrame'
 
 /**
  * FeedbackModule — per-channel frame feedback as a FRONT PANEL.
@@ -29,27 +30,26 @@ export default function FeedbackModule({ feedback, onFeedbackChange, channelName
   const set = onFeedbackChange ?? setLocal
 
   return (
-    <div
-      className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08"
-      style={{ width: '320px', borderRadius: '4px', height: '100%' }}
-    >
-      <div className="flex items-center justify-between kol-helper-12 px-3 border-b border-fg-08 shrink-0" style={{ height: '29px' }}>
+    <div className="flex flex-col shrink-0" style={{ width: 320, ...{ height: '100%', maxHeight: '100%' } }}>
+      <ModuleTab>
         <span className="text-fg-96">Feedback</span>
         <span className="kol-helper-10 text-fg-32">{fb.freeze ? 'frozen' : fb.enabled ? `${Math.round(fb.decay ?? 80)}% decay` : 'off'}</span>
-      </div>
+      </ModuleTab>
+      <div className="flex flex-col flex-1 bg-surface-secondary border border-fg-08" style={{ borderRadius: 4, minHeight: 0 }}>
 
-      <div className="flex flex-col p-3 kol-helper-12">
-        <TrailUnit feedback={fb} onFeedbackChange={set} />
-      </div>
-
-      <div className="flex flex-col gap-1 px-3 py-2 border-t border-fg-08 kol-helper-10" style={{ marginTop: 'auto' }}>
-        <div className="flex items-center justify-between">
-          <span className="text-fg-32">IN</span>
-          <span className="text-fg-64">the channel’s own previous frame</span>
+        <div className="flex flex-col p-3 kol-helper-12">
+          <TrailUnit feedback={fb} onFeedbackChange={set} />
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-fg-32">OUT</span>
-          <span className="text-fg-64">{channelName ? `under ${channelName}` : 'under the channel'}</span>
+
+        <div className="flex flex-col gap-1 px-3 py-2 border-t border-fg-08 kol-helper-10" style={{ marginTop: 'auto' }}>
+          <div className="flex items-center justify-between">
+            <span className="text-fg-32">IN</span>
+            <span className="text-fg-64">the channel’s own previous frame</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-fg-32">OUT</span>
+            <span className="text-fg-64">{channelName ? `under ${channelName}` : 'under the channel'}</span>
+          </div>
         </div>
       </div>
     </div>

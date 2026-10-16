@@ -5,6 +5,7 @@ import Dropdown from '../../molecules/Dropdown'
 import { GENERATOR_COMPONENTS } from '../generators'
 import { GENERATOR_FAMILIES, familyOf, getDefaultParams, findVariant } from '../../../data/mirrorVariants'
 import { useTransportPlaying } from '../../../hooks/transport'
+import { ModuleTab } from './ModuleFrame'
 
 /**
  * GeneratorModule — the generators as a FRONT PANEL, not a row in a shelf.
@@ -106,28 +107,26 @@ export default function GeneratorModule({ onLoadToChannel, flipped = false, back
   const selects = (variant?.controls || []).filter((c) => c.type === 'select' || c.type === 'binary').slice(0, 1)
 
   return (
-    <div
-      className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08 mirror-flip-scene"
-      style={{ width: '280px', borderRadius: '4px', height: '100%' }}
-    >
+    <div className="flex flex-col shrink-0" style={{ width: 280, height: '100%', maxHeight: '100%' }}>
+      {/* Header — the enable dot, the name, and the one action */}
+      <ModuleTab>
+        <span className="flex items-center gap-3">
+          <span className="cursor-pointer select-none" onClick={() => setEnabled((v) => !v)} title={enabled ? 'Bypass' : 'Enable'}>
+            <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
+          </span>
+          <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>Generator</span>
+        </span>
+        <span
+          className="text-fg-64 cursor-pointer select-none hover:text-accent-primary"
+          onClick={() => onLoadToChannel?.(genId, { ...params, animate: true })}
+          title="Load this source into a channel"
+        >
+          [Load]
+        </span>
+      </ModuleTab>
+    <div className="mirror-flip-scene flex flex-col" style={{ flex: 1, minHeight: 0 }}>
       <div className={`mirror-flip-inner flex flex-col ${flipped ? 'is-flipped' : ''}`} style={{ flex: 1, minHeight: 0 }}>
-        <div className="mirror-flip-front flex flex-col" style={{ flex: 1, minHeight: 0 }}>
-          {/* Header — the enable dot, the name, and the one action */}
-          <div className="flex items-center justify-between kol-helper-12 px-3 border-b border-fg-08 shrink-0" style={{ height: '29px' }}>
-            <span className="flex items-center gap-3">
-              <span className="cursor-pointer select-none" onClick={() => setEnabled((v) => !v)} title={enabled ? 'Bypass' : 'Enable'}>
-                <div className={`w-2 h-2 rounded-full ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
-              </span>
-              <span className={enabled ? 'text-fg-96' : 'text-fg-32'}>Generator</span>
-            </span>
-            <span
-              className="text-fg-64 cursor-pointer select-none hover:text-accent-primary"
-              onClick={() => onLoadToChannel?.(genId, { ...params, animate: true })}
-              title="Load this source into a channel"
-            >
-              [Load]
-            </span>
-          </div>
+        <div className="mirror-flip-front flex flex-col bg-surface-secondary border border-fg-08" style={{ flex: 1, minHeight: 0, borderRadius: 4 }}>
 
           <div className="flex flex-col gap-3 p-3" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             {/* Preview — collapses to a sliver rather than unmounting, so the
@@ -263,8 +262,9 @@ export default function GeneratorModule({ onLoadToChannel, flipped = false, back
             </div>
           </div>
         </div>
-        {back && <div className="mirror-flip-back flex flex-col" style={{ flex: 1, minHeight: 0 }}>{back}</div>}
+        {back && <div className="mirror-flip-back flex flex-col bg-surface-secondary border border-fg-08" style={{ flex: 1, minHeight: 0, borderRadius: 4 }}>{back}</div>}
       </div>
+    </div>
     </div>
   )
 }

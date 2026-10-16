@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { findVariant, getHallForVariant } from '../../../data/mirrorVariants'
+import { ModuleTab } from './ModuleFrame'
 
 /**
  * MemoryModule — the nine memory slots as a FRONT PANEL.
@@ -48,42 +49,41 @@ export default function MemoryModule({ slots: given, onLoad, onClear }) {
   const live = (fn) => (fn ? `${act} text-fg-48 hover:text-fg-96 cursor-pointer` : `${act} text-fg-24`)
 
   return (
-    <div
-      className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08"
-      style={{ width: '320px', borderRadius: '4px', height: '100%' }}
-    >
-      <div className="flex items-center justify-between kol-helper-12 px-3 border-b border-fg-08 shrink-0" style={{ height: '29px' }}>
+    <div className="flex flex-col shrink-0" style={{ width: 320, ...{ height: '100%', maxHeight: '100%' } }}>
+      <ModuleTab>
         <span className="text-fg-96">Memory</span>
         <span className="kol-helper-10 text-fg-32">{used}/{SLOT_COUNT} slots</span>
-      </div>
+      </ModuleTab>
+      <div className="flex flex-col flex-1 bg-surface-secondary border border-fg-08" style={{ borderRadius: 4, minHeight: 0 }}>
 
-      <div className="flex flex-col gap-1 p-3" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-        {slots.map((slot, i) => (
-          <div key={i} className="flex items-center gap-2 kol-helper-10" style={{ height: 24 }}>
-            <span className="text-fg-32 shrink-0">[M{i + 1}]</span>
-            <span className={`flex-1 min-w-0 truncate ${slot ? 'text-fg-96' : 'text-fg-24'}`}>
-              {slot ? labelFor(slot) : 'empty'}
-            </span>
-            {slot ? (
-              <>
-                <span className={live(onLoad)} onClick={() => onLoad?.(i)}>[LOAD]</span>
-                <span className={live(onClear)} onClick={() => onClear?.(i)}>[CLEAR]</span>
-              </>
-            ) : (
-              <span className={`${act} text-fg-24`}>—</span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-1 px-3 py-2 border-t border-fg-08 kol-helper-10 shrink-0">
-        <div className="flex items-center justify-between">
-          <span className="text-fg-32">IN</span>
-          <span className="text-fg-64">Save to Slot, from the studio sidebar</span>
+        <div className="flex flex-col gap-1 p-3" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          {slots.map((slot, i) => (
+            <div key={i} className="flex items-center gap-2 kol-helper-10" style={{ height: 24 }}>
+              <span className="text-fg-32 shrink-0">[M{i + 1}]</span>
+              <span className={`flex-1 min-w-0 truncate ${slot ? 'text-fg-96' : 'text-fg-24'}`}>
+                {slot ? labelFor(slot) : 'empty'}
+              </span>
+              {slot ? (
+                <>
+                  <span className={live(onLoad)} onClick={() => onLoad?.(i)}>[LOAD]</span>
+                  <span className={live(onClear)} onClick={() => onClear?.(i)}>[CLEAR]</span>
+                </>
+              ) : (
+                <span className={`${act} text-fg-24`}>—</span>
+              )}
+            </div>
+          ))}
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-fg-32">OUT</span>
-          <span className="text-fg-64">Home · Library · the studio’s Memory list</span>
+
+        <div className="flex flex-col gap-1 px-3 py-2 border-t border-fg-08 kol-helper-10 shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="text-fg-32">IN</span>
+            <span className="text-fg-64">Save to Slot, from the studio sidebar</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-fg-32">OUT</span>
+            <span className="text-fg-64">Home · Library · the studio’s Memory list</span>
+          </div>
         </div>
       </div>
     </div>

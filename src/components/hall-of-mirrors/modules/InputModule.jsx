@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import Dropdown from '../../molecules/Dropdown'
 import { Icon } from '../../icons'
 import { useFileDrop } from '../../../hooks/useFileDrop'
+import { ModuleTab } from './ModuleFrame'
 
 /**
  * InputModule — where a picture ENTERS the instrument. One module, four ways
@@ -58,13 +59,13 @@ export default function InputModule({ channels = [], onChannelUpdate }) {
        the panel under it at the desk's height. No flip: Input has nothing on
        its back, and a flip onto an empty face is a fake. */
     <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%', width: 320 }}>
-      <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
+      <ModuleTab>
         <span className="flex items-center gap-2">
           <span style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', backgroundColor: loaded ? 'var(--kol-accent-primary)' : 'var(--kol-fg-12)' }} />
           <span className="text-fg-96">Input</span>
         </span>
         <span className="kol-helper-10 text-fg-32 truncate" style={{ maxWidth: 140 }}>{loaded || 'No source'}</span>
-      </div>
+      </ModuleTab>
     <div
       className="flex flex-col flex-1 bg-surface-secondary border border-fg-08"
       style={{ borderRadius: '4px', minHeight: 0 }}

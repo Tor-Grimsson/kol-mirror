@@ -2,6 +2,7 @@ import { SourceTab, ResolutionTab } from './SourceUnit'
 import FxUnit from './FxUnit'
 import TrailUnit from './TrailUnit'
 import RecorderUnit from './RecorderUnit'
+import { ModuleTab } from './modules/ModuleFrame'
 
 /* taxonomy-ok: composes the channel units */
 
@@ -21,9 +22,9 @@ function Module({ title, children, width = 320 }) {
   return (
     <div className="shrink-0 pr-4">
       <div className="flex flex-col" style={{ width }}>
-        <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: 29 }}>
+        <ModuleTab>
           <span className="text-fg-96">{title}</span>
-        </div>
+        </ModuleTab>
         <div className="mx-2 p-4 bg-surface-secondary border border-fg-08" style={{ borderRadius: 4, minHeight: 0, overflowY: 'auto', maxHeight: 420 }}>
           {children}
         </div>

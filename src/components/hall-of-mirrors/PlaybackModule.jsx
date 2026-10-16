@@ -4,6 +4,7 @@ import { Jack, FlipIcon } from './ChannelPatchPanel'
 import { Icon } from '../icons'
 import { transport, useTransport } from '../../hooks/transport'
 import { Scrubber } from '../mirror/TimeStrip'
+import { ModuleTab } from './modules/ModuleFrame'
 
 const MODES = [['reverse', 'REV', 'Reverse'], ['forward', 'FWD', 'Forward'], ['pingpong', 'P·P', 'Ping-pong']]
 const wrap = (x, m) => ((x % m) + m) % m
@@ -198,13 +199,13 @@ export default function PlaybackModule() {
 
   return (
     <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%' }}>
-      <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
+      <ModuleTab>
         <span className="text-fg-96">Transport</span>
         <span className="flex items-center gap-3">
           <span className="text-fg-96 cursor-pointer select-none" onClick={() => transport.reset()}>Reset</span>
           <FlipIcon onFlip={() => setFlipped(f => !f)} title={flipped ? 'Flip to controls' : 'Flip to clock outputs'} />
         </span>
-      </div>
+      </ModuleTab>
       {/* The module flips like every other card on the desk — same scene, same
           450ms, same backface discipline (components.css). */}
       <div className="mirror-flip-scene flex-1" style={{ minHeight: 0 }}>

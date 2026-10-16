@@ -11,6 +11,7 @@ import ChannelMaster from '../mixer/ChannelMaster'
 import { CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
 import { CANVAS_FX_DEFS, MAX_CANVAS_FX, getDefaultCanvasFxParams, fxCapability } from '../../hooks/useCanvasFx'
 import { gpuAvailable } from '../../hooks/gpuFx'
+import { ModuleTab } from './modules/ModuleFrame'
 
 
 // Read an FX param value from an FX array
@@ -515,7 +516,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
         <div className={`mirror-flip-inner flex flex-col ${flipped ? 'is-flipped' : ''}`} style={{ flex: 1, minHeight: 0 }}>
         <div className="mirror-flip-front flex flex-col" style={{ flex: 1, minHeight: 0 }}>
         {/* Header */}
-        <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
+        <ModuleTab>
           <span className="flex items-center gap-3">
             <span className="cursor-pointer select-none flex items-center justify-center" style={{ width: '16px', height: '16px' }} onClick={() => onMasterChange({ enabled: !enabled })}>
               <div className="w-4 h-4 rounded-full border border-fg-48 flex items-center justify-center">
@@ -532,7 +533,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
             })}>Reset</span>
             <FlipIcon onFlip={onFlip} title="Flip to patch bay" />
           </span>
-        </div>
+        </ModuleTab>
 
         {/* Card body */}
         <div

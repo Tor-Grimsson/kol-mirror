@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Jack } from '../ChannelPatchPanel'
 import { SLOT_KEYS, exprBusRef, setSlot, slotValid, useSlots } from '../../../hooks/exprBus'
+import { ModuleTab } from './ModuleFrame'
 
 /**
  * ExpressionModule — the expression OUTPUT (user 2026-10-15: *"I was suggesting
@@ -87,10 +88,10 @@ export default function ExpressionModule() {
   const slots = useSlots()
   return (
     <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%', width: 300 }}>
-      <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
+      <ModuleTab>
         <span className="text-fg-96">Expression</span>
         <span className="kol-helper-10 text-fg-32">A · B · C · D</span>
-      </div>
+      </ModuleTab>
       <div className="flex flex-col flex-1 gap-3 p-3 bg-surface-secondary border border-fg-08" style={{ borderRadius: '4px', minHeight: 0 }}>
         {slots.map((expr, i) => <Slot key={`${SLOT_KEYS[i]}:${expr}`} i={i} expr={expr} />)}
         <span className="kol-helper-10 text-fg-32" style={{ marginTop: 'auto' }}>

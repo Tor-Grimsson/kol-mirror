@@ -5,6 +5,7 @@ import Slider from '../atoms/Slider'
 import Divider from '../atoms/Divider'
 import Dropdown from '../molecules/Dropdown'
 import RotaryDial from './RotaryDial'
+import { ModuleTab } from './modules/ModuleFrame'
 
 function Indicated({ active, children }) {
   return (
@@ -60,7 +61,7 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
         <div className={`mirror-flip-inner flex flex-col ${flipped ? 'is-flipped' : ''}`} style={{ flex: 1, minHeight: 0 }}>
         <div className="mirror-flip-front flex flex-col" style={{ flex: 1, minHeight: 0 }}>
         {/* Header */}
-        <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
+        <ModuleTab>
           <span className="text-fg-96">Routing Matrix</span>
           <span className="flex items-center gap-3">
             <span className="text-fg-96 cursor-pointer select-none" onClick={() => {
@@ -68,7 +69,7 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
             }}>Reset</span>
             <FlipIcon onFlip={onFlip} title="Flip to patch bay" />
           </span>
-        </div>
+        </ModuleTab>
 
         {/* Card body */}
         <div

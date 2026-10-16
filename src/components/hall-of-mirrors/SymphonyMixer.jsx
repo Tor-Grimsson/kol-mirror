@@ -38,6 +38,7 @@ import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
 const DEFAULT_SVG_SRC = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
 
 import { CSS_BLEND_MODES } from './blendOptions'
+import ModuleFrame, { ModuleTab } from './modules/ModuleFrame'
 export { CSS_BLEND_MODES }
 
 const VECTOR_SHAPES = [
@@ -340,7 +341,7 @@ export function Channel({
         </div>
       )}
       <div className="flex flex-col shrink-0">
-      <div className="flex items-center justify-between kol-helper-12 mx-2 px-4 py-2 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', width: `${320 - 16}px` }}>
+      <ModuleTab style={{ width: 304 }}>
         <span className={`${enabled ? 'text-fg-96' : 'text-fg-32'} truncate group`}>
           {loadedName ? (
             <>
@@ -356,7 +357,7 @@ export function Channel({
           )}
           <FlipIcon onFlip={onFlip} title="Flip to patch bay" />
         </span>
-      </div>
+      </ModuleTab>
       {/* ONLY THE MIDDLE FLIPS (user, 2026-08-27). The header and the FX
           rack belong to the channel in both states — flipping the whole card
           took them with it and made the back a different-shaped object. Now the
@@ -1403,12 +1404,7 @@ export default function SymphonyMixer({
         {monitor && <div data-console="monitor" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>{monitor}</div>}
         {deck && (
           <div data-console="tape" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
-            <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ borderRadius: '4px', height: '100%' }}>
-              <div className="flex items-center kol-helper-12 px-3 border-b border-fg-08 shrink-0" style={{ height: '29px' }}>
-                <span className="text-fg-96">Tape</span>
-              </div>
-              <div className="flex items-center justify-center p-3" style={{ flex: 1, minHeight: 0 }}>{deck}</div>
-            </div>
+            <ModuleFrame head={<span className="text-fg-96">Tape</span>} className="items-center justify-center p-3">{deck}</ModuleFrame>
           </div>
         )}
       </DeskTrack>
