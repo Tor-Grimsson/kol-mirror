@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Slider from '../atoms/Slider'
 import { Icon } from '../icons'
+import { IconToggle } from '@kolkrabbi/kol-component'
 import Divider from '../atoms/Divider'
 import VariantControls from '../mirror/VariantControls'
 import { findVariant, filterControlsByTab, CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
@@ -9,13 +10,12 @@ import RotaryDial from './RotaryDial'
 import ChannelPatchPanel, { MasterPatchPanel, RoutingPatchPanel, FlipIcon } from './ChannelPatchPanel'
 import PlaybackModule from './PlaybackModule'
 import PatchCableOverlay, { PatchJacksProvider } from './PatchCableOverlay'
-import useEmblaCarousel from 'embla-carousel-react'
-import { WheelGesturesPlugin } from 'embla-carousel-wheel-gestures'
 import ColorPicker from '../atoms/ColorPicker'
 import ChannelWireDiagram from './ChannelWireDiagram'
 import MasterModule from './MasterModule'
 import RoutingMatrix from './RoutingMatrix'
 import GeneratorModule from './modules/GeneratorModule'
+import ExpressionModule from './modules/ExpressionModule'
 import PatchModule from './modules/PatchModule'
 import FxModule from './modules/FxModule'
 import { fxKey, isFxKey } from '../../hooks/patchGraph'
@@ -28,6 +28,8 @@ import MediaBrowser from './MediaBrowser'
 import useFileDrop from '../../hooks/useFileDrop'
 import LoadUnit from './LoadUnit'
 import RecorderUnit from './RecorderUnit'
+import { transport } from '../../hooks/transport'
+import Console from '../mirror/Console'
 import FxUnit from './FxUnit'
 import { SourceTab, ResolutionTab } from './SourceUnit'
 import ChannelModules from './ChannelModules'
@@ -656,6 +658,25 @@ export function Channel({
   )
 }
 
+/* The desk's track: the Console in the row layout, the old stack otherwise. Wearing the
+   console skin (`.console-skin`, components.css) — approved off /dev › Console 2026-10-15. */
+function DeskTrack({ row, consoleState, onConsole, rowHeight, children }) {
+  if (!row) return <div className="flex flex-col" style={{ width: 'fit-content', marginInline: 'auto' }}>{children}</div>
+  return (
+    <div className="console-skin">
+    <Console
+      rows={consoleState?.rows || []}
+      width={consoleState?.width || 0}
+      onRows={(rows) => onConsole?.((c) => ({ ...c, rows }))}
+      onWidth={(width) => onConsole?.((c) => ({ ...c, width }))}
+      rowHeight={rowHeight}
+    >
+      {children}
+    </Console>
+    </div>
+  )
+}
+
 export default function SymphonyMixer({
   channels = [],
   resolvedParams = [],
@@ -703,6 +724,11 @@ export default function SymphonyMixer({
      the desk as it was. */
   fill = false,
   deck = null,
+  /* the Monitor module (2026-10-15) — built by the viewport, which owns the frame */
+  monitor = null,
+  /* the console's rows and width (`useMirrorState.symphonyConsole`) */
+  consoleState = null,
+  onConsole,
   frameToggle = null,
   /* FX MODULES (2026-10-03) — effects standing on the desk as modules of their own, each with
      an IN and an OUT that start empty (`useMirrorState.symphonyFxModules`). */
@@ -724,10 +750,12 @@ export default function SymphonyMixer({
        alt / ⌘ + wheel     zoom toward the cursor, 0.25× – 3×
        alt + 0             reset
 
-     SPACE IS THE TRANSPORT'S (App.jsx:164 — play/pause, every route). While the
-     pointer is over the desk this takes it, in the CAPTURE phase with
-     `stopImmediatePropagation`, so grabbing the canvas cannot also start the
-     clock. Off the desk, Space is the transport's as always.
+     SPACE IS THE TRANSPORT'S (App.jsx — play/pause, every route). Over the desk
+     this takes it in the CAPTURE phase so a grab cannot also start the clock —
+     but a TAP still plays (user 2026-10-15: *"why doesnt it play on
+     spacebar?"* — with the pointer over the desk, which is where it always is,
+     Space only ever armed a pan). So: Space held + drag pans; Space pressed and
+     released with no drag toggles the transport, on keyup.
 
      The transform wraps ONLY the embla viewport. PatchCableOverlay stays
      outside it on purpose — it measures jacks in screen pixels, so leaving it
@@ -748,6 +776,7 @@ export default function SymphonyMixer({
   const panRef = useRef(null)
   const overRef = useRef(false)
   const spaceRef = useRef(false)
+  const spacePannedRef = useRef(false)
   useEffect(() => {
     const el = deskRef.current
     if (!el) return
@@ -755,7 +784,14 @@ export default function SymphonyMixer({
     const onLeave = () => { overRef.current = false }
     const onWheel = (e) => {
       if (lockedRef.current) return
-      if (!(e.altKey || e.metaKey)) return
+      /* a plain wheel / two-finger scroll PANS the console (it scrolled the embla
+         loop until 2026-10-15); alt / ⌘ + wheel still zooms */
+      if (!(e.altKey || e.metaKey)) {
+        if (e.target.closest?.('input, textarea, select, [data-scroll-own]')) return
+        e.preventDefault()
+        setView(v => ({ ...v, x: v.x - (e.shiftKey ? e.deltaY : e.deltaX), y: v.y - (e.shiftKey ? 0 : e.deltaY) }))
+        return
+      }
       e.preventDefault()
       const box = el.getBoundingClientRect()
       const cx = e.clientX - box.left
@@ -772,6 +808,7 @@ export default function SymphonyMixer({
       const wants = spaceRef.current || e.button === 1 || ((e.altKey || e.metaKey) && e.button === 0)
       if (!wants) return
       e.preventDefault()
+      if (spaceRef.current) spacePannedRef.current = true
       panRef.current = { x: e.clientX, y: e.clientY }
       setGrab('panning')
     }
@@ -807,12 +844,21 @@ export default function SymphonyMixer({
         e.preventDefault()
         e.stopImmediatePropagation()
         spaceRef.current = true
+        spacePannedRef.current = false
         setGrab(g => g === 'panning' ? g : 'ready')
       }
       if (e.altKey && e.key === '0' && !lockedRef.current) setView({ z: 1, x: 0, y: 0 })
     }
     const onKeyUp = (e) => {
-      if (e.code === 'Space') { spaceRef.current = false; if (!panRef.current) setGrab(null) }
+      if (e.code === 'Space') {
+        if (spaceRef.current) {
+          e.preventDefault()
+          e.stopImmediatePropagation()
+          if (!spacePannedRef.current) transport.toggle()
+        }
+        spaceRef.current = false
+        if (!panRef.current) setGrab(null)
+      }
     }
     el.addEventListener('pointerenter', onEnter)
     el.addEventListener('pointerleave', onLeave)
@@ -867,55 +913,16 @@ export default function SymphonyMixer({
     return () => window.removeEventListener('keydown', onKey)
   }, [channelCount])
 
-  // Embla loop desk (2026-08-12) — wheel + drag, endless in both directions.
-  // watchDrag is a PREDICATE, not false (audit: false also kills the wheel —
-  // WheelGesturesPlugin synthesizes drags, so no drag engine = no wheel).
-  // Interactive elements refuse the drag; the plugin's synthetic events
-  // target the viewport itself and always pass.
-  const [emblaRef] = useEmblaCarousel(
-    {
-      loop: true,
-      dragFree: true,
-      align: 'start',
-      skipSnaps: true,
-      watchDrag: (emblaApi, evt) => {
-        const t = evt.target
-        if (!(t instanceof Element)) return true
-        return !t.closest('input, button, select, textarea, [style*="touch-action: none"], .cursor-pointer, .cursor-col-resize, .cursor-ew-resize')
-      },
-    },
-    [WheelGesturesPlugin()]
-  )
+  /* THE EMBLA LOOP IS RETIRED (2026-10-15) — the desk is a Console of rows
+     (`components/mirror/Console.jsx`, user: *"rows, so you could add and remove
+     rows (height) and width"*). The loop, its wheel plugin and the ring spacers
+     are in `_tmp/2026-10-15-desk-track/embla-loop.jsx`. A plain wheel now pans
+     the desk (see the wheel handler above). */
   const [firstSlideEl, setFirstSlideEl] = useState(null)
   /* Which slide has its shelf open. The shelf OVERLAYS now rather than taking
      track width, and an overlay only wins against later slides if the slide
      itself is lifted — a z-index inside the card cannot reach past its own. */
   const [shelfSlide, setShelfSlide] = useState(null)
-  // ALL non-channel modules pin to the first channel card's height (user
-  // ruling: same height across the desk); internal scroll absorbs overflow.
-  /* THE RING NEEDS FILLING (2026-08-27): embla drops `loop` unless the OTHER
-     slides cover the viewport at every loop point (Engine.canLoop) — on a wide
-     screen the six cards fit and the desk just stops. Two spacer slides pad the
-     ring to the width the loop needs; zero when the cards already overflow. */
-  const [viewportEl, setViewportEl] = useState(null)
-  const deskViewportRef = useCallback((el) => { emblaRef(el); setViewportEl(el) }, [emblaRef])
-  const [ringPad, setRingPad] = useState(0)
-  useEffect(() => {
-    if (!viewportEl || layout !== 'row') { setRingPad(0); return }
-    const track = viewportEl.firstElementChild
-    const measure = () => {
-      const V = viewportEl.clientWidth
-      const widths = [...track.children].filter((el) => !el.hasAttribute('data-spacer')).map((el) => el.offsetWidth)
-      const S = widths.reduce((a, b) => a + b, 0)
-      const M = Math.max(0, ...widths)
-      // spacer's own loop point: S + P ≥ V · the widest card's: S − M + 2P ≥ V
-      setRingPad(Math.max(0, Math.ceil(Math.max(V - S, (V - S + M) / 2)) + 1))
-    }
-    const ro = new ResizeObserver(measure)
-    ro.observe(viewportEl)
-    ;[...track.children].forEach((el) => ro.observe(el))
-    return () => ro.disconnect()
-  }, [viewportEl, layout, channels.length, fxModules.length])
   /* THE DESK'S HEIGHT is grabbable at its top edge (user 2026-08-28: "where
      is the grab to make channel strip taller"). null = content height, which
      is what it was before and what a double-click restores. The drag writes
@@ -1022,8 +1029,8 @@ export default function SymphonyMixer({
             {tab.label}
           </span>
         ))}
-        {/* LOCK + GRID, kol-monitor's bracket idiom (VideoModulo.jsx:154) — red
-            when the view is locked. `L` and `g` bind the same keys it does. */}
+        {/* LOCK + GRID — were kol-monitor's bracket idiom (VideoModulo.jsx:154),
+            icon-only since 2026-10-15 (below). `L` and `g` bind the same keys it does. */}
         {/* On the desk this hugs the right. Below md the row wraps, and a
             group pushed right by `margin-left: auto` lands 8px under "Patch"
             reading as overlap (user, 2026-09-01: "do you think that's a good
@@ -1032,73 +1039,66 @@ export default function SymphonyMixer({
             instead of a collision. Monitor keeps `[Lock]` out of its tab row
             entirely, as a fixed corner control; on a desk that scrolls inside a
             page, a second row is the equivalent that stays with the desk. */}
-        <span className="flex items-center gap-4 w-full pt-2 mt-1 border-t border-fg-08 md:w-auto md:pt-0 md:mt-0 md:border-t-0 md:ml-auto">
+        {/* ICON-ONLY (user 2026-10-15: *"why is everything in brackets icon AND
+            TEXT? all of this is also listed in shortcuts … we want to minimise
+            noise"*). The state is the ink — lit when on, red when locked — and
+            the name is the tooltip, with its key. 16px off the right edge: the
+            group used to touch it. kol-component has no IconToggle yet (filed
+            to kol-ds-ui 2026-10-15, shipped kol-component 0.261.0) — the DS atom, fed
+            mirror's own Icon so the local glyph names resolve. */}
+        <span className="flex items-center gap-3 w-full pt-2 mt-1 border-t border-fg-08 md:w-auto md:pt-0 md:mt-0 md:border-t-0 md:ml-auto md:pr-4">
           {frameToggle && (
-            <span
-              className="cursor-pointer select-none kol-helper-14 flex items-center gap-2"
-              style={{ color: frameToggle.on ? 'var(--kol-fg-64)' : 'var(--kol-fg-32)' }}
-              onClick={frameToggle.onToggle}
-              title="Frame (V)"
-            >
-              <Icon name="monitor" size={14} />
-              [{frameToggle.on ? 'Frame' : 'No frame'}]
-            </span>
+            <IconToggle
+              icon="monitor"
+              label="Frame"
+              title={frameToggle.on ? 'Hide frame (V)' : 'Show frame (V)'}
+              pressed={frameToggle.on}
+              onChange={() => frameToggle.onToggle()}
+              iconComponent={Icon}
+            />
           )}
-          <span
-            className="cursor-pointer select-none kol-helper-14 flex items-center gap-2"
-            style={{ color: dots ? 'var(--kol-fg-64)' : 'var(--kol-fg-32)' }}
-            onClick={() => setDots(v => !v)}
-            title="Dot grid (G)"
-          >
-            <Icon name="grid-02" size={14} />
-            [{dots ? 'Grid' : 'No grid'}]
-          </span>
-          <span
-            className="cursor-pointer select-none kol-helper-14 flex items-center gap-2"
-            style={{ color: locked ? 'rgba(231,76,60,0.9)' : 'var(--kol-fg-32)' }}
-            onClick={() => setLocked(v => { lockedRef.current = !v; return !v })}
+          <IconToggle
+            icon="grid-02"
+            label="Dot grid"
+            title={dots ? 'Hide dot grid (G)' : 'Show dot grid (G)'}
+            pressed={dots}
+            onChange={setDots}
+            iconComponent={Icon}
+          />
+          <IconToggle
+            icon="unlock"
+            iconOn="lock"
+            label="Lock the view"
             title={locked ? 'Unlock the view (L)' : 'Lock the view (L)'}
-          >
-            <Icon name={locked ? 'lock' : 'unlock'} size={14} />
-            [{locked ? 'Locked' : 'Lock'}]
-          </span>
+            pressed={locked}
+            tone="danger"
+            onChange={(v) => { lockedRef.current = v; setLocked(v) }}
+            iconComponent={Icon}
+          />
         </span>
       </div>
       <PatchJacksProvider>
-      <div ref={deskRef} style={{ position: 'relative' }}>
-      {/* THE DESK IS DARKER THAN THE PAGE (user 2026-08-28: "make channel mixer
-          darker, remove the 02 — below the line"). The route paints the shell's
-          `--kol-fg-02` page wash; below the tab rule the desk goes DARKER than
-          the page, not merely un-washed — dropping to the base surface is a 2%
-          move and reads as no change at all.
-          `absolute-split` — the END of the ramp, because there is
-          almost no ramp left. The dark page is #121215, i.e. 18/255 off black:
-          `surface-primary` was a 2% move, `oq-12` goes the WRONG way (the oq
-          ramp mixes the FOREGROUND in, so it is white at 12% here), and
-          `surface-contrast` at #0b0b0c is 7/255. Absolute black is the only
-          step that reads. If the deck still wants more separation the lever is
-          the other side of the line — lighten the page above it.
-          A backdrop at z-index -1 rather than a background on the desk box: the
-          desk is measured by the grab edge and is PatchCableOverlay's coordinate
-          container, so it must not gain padding to bleed past the 16px gutter.
-          The backdrop bleeds instead, and nothing above it moves.
-          It also rides 48px UP over the tab row (user: "it needs to go up a
-          little more … some panel needs to cover"), so the deck reads as one
-          panel that starts at the rule rather than a field beginning under it. */}
+      {/* ONE SURFACE, monitor's (user 2026-10-15: *"why is the background different???? look at
+          monitor … no clipping or different bg"*). The desk box IS the stage: the dot grid is
+          its own background (cell scales with the zoom, position carries the pan), there is no
+          second wash, and it CLIPS — a pan can no longer drag modules over the tab row. The
+          retired wash: `_tmp/2026-10-15-desk-wash/`. */}
       <div
-        aria-hidden
-        className="absolute"
+        ref={deskRef}
+        /* -mt-7 / pt-7: the 28px between the tab rule and the desk (the row's mb-1 + the
+           column's gap-6) belongs to the desk — the clip sits ON the rule, not 28px under it
+           (user 2026-10-15: "dont clip on padding") */
+        className="-mt-7 pt-7"
         style={{
-          inset: '-48px -16px 0',
-          zIndex: -1,
-          background: 'var(--kol-surface-absolute-split)',
+          position: 'relative',
+          overflow: 'hidden',
           ...(dots ? {
             backgroundImage: 'radial-gradient(var(--kol-fg-12) 1px, transparent 1px)',
             backgroundSize: `${36 * view.z}px ${36 * view.z}px`,
             backgroundPosition: `${view.x}px ${view.y}px`,
           } : null),
         }}
-      />
+      >
       {/* Patch cables (v2, 2026-08-15) — full between flipped bays, ghosted otherwise */}
       {isVisible && mixerTab === 'mixer' && (
         <PatchCableOverlay channels={channels} flipped={flippedCards} inputs={master.inputs} screen2={screen2} fxModules={fxModules} containerRef={deskRef} />
@@ -1116,7 +1116,6 @@ export default function SymphonyMixer({
         }}
       >
       <div
-        ref={layout === 'row' ? deskViewportRef : undefined}
         /* THE STAGE GETS AT LEAST HALF THE WINDOW (2026-10-03, the crushed
            viewframe). At content height the desk is 482px under 163px of its
            own chrome, in a studio padded 32 — a fixed 677px, so on a 1000px
@@ -1134,7 +1133,7 @@ export default function SymphonyMixer({
            moves the clip out by 16px on each side: the viewport occupies the
            same space, the cards keep their gutter, and the loop is untouched. */
         style={{
-          overflow: layout === 'row' ? 'hidden' : 'visible',
+          overflow: 'visible',
           overscrollBehaviorX: 'contain',
           visibility: mixerTab === 'mixer' ? 'visible' : 'hidden',
           ...(layout === 'row' ? { paddingInline: 16, marginInline: -16, paddingBottom: 16, marginBottom: -16 } : null),
@@ -1152,10 +1151,9 @@ export default function SymphonyMixer({
           ...(deskH ? { height: deskH } : fill ? { height: `calc(100dvh - ${patching ? 195 : 91}px)` } : null),
         }}
       >
-      <div
-        className={`flex ${layout === 'row' ? 'flex-row items-start' : 'flex-col'}`}
-        style={layout === 'row' ? undefined : { width: 'fit-content', marginInline: 'auto' }}
-      >
+      {/* THE CONSOLE (2026-10-15) — in the desk's row layout the modules sit in
+          rows of one U (`Console`); the column layout keeps its plain stack. */}
+      <DeskTrack row={layout === 'row'} consoleState={consoleState} onConsole={onConsole} rowHeight={masterH}>
         {/* TWO ARRANGEMENTS, ONE MODEL (2026-08-27). 'card' stacks the units in
             one box behind a tab bar; 'modular' puts each on the desk as its own
             module. Both render the SAME unit components off the same channel
@@ -1163,6 +1161,7 @@ export default function SymphonyMixer({
         {deskMode === 'modular' && channels.map((ch, i) => (
           <ChannelModules
             key={`mod-${i}`}
+            data-console={`ch-${i}`}
             index={i}
             channel={ch}
             onChannelUpdate={onChannelUpdate}
@@ -1174,6 +1173,7 @@ export default function SymphonyMixer({
         {deskMode !== 'modular' && channels.map((ch, i) => (
           <div
             key={i}
+            data-console={`ch-${i}`}
             className="shrink-0 pr-4"
             ref={i === 0 ? setFirstSlideEl : undefined}
             style={{ position: 'relative', zIndex: shelfSlide === i ? 30 : undefined }}
@@ -1277,7 +1277,7 @@ export default function SymphonyMixer({
             to the channel height; overflow scrolls inside the module.
             Both FLIP like the channels (scope 2026-08-12): master back =
             bus IN + RTN OUT jacks, routing back = the live cable list. */}
-        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="master" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
           {/* the module owns its flip now — only its panel turns */}
           <MasterModule
             onFlip={() => setFlippedCards(prev => ({ ...prev, master: !prev.master }))}
@@ -1301,7 +1301,7 @@ export default function SymphonyMixer({
             onChannelUpdate={onChannelUpdate}
           />
         </div>
-        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="routing" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
           <RoutingMatrix
             onFlip={() => setFlippedCards(prev => ({ ...prev, routing: !prev.routing }))}
             flipped={!!flippedCards.routing}
@@ -1312,13 +1312,13 @@ export default function SymphonyMixer({
             onMasterChange={onMasterChange}
           />
         </div>
-        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="transport" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
           <PlaybackModule />
         </div>
         {/* The generators, as a front panel. A bench, not a second home for
             channel state — [Load] hands the built source to the first free
             channel through `onChannelUpdate`, the same seam the palette uses. */}
-        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="generator" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
           <GeneratorModule
             onLoadToChannel={(variantId, params) => {
               const free = channels.findIndex((c) => !c.variantId)
@@ -1326,10 +1326,15 @@ export default function SymphonyMixer({
             }}
           />
         </div>
+        {/* THE EXPRESSION OUTPUT (2026-10-15) — four slots A–D any knob can take by
+            right-click. The Expressions tab writes formulas; this sends them out. */}
+        <div data-console="expression" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+          <ExpressionModule />
+        </div>
         {/* The patch, as a front panel (user 2026-09-01, on monitor's
             `PatchModule`). Sits after the bench modules because it acts on the
             whole desk rather than on any one strip. */}
-        <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="patch" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
           <PatchModule api={patchApi} master={master} channels={channels} />
         </div>
         {/* THE FX MODULES — one panel each, in the order they were loaded. A module arrives with
@@ -1345,7 +1350,7 @@ export default function SymphonyMixer({
               ? (CANVAS_FX_DEFS.find((d) => d.id === fxModules.find((o) => fxKey(o.id) === src)?.type)?.label || 'FX')
               : String(src ?? '').toUpperCase()
           return (
-            <div key={`fxm-${m.id}`} className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+            <div key={`fxm-${m.id}`} data-console={`fxm-${m.id}`} className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
               <FxModule
                 defId={m.type}
                 params={m.params}
@@ -1370,8 +1375,9 @@ export default function SymphonyMixer({
         {/* THE TAPE DECK AS A MODULE (float arrangement, user 2026-10-03: "the tape machine could
             be folded into a module, its a bit awkward sitting there above the mixer strip") — the
             deck as it is drawn, in the desk modules' own frame (`PatchModule`'s). */}
+        {monitor && <div data-console="monitor" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>{monitor}</div>}
         {deck && (
-          <div className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+          <div data-console="tape" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
             <div className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08" style={{ borderRadius: '4px', height: '100%' }}>
               <div className="flex items-center kol-helper-12 px-3 border-b border-fg-08 shrink-0" style={{ height: '29px' }}>
                 <span className="text-fg-96">Tape</span>
@@ -1380,8 +1386,7 @@ export default function SymphonyMixer({
             </div>
           </div>
         )}
-        {ringPad > 0 && [0, 1].map((k) => <div key={`spacer-${k}`} data-spacer="" aria-hidden className="shrink-0" style={{ width: ringPad }} />)}
-      </div>
+      </DeskTrack>
       </div>
       </div>{/* close the zoom/pan layer */}
       {mixerTab === 'expressions' && <ExpressionReference />}

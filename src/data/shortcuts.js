@@ -14,6 +14,9 @@ export const KEYBOARD_SHORTCUTS = [
       { id: 'palette', label: 'Search modules', combo: '⌘K' },
       { id: 'shelf', label: 'Module shelf', combo: 'E' },
       { id: 'play', label: 'Play / pause timeline', combo: 'Space' },
+      { id: 'head-start', label: 'Head to start', combo: '↑' },
+      { id: 'head-end', label: 'Head to end', combo: '↓' },
+      { id: 'timeline', label: 'Timeline show / hide', combo: 'B' },
       { id: 'fps', label: 'Frame rate', combo: 'F' },
       { id: 'sidebar', label: 'Sidebar', combo: 'H' },
       { id: 'rail', label: 'Show / hide rail', combo: '\\' },
@@ -28,11 +31,11 @@ export const KEYBOARD_SHORTCUTS = [
   },
   {
     /* The desk's canvas — pan, zoom and the lock (2026-08-28). Space is the
-       transport's everywhere EXCEPT over the desk, where it grabs the surface;
-       the desk takes it in the capture phase so a grab cannot start the clock. */
+       transport's everywhere; over the desk, HELD + drag grabs the surface and a
+       tap still plays (2026-10-15). */
     section: 'Desk canvas',
     items: [
-      { id: 'pan-space', label: 'Grab and pan the desk', combo: 'Space + drag' },
+      { id: 'pan-space', label: 'Grab and pan the desk (hold)', combo: 'Space + drag' },
       { id: 'pan-mouse', label: 'Pan the desk', combo: 'Middle-drag / ⌥ drag' },
       { id: 'zoom', label: 'Zoom to cursor', combo: '⌥ scroll' },
       { id: 'zoom-reset', label: 'Reset pan and zoom', combo: '⌥0' },
@@ -46,7 +49,7 @@ export const KEYBOARD_SHORTCUTS = [
       { id: 'mark', label: 'Mark in / out (rec)', combo: 'I / O' },
       { id: 'frame-step', label: 'Frame step (rec)', combo: '← / →' },
       { id: 'jump-10', label: 'Jump ×10 (rec)', combo: '⇧ ← / →' },
-      { id: 'jump-in-out', label: 'Jump to in / out (rec)', combo: '↑ / ↓' },
+      { id: 'jump-in-out', label: 'Jump to in / out (while a take is selected)', combo: '↑ / ↓' },
     ],
   },
 ]

@@ -230,21 +230,6 @@ export const GENERATOR_VARIANTS = [
     { key: 'fgColor', type: 'color', label: 'Foreground', default: '#ffffff' },
     { key: 'bgColor', type: 'color', label: 'Background', default: '#000000' },
   ] },
-  /* Live input — camera or a video file. The raster source: frames arrive as
-     pixels, so nothing is rasterised and there is no texture to re-bake. */
-  { id: 'gen-live', title: 'Live Input', tags: ['source', 'live', 'camera', 'video'], controls: [
-    { key: 'source', type: 'binary', label: 'Source', options: [
-      { value: 'camera', label: 'Camera' },
-      { value: 'file', label: 'Video File' },
-    ], default: 'camera' },
-    { key: 'deviceId', type: 'device', label: 'Device', default: '' },
-    { type: 'divider' },
-    { key: 'mirrored', type: 'slider', label: 'Mirror', min: 0, max: 1, step: 1, default: 1 },
-    /* ON, unlike the procedural generators: their Motion knob picks between a
-       still frame and an evolving one, but a camera with the draw loop off is
-       not a still — it never draws at all, so the channel is just black. */
-    { key: 'animate', type: 'toggle', label: 'Motion', default: true },
-  ] },
   { id: 'gen-noise', title: 'Noise', tags: ['source', 'generator', 'noise', 'texture'], controls: [
     { key: 'noiseType', type: 'binary', label: 'Type', options: [
       { value: 'smooth', label: 'Clouds' },
@@ -316,11 +301,62 @@ export const GENERATOR_VARIANTS = [
     { key: 'lightnessAmount', type: 'slider', label: 'Pulse Amt', min: 0, max: 50, step: 1, default: 0 },
     { key: 'lightnessSpeed', type: 'slider', label: 'Pulse Spd', min: 0.1, max: 5, step: 0.1, default: 1 },
   ] },
+  /* Particles — the fourth type (user 2026-10-15). Per-particle, not per-pixel:
+     cost follows COUNT. Positions are computed from seeds, so a scrub lands. */
+  { id: 'gen-particles', title: 'Particles', tags: ['source', 'generator', 'particles', 'motion'], controls: [
+    { key: 'count', type: 'slider', label: 'Count', min: 10, max: 4000, step: 10, default: 400 },
+    { key: 'size', type: 'slider', label: 'Size', min: 0.5, max: 12, step: 0.5, default: 2 },
+    { key: 'drift', type: 'slider', label: 'Drift', min: 0, max: 100, step: 1, default: 30 },
+    { key: 'gravity', type: 'slider', label: 'Gravity', min: -100, max: 100, step: 1, default: 0 },
+    { key: 'trail', type: 'slider', label: 'Trail', min: 0, max: 98, step: 1, default: 40 },
+    { type: 'divider' },
+    { key: 'motion', type: 'toggle', label: 'Motion', default: false },
+    { key: 'speed', type: 'slider', label: 'Speed', min: 0, max: 5, step: 0.1, default: 1 },
+    { type: 'divider' },
+    { key: 'color', type: 'color', label: 'Color', default: '#ffffff' },
+    { key: 'bgColor', type: 'color', label: 'Background', default: '#000000' },
+  ] },
+]
+
+/* THE FOUR GENERATOR TYPES (user 2026-10-15: *"so 4 generators? band/pattern,
+   color/gradient, noise/texture, particles?"*). The Generator module shows these
+   as its type row; each type carries the engines that were separate generators
+   until today. The engines keep their ids, so every saved patch and channel that
+   names `gen-field` or `gen-wave` still loads — a type is a grouping, not a
+   rename. */
+export const GENERATOR_FAMILIES = [
+  { id: 'texture', label: 'Noise', title: 'Noise / Texture', engines: ['gen-noise', 'gen-field'] },
+  { id: 'band', label: 'Pattern', title: 'Band / Pattern', engines: ['gen-wave', 'gen-pattern'] },
+  { id: 'color', label: 'Color', title: 'Color / Gradient', engines: ['gen-gradient', 'gen-color-field'] },
+  { id: 'particles', label: 'Particles', title: 'Particles', engines: ['gen-particles'] },
+]
+export const familyOf = (genId) => GENERATOR_FAMILIES.find((f) => f.engines.includes(genId)) || GENERATOR_FAMILIES[0]
+
+/* LIVE INPUT IS NOT A GENERATOR (user 2026-10-15: *"its not generation its
+   actual media"*). It stays a channel source — the camera and video files still
+   render through `gen-live` — but it leaves the generator list; the Input module
+   is its front. */
+export const INPUT_VARIANTS = [
+  /* Live input — camera or a video file. The raster source: frames arrive as
+     pixels, so nothing is rasterised and there is no texture to re-bake. */
+  { id: 'gen-live', title: 'Live Input', tags: ['source', 'live', 'camera', 'video'], controls: [
+    { key: 'source', type: 'binary', label: 'Source', options: [
+      { value: 'camera', label: 'Camera' },
+      { value: 'file', label: 'Video File' },
+    ], default: 'camera' },
+    { key: 'deviceId', type: 'device', label: 'Device', default: '' },
+    { type: 'divider' },
+    { key: 'mirrored', type: 'slider', label: 'Mirror', min: 0, max: 1, step: 1, default: 1 },
+    /* ON, unlike the procedural generators: their Motion knob picks between a
+       still frame and an evolving one, but a camera with the draw loop off is
+       not a still — it never draws at all, so the channel is just black. */
+    { key: 'animate', type: 'toggle', label: 'Motion', default: true },
+  ] },
 ]
 
 // --- Lookup helpers ---
 
-const ALL_VARIANTS = [...DISPLACEMENT_VARIANTS, ...COPIES_VARIANTS, ...MOVEMENT_VARIANTS, ...GENERATOR_VARIANTS]
+const ALL_VARIANTS = [...DISPLACEMENT_VARIANTS, ...COPIES_VARIANTS, ...MOVEMENT_VARIANTS, ...GENERATOR_VARIANTS, ...INPUT_VARIANTS]
 
 export function findVariant(variantId) {
   return ALL_VARIANTS.find(v => v.id === variantId) || null

@@ -7,7 +7,7 @@ export default function ModulationAssign({ x, y, currentSource, onSelect, onClos
   const sources = [{ id: 'none', label: 'None' }]
   if (busRef?.current) {
     for (const key of Object.keys(busRef.current)) {
-      sources.push({ id: key, label: key })
+      sources.push({ id: key, label: /^[A-D]$/.test(key) ? `Expression ${key}` : key })
     }
   }
 

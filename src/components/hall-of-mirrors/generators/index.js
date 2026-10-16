@@ -5,6 +5,7 @@ import ColorFieldGenerator from './ColorFieldGenerator'
 import LiveInputGenerator from './LiveInputGenerator'
 import FieldGenerator from './FieldGenerator'
 import WaveGenerator from './WaveGenerator'
+import ParticlesGenerator from './ParticlesGenerator'
 
 export const GENERATOR_TYPES = [
   { id: 'noise', label: 'Noise', component: NoiseGenerator, params: { scale: 20, speed: 1, octaves: 3 } },
@@ -14,10 +15,11 @@ export const GENERATOR_TYPES = [
   { id: 'live', label: 'Live Input', component: LiveInputGenerator, params: { source: 'camera', mirrored: 1, fit: 'cover' } },
   { id: 'wave', label: 'Wave', component: WaveGenerator, params: { shape: 'sin', freq: 8, speed: 1, angle: 0, pwm: 50 } },
   { id: 'field', label: 'Field', component: FieldGenerator, params: { mode: 'clouds', scale: 4, detail: 4, warp: 0.4, speed: 1, contrast: 100 } },
+  { id: 'particles', label: 'Particles', component: ParticlesGenerator, params: { count: 400, size: 2, speed: 1, drift: 30, gravity: 0, trail: 40 } },
 ]
 
 export const GENERATOR_COMPONENTS = Object.fromEntries(
   GENERATOR_TYPES.map(g => [g.id, g.component])
 )
 
-export { NoiseGenerator, GradientGenerator, PatternGenerator, ColorFieldGenerator, LiveInputGenerator, FieldGenerator, WaveGenerator }
+export { NoiseGenerator, GradientGenerator, PatternGenerator, ColorFieldGenerator, LiveInputGenerator, FieldGenerator, WaveGenerator, ParticlesGenerator }

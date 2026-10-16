@@ -8,6 +8,7 @@ import Tape from './dev/Tape'
 import Fronts from './dev/Fronts'
 import Icons from './dev/Icons'
 import Expression from './dev/Expression'
+import ConsoleSkin from './dev/Console'
 
 /**
  * DevPage — `/dev`, ONE rail row for everything that is not the app (user 2026-10-14: *"fold
@@ -28,6 +29,7 @@ const TABS = [
   { value: 'fronts', label: 'Fronts' },
   { value: 'icons', label: 'Icons' },
   { value: 'expression', label: 'Expression' },
+  { value: 'console', label: 'Console' },
 ]
 
 export default function DevPage() {
@@ -47,11 +49,19 @@ export default function DevPage() {
         subtitle="Experiments and reference — nothing here is the app"
         actions={<TabStrip options={TABS} value={tab} onChange={setTab} />}
       />
-      <div className="min-h-0 flex-1 overflow-auto">
+      {/* THE CLIP SITS ON THE PAGE EDGE, not on its padding (user 2026-10-15: *"dont clip on
+          padding"*): the scroll box bleeds out over the shell's pad and pads back in, so the
+          content stays where it was and only the clip line moves — the console's wood cheek
+          was being cut. */}
+      <div
+        className="min-h-0 flex-1 overflow-auto"
+        style={{ marginInline: 'calc(-1 * var(--kol-shell-page-pad))', paddingInline: 'var(--kol-shell-page-pad)', marginBottom: 'calc(-1 * var(--kol-shell-page-pad))', paddingBottom: 'var(--kol-shell-page-pad)' }}
+      >
         {tab === 'tape' && <Tape />}
         {tab === 'fronts' && <WideOnly what="The front sketchbook"><Fronts /></WideOnly>}
         {tab === 'icons' && <WideOnly what="The icon sheet"><Icons /></WideOnly>}
         {tab === 'expression' && <Expression key={state?.expr ?? ''} />}
+        {tab === 'console' && <WideOnly what="The console skin"><ConsoleSkin /></WideOnly>}
       </div>
     </PageShell>
   )

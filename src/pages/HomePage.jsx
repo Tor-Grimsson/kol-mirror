@@ -1,13 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 import { findVariant } from '../data/mirrorVariants'
 import Button from '../components/atoms/Button'
+import { useLibrary } from '../hooks/useLibraryStore'
+import { useLibrarySession } from '../hooks/librarySync'
+import { PatchThumb } from './LibraryPage'
 
 /**
  * HomePage — `/`, as the DATA the Hub's `HubHome` renders (kol-shell `AppHub`,
  * 2026-10-13). This page, fxr's and monitor's were the same `CatalogPage`
  * written three times (ShellHomeSystemAdoption, 2026-08-27); the Hub is that
- * page made once, so what is left here is only what is mirror's: the one Empty
- * Studio card under RECENT, the persisted memory slots under SAVED, the
+ * page made once, so what is left here is only what is mirror's: the patches
+ * under RECENT, the persisted memory slots under SAVED, the
  * walkthrough's five steps, and where the buttons go. `App.jsx` hands
  * `useHomeProps()` to `AppHub home=` / `walkthrough=`; the route itself
  * renders nothing because the Hub owns `/`.
@@ -61,6 +64,18 @@ const EMPTY_STUDIO = [
   { name: 'empty-studio', title: 'Empty Studio', detail: '3 channels — mixer, buses, routing', src: PREVIEW_SRC, alt: 'Empty Studio' },
 ]
 
+/* RECENT, fxr's shape (user 2026-10-15: *"this is USER PATCHES, as in ON LOGIN, when
+   not logged in then show what was there before"*). Signed in: your patches, newest
+   first — the sign-in seed makes that three on a fresh account. Signed out: the one
+   Empty Studio card, as it always was. */
+const RECENT_FILES = 12
+const patchCard = (e) => ({
+  name: e.id,
+  title: e.name,
+  detail: e.description || `${(e.data?.channels || []).filter((c) => c.variantId).length} channels`,
+  patch: e,
+})
+
 /* Read on every SAVED render, not once per Shell mount: the Shell is mounted
    for the app's whole life, and a slot saved in the studio has to be on Home
    when you come back. Nine rows of JSON — cheaper than the stale card. */
@@ -82,6 +97,11 @@ const savedItems = () => {
 
 export function useHomeProps() {
   const navigate = useNavigate()
+  const signedIn = !!useLibrarySession()
+  const saved = useLibrary('patch').filter((e) => !e.preset)
+  const recent = signedIn
+    ? [...saved].sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0)).slice(0, RECENT_FILES).map(patchCard)
+    : EMPTY_STUDIO
 
   const illustration = <img src="/images/stack-hero-800.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} />
   const walkthrough = WALKTHROUGH_STEPS.map((s) => s.actions
@@ -97,16 +117,18 @@ export function useHomeProps() {
     : { ...s, illustration })
 
   const home = {
-    items: (view) => (view === 'recent' ? EMPTY_STUDIO : savedItems()),
+    items: (view) => (view === 'recent' ? recent : savedItems()),
     filtersTitle: 'Studio',
     toCard: (item) => ({
       key: item.name,
       title: item.title,
       detail: item.detail,
-      media: <img src={item.src} alt={item.alt} />,
-      onClick: item.slotIndex != null
-        ? () => navigate('/studio', { state: { slotIndex: item.slotIndex } })
-        : () => navigate('/studio'),
+      media: item.patch ? <PatchThumb patch={item.patch} /> : <img src={item.src} alt={item.alt} />,
+      onClick: item.patch
+        ? () => navigate('/studio', { state: { patch: item.patch } })
+        : item.slotIndex != null
+          ? () => navigate('/studio', { state: { slotIndex: item.slotIndex } })
+          : () => navigate('/studio'),
     }),
     actions: <Button tone="grey" size="md" onClick={() => navigate('/studio')}>Enter Studio</Button>,
   }

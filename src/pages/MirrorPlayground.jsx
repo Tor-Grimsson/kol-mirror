@@ -17,6 +17,7 @@ import MobileStudio from '../components/mirror/MobileStudio'
 import { useNarrow } from '../hooks/useNarrow'
 import { useLibrary } from '../hooks/useLibraryStore'
 import { useLibrarySession } from '../hooks/librarySync'
+import TimelineStrip from '../components/mirror/TimeStrip'
 
 /* the registry as rows for kol-component's `ShellSearchOverlay` — the name, with the group and
    the detail as the row's own; `add` rides along and is what a pick runs */
@@ -113,6 +114,8 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
      "a mobile and structure friendly patch bay … follow suit"). `p` toggles
      it, as over there; on a phone the `Patch` control beside `Modules` does. */
   const [patchTable, setPatchTable] = useState(false)
+  /* the timeline strip — hidden by default, `B` shows it (user 2026-10-15) */
+  const [timeline, setTimeline] = useState(false)
   /* The channel the palette is currently building. A source and the FX that
      follow it are ONE patch, so they have to land on the same strip — this used
      to be "first free channel" for the source and "channel 0" for the FX, which
@@ -216,6 +219,7 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
         case 't': cycleRef.current?.(); break
         case 'm': s.setSymphonyMixerVisible(v => !v); break
         case 'r': s.symphonyReloaded?.(null); break
+        case 'b': setTimeline((v) => !v); break
         default:
       }
     }
@@ -417,6 +421,7 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
         style={sidebarOpen ? { paddingLeft: (sidebarWidth ?? getDefaultWidth()) + 24 } : undefined}
       >
         <MirrorViewport state={state} arrangement={arrangement} />
+        {timeline && <TimelineStrip onClose={() => setTimeline(false)} />}
       </main>
 
     </div>

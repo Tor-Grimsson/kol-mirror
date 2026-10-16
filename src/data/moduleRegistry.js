@@ -1,5 +1,5 @@
 import { CANVAS_FX_DEFS } from '../hooks/useCanvasFx'
-import { DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, GENERATOR_VARIANTS } from './mirrorVariants'
+import { DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, GENERATOR_VARIANTS, GENERATOR_FAMILIES } from './mirrorVariants'
 import { MIXER_MODULES } from './mixerModules'
 
 /**
@@ -68,21 +68,23 @@ const variant = (v, hall) => ({
   preview: `/previews/variants/${v.id}.png`,
 })
 
-const generator = (g) => ({
-  id: `gen:${g.id}`,
-  name: g.title,
+/* THE GENERATOR — ONE module, four types (user 2026-10-15: *"why are field
+   generator listed as modules? … this is the generator? so it should handle
+   generation as 'type' right?"*). Until today each engine was its own entry, so
+   the library showed one panel seven times. The panel's type row is the choice;
+   `add` loads the first type's first engine into the focused channel, the same
+   verb a pick from the LOAD tab runs. */
+const GENERATOR = {
+  id: 'gen:generator',
+  name: 'Generator',
   kind: 'Source',
   group: 'Generators',
-  detail: 'Generator',
-  tags: g.tags || [],
-  add: (api) => api.loadVariant(g.id),
-  /* the generator's own front — `GeneratorModule` drives one generator with
-     its params, a quality knob and a live fps readout */
-  front: { kind: 'generator', id: g.id },
-  /* generators sit with the variants on purpose — the generator script's own
-     docstring: "they ARE sources … no branch" */
-  preview: `/previews/variants/${g.id}.png`,
-})
+  detail: GENERATOR_FAMILIES.map((f) => f.label).join(' · '),
+  tags: ['source', 'generator', ...GENERATOR_FAMILIES.map((f) => f.id), ...GENERATOR_VARIANTS.map((g) => g.title.toLowerCase())],
+  add: (api) => api.loadVariant(GENERATOR_FAMILIES[0].engines[0]),
+  front: { kind: 'generator', id: GENERATOR_FAMILIES[0].engines[0] },
+  preview: '/previews/modules/generator-module.png',
+}
 
 const canvasFx = (f) => ({
   id: `fx:${f.id}`,
@@ -107,7 +109,7 @@ const canvasFx = (f) => ({
 
 /* THE DESK'S OWN MODULES — and only those. The user named them (2026-09-01):
    *"its 1 a channel module 2 a mixer module 3 matrix module 4 playback/clock
-   5 generator"*. The generator is the seven `gen:` entries above; these are the
+   5 generator"*. The generator is the one `gen:` entry above; these are the
    other four, plus the patch bay.
 
    The catalogue's other nine entries are NOT modules and are not listed here.
@@ -118,8 +120,8 @@ const canvasFx = (f) => ({
    registry of loadable units. Listing them as placeable is the category error
    the user caught: *"in modules you list effexts? why dont you not know what a
    module for the mixer is?"* */
-const DESK_IDS = ['input', 'channel', 'master', 'routing', 'playback', 'patch']
-const ONE_PER = new Set(['master', 'routing', 'playback', 'patch'])
+const DESK_IDS = ['input', 'channel', 'master', 'routing', 'playback', 'expressions', 'monitor', 'tape', 'patch']
+const ONE_PER = new Set(['master', 'routing', 'playback', 'expressions', 'monitor', 'tape', 'patch'])
 
 const desk = (m) => ({
   id: `module:${m.id}`,
@@ -166,7 +168,7 @@ export const MODULE_REGISTRY = [
   ...DISPLACEMENT_VARIANTS.map((v) => variant(v, 'Displacement')),
   ...MOVEMENT_VARIANTS.map((v) => variant(v, 'Movement')),
   ...COPIES_VARIANTS.map((v) => variant(v, 'Copies')),
-  ...GENERATOR_VARIANTS.map(generator),
+  GENERATOR,
   ...CANVAS_FX_DEFS.map(canvasFx),
 ]
 

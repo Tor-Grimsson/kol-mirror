@@ -52,20 +52,24 @@ export default function InputModule({ channels = [], onChannelUpdate }) {
   )
 
   return (
-    <div
-      className="flex flex-col shrink-0 bg-surface-secondary border border-fg-08"
-      style={{ width: '320px', borderRadius: '4px' }}
-      {...handlers}
-    >
-      {/* header on the desk's own contract: name left, state right, 29px */}
-      <div className="flex items-center justify-between kol-helper-12 px-3 border-b border-fg-08 shrink-0" style={{ height: '29px' }}>
+    /* THE DESK'S MODULE FRAME (user 2026-10-15: *"why does this module not
+       follow the format? like we have established format"*). A title tab above
+       the panel — name left, state right, 29px, `PlaybackModule`'s shape — and
+       the panel under it at the desk's height. No flip: Input has nothing on
+       its back, and a flip onto an empty face is a fake. */
+    <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%', width: 320 }}>
+      <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
         <span className="flex items-center gap-2">
           <span style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', backgroundColor: loaded ? 'var(--kol-accent-primary)' : 'var(--kol-fg-12)' }} />
           <span className="text-fg-96">Input</span>
         </span>
         <span className="kol-helper-10 text-fg-32 truncate" style={{ maxWidth: 140 }}>{loaded || 'No source'}</span>
       </div>
-
+    <div
+      className="flex flex-col flex-1 bg-surface-secondary border border-fg-08"
+      style={{ borderRadius: '4px', minHeight: 0 }}
+      {...handlers}
+    >
       <div className="flex flex-col gap-2 p-3">
         {row('Camera', () => patch(CAMERA), 'video')}
         {row('Image', () => imageRef.current?.click(), 'upload')}
@@ -103,6 +107,7 @@ export default function InputModule({ channels = [], onChannelUpdate }) {
 
       <input ref={imageRef} type="file" accept="image/*,.svg" className="hidden" onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = '' }} />
       <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = '' }} />
+    </div>
     </div>
   )
 }

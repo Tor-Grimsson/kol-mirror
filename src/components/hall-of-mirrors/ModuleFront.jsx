@@ -12,7 +12,8 @@ import InputModule from './modules/InputModule'
 import FeedbackModule from './modules/FeedbackModule'
 import ExpressionModule from './modules/ExpressionModule'
 import MemoryModule from './modules/MemoryModule'
-import { GENERATOR_VARIANTS } from '../../data/mirrorVariants'
+import TapeDelay from '../mirror/TapeDelay'
+import MonitorModule from './modules/MonitorModule'
 import { findVariant } from '../../data/mirrorVariants'
 
 /**
@@ -117,6 +118,11 @@ export default function ModuleFront({ id, index = 0, channel, channels = [], mas
       return <RoutingMatrix channels={channels} onChannelUpdate={onChannelUpdate} master={master} onMasterChange={onMasterChange} />
     case 'playback':
       return <PlaybackModule />
+    case 'tape':
+      return <TapeDelay />
+    /* the specimen: the panel with its slot empty — the frame lives in the studio */
+    case 'monitor':
+      return <MonitorModule />
     /* THREE THAT ALREADY HAD FRONTS and were simply never mapped (user,
        2026-09-02: "what about all the incomplete modules? did we just decide
        not to do them?"). Each is the desk's own component, driven read-only

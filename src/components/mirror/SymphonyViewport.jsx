@@ -13,6 +13,7 @@ import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import TapeDelay from './TapeDelay'
 import InfiniteCanvas from './InfiniteCanvas'
 import FloatingFrame from './FloatingFrame'
+import MonitorModule from '../hall-of-mirrors/modules/MonitorModule'
 import { useFloating } from '../../hooks/useFloating'
 import { useNarrow } from '../../hooks/useNarrow'
 import ChannelLayer from './ChannelLayer'
@@ -446,6 +447,13 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
   const rootRef = useRef(null)
   const frame = useFloating({ x: 24, y: 24, scale: 0.8 })
   const [frameHidden, setFrameHidden] = useState(false)
+  /* THE MONITOR MODULE (2026-10-15). DOCKED, the frame sits in the module's screen
+     slot and follows it through the desk's pan and zoom; OVERLAY, it floats as
+     before. The frame never re-mounts — only its box moves. */
+  const [frameDocked, setFrameDocked] = useState(true)
+  const [monitorWidth, setMonitorWidth] = useState(360)
+  const slotElRef = useRef(null)
+  const slotRef = useCallback((el) => { slotElRef.current = el }, [])
   useEffect(() => {
     if (!floating) return undefined
     const onKey = (e) => {
@@ -538,6 +546,44 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
   // Frame buffer for cross-channel routing
   // qualityRef is read per frame inside the buffer — the render-scale knob.
   const frameBuffer = useFrameBuffer(channels.length, qualityRef)
+  /* THE PATCH'S THUMBNAIL (user 2026-10-15) — the output as it stands, drawn the
+     way the frame stacks it: each master input in order, at its opacity, through
+     its blend mode (2D canvas speaks the same blend names as CSS).
+     A DOM-rendered channel only fills its capture canvas while something consumes
+     it, so a save first FORCES capture on the master inputs (`thumbChannels`),
+     waits ~30 frames for the buffers to fill (6 was too few — the DOM
+     channels had not drawn yet), composes, then lets go. Nothing
+     here runs per frame outside a save. Empty desk → no thumb. */
+  const [thumbChannels, setThumbChannels] = useState(() => new Set())
+  const captureThumb = async () => {
+    const inputs = (masterRef.current?.inputs || []).filter((i) => typeof i === 'number')
+    if (!inputs.length) return undefined
+    setThumbChannels(new Set(inputs))
+    for (let n = 0; n < 30; n++) await new Promise((r) => requestAnimationFrame(r))
+    frameBuffer.captureAll(new Set(inputs))
+    setThumbChannels(new Set())
+    const W = 320
+    const H = 180
+    const out = document.createElement('canvas')
+    out.width = W
+    out.height = H
+    const ctx = out.getContext('2d')
+    ctx.fillStyle = '#000'
+    ctx.fillRect(0, 0, W, H)
+    let drew = false
+    for (const i of inputs) {
+      const frame = frameBuffer.getChannelFrame(i)
+      if (!frame) continue
+      const ch = channelsRef.current[i]
+      ctx.globalAlpha = (ch?.opacity ?? 100) / 100
+      ctx.globalCompositeOperation = ch?.blendMode && ch.blendMode !== 'normal' ? ch.blendMode : 'source-over'
+      const k = Math.max(W / frame.width, H / frame.height)
+      ctx.drawImage(frame, (W - frame.width * k) / 2, (H - frame.height * k) / 2, frame.width * k, frame.height * k)
+      drew = true
+    }
+    if (!drew) return undefined
+    try { return out.toDataURL('image/jpeg', 0.7) } catch { return undefined /* tainted source */ }
+  }
   const renderOrder = resolveRenderOrder(channels)
 
   // Refs for stable access in rAF loop (avoids stale closures)
@@ -788,6 +834,28 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
     // placed once, on entering the arrangement — after that the window is where he left it
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floating])
+  /* DOCKED: read the slot every frame and put the window on it. A rect read per
+     frame is the cheapest thing that follows pan, zoom, wheel and the mixer's own
+     scroll at once; it writes only when the slot moved. No slot (mixer hidden) →
+     the window stays where it was. */
+  useEffect(() => {
+    if (!floating || !frameDocked) return undefined
+    let raf
+    const tick = () => {
+      raf = requestAnimationFrame(tick)
+      const el = slotElRef.current
+      const r = rootRef.current
+      if (!el || !r) return
+      const a = el.getBoundingClientRect()
+      const o = r.getBoundingClientRect()
+      if (a.width <= 0) return
+      const next = { x: Math.round(a.left - o.left), y: Math.round(a.top - o.top), scale: a.width / FLOAT_W }
+      frame.setBox((b) => (Math.abs(b.x - next.x) < 0.5 && Math.abs(b.y - next.y) < 0.5 && Math.abs(b.scale - next.scale) < 0.001 ? b : next))
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floating, frameDocked])
 
   // Periodic tier re-evaluation during animation (every 500ms)
   const [tierTick, setTierTick] = useState(0)
@@ -1056,7 +1124,7 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
 
   /* the float arrangement swaps the stage for a window; the monitor inside is the same tree */
   const Stage = floating ? FloatingFrame : InfiniteCanvas
-  const stageProps = floating ? { frame, hidden: frameHidden } : { style: { flex: 1, minHeight: 0 } }
+  const stageProps = floating ? { frame, hidden: frameHidden, docked: frameDocked, onClose: () => setFrameHidden(true) } : { style: { flex: 1, minHeight: 0 } }
   /* and the monitor inside it: a bare frame in the window, the bezel on the stage */
   const Screen = floating ? Frame : Bezel
 
@@ -1144,7 +1212,7 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
                 <ChannelLayer
                   channel={resolvedChannel}
                   channelIndex={i}
-                  forceCapture={(hasScreen2 && screen2 === String(i)) || fxChannels.has(i)}
+                  forceCapture={(hasScreen2 && screen2 === String(i)) || fxChannels.has(i) || thumbChannels.has(i)}
                   imageSrc={channelImageSrc}
                   rasterSrc={rasterForChannel}
                   defaultSvgSrc={channelDefaultSrc}
@@ -1255,13 +1323,27 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
           }}
           fill={floating}
           deck={floating ? <TapeDelay /> : null}
+          consoleState={state.symphonyConsole}
+          onConsole={state.setSymphonyConsole}
+          monitor={floating ? (
+            <MonitorModule
+              docked={frameDocked}
+              onDock={setFrameDocked}
+              hidden={frameHidden}
+              onHidden={setFrameHidden}
+              width={monitorWidth}
+              onWidth={setMonitorWidth}
+              ratio={rh / rw}
+              slotRef={slotRef}
+            />
+          ) : null}
           frameToggle={floating ? { on: !frameHidden, onToggle: () => setFrameHidden((v) => !v) } : null}
           /* The patch module's three verbs. Bundled as one prop rather than
              three: SymphonyMixer already threads 40, and these only ever move
              together. `clear` pulls the master input cables and leaves the
              channels loaded — monitor's semantics (see PatchModule). */
           patchApi={{
-            save: (name) => state.savePatch({ name }),
+            save: async (name) => state.savePatch({ name, thumb: await captureThumb() }),
             load: (entry) => state.loadPatch(entry),
             clear: () => state.setSymphonyMaster((m) => ({ ...m, inputs: [null, null, null] })),
           }}

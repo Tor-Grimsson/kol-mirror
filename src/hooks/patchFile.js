@@ -56,7 +56,7 @@ export function serializePatch({ channels = [], master = {}, canvas = {} }) {
       return out
     }),
     master: pick(master, MASTER_KEYS),
-    canvas: pick(canvas, ['ratio', 'layout', 'customWidth', 'customHeight', 'loadMode', 'rasterTheme', 'screen2']),
+    canvas: pick(canvas, ['ratio', 'layout', 'customWidth', 'customHeight', 'loadMode', 'rasterTheme', 'screen2', 'console']),
   }
 }
 
@@ -79,11 +79,15 @@ export function applyPatch(data, { emptyChannel = {}, master: currentMaster = {}
 }
 
 /** A complete library entry for the current desk. */
-export const buildPatchEntry = (state, { name, description = '', tags = [] }) => ({
+/* `thumb` — the output frame at save time, a small JPEG data URL (user
+   2026-10-15: thumbnails generated on save, fxr's shape). Optional: a save
+   with no frame to capture carries none and its card draws the signal path. */
+export const buildPatchEntry = (state, { name, description = '', tags = [], thumb }) => ({
   version: PATCH_VERSION,
   kind: 'patch',
   name,
   description,
   tags,
+  ...(thumb ? { thumb } : {}),
   data: serializePatch(state),
 })

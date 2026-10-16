@@ -148,7 +148,9 @@ export const MIXER_MODULES = [
   },
   {
     id: 'playback',
-    name: 'Playback',
+    /* TRANSPORT, not Playback / "Master Clock" (user 2026-10-15). The id stays
+       `playback` — saved desks and the registry carry it. */
+    name: 'Transport',
     kind: 'Transport',
     role: 'One clock for everything time-driven — expressions, the oscilloscope, every channel’s animate. Nothing autoplays; Space starts it.',
     io: { in: 'Space, and the module’s own transport', out: '`transport.now()` — the shaped time in seconds' },
@@ -161,11 +163,15 @@ export const MIXER_MODULES = [
   },
   {
     id: 'expressions',
-    name: 'Expression Engine',
+    /* THE OUTPUT MODULE since 2026-10-15 (user: *"a module in the mixer connected
+       to it … a couple of slots and output them through the expression module"*).
+       The tab stays the surface; this is the patch point. */
+    name: 'Expression',
     kind: 'Modulation',
-    role: 'Any knob can take a formula instead of a value. Click a knob’s number to type one; alt-click cancels.',
-    io: { in: 't (seconds), f (frames), min, max, and the live bus values', out: 'The knob’s value, per frame' },
+    role: 'Four slots, A–D, each a formula with its trace and an OUT. Right-click any knob → A–D and it follows that slot on the transport. Any knob can still take its own formula — click its number to type one; alt-click cancels.',
+    io: { in: 't (seconds), f (frames), min, max', out: 'A · B · C · D, 0–100, to any knob' },
     controls: [
+      ['Slots', 'A–D — a formula each, Enter to apply, red when it does not compile'],
       ['Waves', 'wave · saw · tri · pulse (PWM) · rand · ease(curve) · bell · exp · log · step'],
       ['Math', 'sin · cos · abs · floor · ceil · round · sqrt · pow · PI · PHI'],
       ['Oscilloscope', 'Live preview with zoom X/Y/scale, min/max/sec/offset, grab-to-pan, and a 0–100 reference line'],
@@ -210,6 +216,35 @@ export const MIXER_MODULES = [
       ['Clear', 'Pulls the master input cables and leaves the channels loaded — the patch, not the desk'],
       ['Readout', 'Inputs wired, and channels loaded out of channels present'],
       ['Not carried', 'Uploaded images (data URLs blow the localStorage quota) and recorded takes (session-scoped object URLs, dead links in any later session)'],
+    ],
+  },
+  /* MONITOR (user 2026-10-15: *"we are missing a monitor module"*). The output
+     frame's home on the desk — the frame docks into its slot or floats over the
+     desk; the frame itself stays where the viewport mounts it. */
+  {
+    id: 'monitor',
+    name: 'Monitor',
+    kind: 'Output',
+    role: 'The output frame on the desk. DOCK puts the picture in the panel\u2019s screen and it follows the desk through pan and zoom; OVERLAY floats it — drag by the body, scale from the corner, \u00d7 on hover hides it. V shows and hides it either way.',
+    io: { in: 'The master', out: 'None — it is the screen' },
+    controls: [
+      ['Dock · Overlay · Hide', 'Where the frame is, or that it is hidden'],
+      ['Width', 'The corner grip sizes the screen, 240–720px'],
+    ],
+  },
+  /* TAPE (user 2026-10-15: *"tape is missing from modules in library?"*). It was
+     on the desk (`deck`) and on /dev since 2026-08-28 and in no list, so the
+     library could not see it. A readout of the one clock, not a recorder. */
+  {
+    id: 'tape',
+    name: 'Tape',
+    kind: 'Transport',
+    role: 'A reel-to-reel deck that turns with the transport — the emptying reel speeds up as the filling one slows (ω = v / r), and the VU drifts. The clock made visible; PLAY and STOP drive the same transport Space does.',
+    io: { in: 'The transport', out: 'None — it is a readout' },
+    controls: [
+      ['Keys', 'REW · FF · PLAY · STOP · REC — PLAY and STOP run the transport'],
+      ['Counter', 'Tape position from the clock'],
+      ['Speed', 'The deck’s own knob'],
     ],
   },
 ]

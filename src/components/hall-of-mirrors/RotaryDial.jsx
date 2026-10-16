@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import Knob from '@kolkrabbi/kol-component/molecules/Knob'
 import useExpressionValue from '../../hooks/useExpressionValue'
 import ModulationAssign from './ModulationAssign'
+import { exprBusRef } from '../../hooks/exprBus'
 
 /**
  * RotaryDial — an adapter over the DS `Knob variant="panel"` (@kolkrabbi/kol-component), the same
@@ -28,30 +29,35 @@ const DIAL_VARIANTS = {
   master: { box: 104, knob: () => 'xl' },
 }
 
-export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, variant = 'default', defaultValue, modulationSource, onModulationAssign, busRef }) {
+/* EVERY DIAL IS PATCHABLE (2026-10-15). The right-click menu had no caller —
+   nothing passed `busRef` or `onModulationAssign`, so it never opened. A dial now
+   reads the Expression module's outputs (`exprBus`, A–D) by default and keeps its
+   own patch state when its parent does not hold one. */
+export default function RotaryDial({ label, value = 0, onChange, size = 80, min = 0, max = 100, variant = 'default', defaultValue, modulationSource, onModulationAssign, busRef = exprBusRef }) {
+  const [localMod, setLocalMod] = useState(null)
+  const mod = modulationSource !== undefined ? modulationSource : localMod
+  const assign = onModulationAssign || setLocalMod
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [modMenu, setModMenu] = useState(null)
   const { expr, commit: commitExpr, isAnimating } = useExpressionValue({ onChange, min, max, busRef })
 
   const handleContextMenu = useCallback((e) => {
-    if (!onModulationAssign) return
     e.preventDefault()
     setModMenu({ x: e.clientX, y: e.clientY })
-  }, [onModulationAssign])
+  }, [])
 
   const handleModSelect = useCallback((sourceId) => {
-    if (!onModulationAssign) return
     if (sourceId) {
       // Set expression to the bus variable name
       commitExpr(sourceId, onChange)
-      onModulationAssign(sourceId)
+      assign(sourceId)
     } else {
       // Clear modulation — clear expression
       commitExpr('', onChange)
-      onModulationAssign(null)
+      assign(null)
     }
-  }, [onModulationAssign, commitExpr, onChange])
+  }, [assign, commitExpr, onChange])
 
   const { box, knob } = DIAL_VARIANTS[variant] || DIAL_VARIANTS.default
 
@@ -71,7 +77,7 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
           max={max}
           defaultValue={defaultValue ?? min}
         />
-        {modulationSource && (
+        {mod && (
           <div
             style={{
               position: 'absolute',
@@ -89,7 +95,7 @@ export default function RotaryDial({ label, value = 0, onChange, size = 80, min 
         <ModulationAssign
           x={modMenu.x}
           y={modMenu.y}
-          currentSource={modulationSource}
+          currentSource={mod}
           onSelect={handleModSelect}
           onClose={() => setModMenu(null)}
           busRef={busRef}

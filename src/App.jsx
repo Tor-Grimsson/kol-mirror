@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { MediaLibrary, ModalProvider, useModal } from '@kolkrabbi/kol-component'
-import Studio from './components/Studio'
+import { AppStudio } from '@kolkrabbi/kol-shell'
 import { ThemeToggle } from '@kolkrabbi/kol-framework'
 import logomarkUrl from '@kolkrabbi/kol-brand/svg/favicon-01.svg?url'
 import { Icon as DSIcon, registerIcons } from '@kolkrabbi/kol-icons'
@@ -205,22 +205,37 @@ function ShellBody() {
       const t = e.target
       if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return
-      if (e.key === ' ') { if (t.tagName === 'BUTTON') return; e.preventDefault(); transport.toggle() }
+      /* Space is the transport's even with a button focused — after any click on
+         the desk one is, so the old `BUTTON` bail-out made Space dead most of the
+         time (user 2026-10-15). The keyup half below stops the browser
+         activating that button as well; Enter still activates it. */
+      if (e.key === ' ') { e.preventDefault(); transport.toggle() }
+      /* ↑ / ↓ — the head to start / end (user 2026-10-15). Only an arrow nobody
+         else claimed: the recorder's trim keys, the palette and the scope's
+         fields all `preventDefault`, and they run after this listener, so the
+         check waits for the dispatch to finish. */
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        const up = e.key === 'ArrowUp'
+        queueMicrotask(() => { if (!e.defaultPrevented) (up ? transport.home() : transport.end()) })
+      }
       else if (e.key.toLowerCase() === 'f') setShowFps((v) => !v)
     }
+    const onKeyUp = (e) => { if (e.key === ' ' && e.target.tagName === 'BUTTON') e.preventDefault() }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKeyUp)
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp) }
   }, [])
 
   return (
     <>
-      {/* THE STUDIO (2026-10-14, the user's seven points): kol-shell's AppStudio through the local
-          `Studio` fork (one seam — a Library with sub-pages). The rail: Mirror · Library · Create ·
+      {/* THE STUDIO (2026-10-14, the user's seven points): kol-shell's AppStudio — direct since
+          kol-shell 0.64.0 shipped `library.children`; the local fork is retired to
+          `_tmp/2026-10-15-studio-fork/`. The rail: Mirror · Library · Create ·
           Studio · Dev · Settings. Library is Modules · Patches, monitor's shape, with every module's
           page under it; the Studio is the float arrangement, the monitor a bare frame; Expression is
           a module on the desk, not a row; the Mixer sheet, Tape, Fronts and Icons are gone from the
           rail — the three sketchbooks live under Dev. */}
-      <Studio
+      <AppStudio
         app={APP}
         currentPath={location.pathname}
         onNavigate={onNavigate}

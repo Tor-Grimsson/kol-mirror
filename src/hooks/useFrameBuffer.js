@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect } from 'react'
-import { applyCanvasFx, fxPath } from './useCanvasFx'
+import { applyCanvasFx, fxPath, expandFx } from './useCanvasFx'
 import { begin, end } from './renderStats'
 import { runChain, gpuAvailable } from './gpuFx'
 import { buildPasses } from './gpuFxShaders'
@@ -210,7 +210,7 @@ export default function useFrameBuffer(channelCount, qualityRef) {
   const runFxOn = useCallback((buf, canvasFxChain, stateKey) => {
     if (!canvasFxChain || canvasFxChain.length === 0) return
     if (!buf || buf.width <= 0 || buf.height <= 0) return
-    const live = canvasFxChain.filter((fx) => fx.enabled)
+    const live = expandFx(canvasFxChain).filter((fx) => fx.enabled)
     if (!live.length) return
     const t = begin()
 

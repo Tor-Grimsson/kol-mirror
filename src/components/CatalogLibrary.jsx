@@ -3,7 +3,20 @@ import usePersistedState from '../hooks/usePersistedState'
 import ModuleMedia from './ModuleMedia'
 import Button from '../components/atoms/Button.jsx'
 import { slugFor } from '../data/moduleRegistry.js'
-import { exportEntry, importEntry, removeFromLibrary } from '../hooks/useLibraryStore.js'
+import { exportEntry, importEntry, removeFromLibrary, setThumb, fileToThumb } from '../hooks/useLibraryStore.js'
+
+/* the card's Thumb button: pick an image, it becomes the patch's thumbnail */
+function pickThumb(id) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    const thumb = file && await fileToThumb(file).catch(() => null)
+    if (thumb) setThumb(id, thumb)
+  }
+  input.click()
+}
 
 /**
  * ON THE HUB (apps/mixer-hub, 2026-10-03): `useCatalogLibrary()` returns kol-shell `CatalogPage`'s
@@ -63,6 +76,7 @@ export default function useCatalogLibrary({ storageKey, views, viewsConfig, medi
         actions: (
           <>
             <Button tone="grey" size="sm" onClick={(e) => { e.stopPropagation(); exportEntry(item.entry) }}>Export</Button>
+            {!item.entry.preset && item.entry.kind === 'patch' && <Button tone="grey" size="sm" onClick={(e) => { e.stopPropagation(); pickThumb(item.entry.id) }} title="Upload a custom thumbnail">Thumb</Button>}
             {!item.entry.preset && <Button tone="grey" size="sm" onClick={(e) => { e.stopPropagation(); removeFromLibrary(item.entry.id) }}>Remove</Button>}
           </>
         ),

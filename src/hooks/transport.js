@@ -74,6 +74,21 @@ export const transport = {
   pause() { if (state.playing) set({ playing: false }) },
   toggle() { if (state.playing) transport.pause(); else transport.play() },
   stop() { base = 0; anchor = performance.now() / 1000; state = { ...state, playing: false }; emit() },
+  /* THE HEAD (user 2026-10-15: *"up would bring head to start and down would
+     bring head to end"*). START is raw 0 — in a loop or a fold that IS the
+     window's start. END is the window's far edge: OUT on a free-running
+     forward clock, the last instant of the cycle inside a loop. Run state is
+     untouched — moving the head never starts or stops the clock. */
+  home() { base = 0; anchor = performance.now() / 1000; emit() },
+  end() {
+    const L = Math.max(0.1, Math.abs(state.loopOut - state.loopIn))
+    const free = state.mode === 'forward' && !state.looping
+    base = free ? Math.max(state.loopIn, state.loopOut) : L - 0.001
+    anchor = performance.now() / 1000
+    emit()
+  },
+  /* the raw position, for a scrubber: shape(seek) lands on the timeline */
+  seek(r) { base = Math.max(0, r); anchor = performance.now() / 1000; emit() },
   /* Restores the clock's SHAPE, never its run state — see the boot note above. */
   reset() { set({ rate: DEFAULTS.rate, mode: DEFAULTS.mode, loopIn: DEFAULTS.loopIn, loopOut: DEFAULTS.loopOut, swing: DEFAULTS.swing, ease: DEFAULTS.ease, looping: DEFAULTS.looping, hold: DEFAULTS.hold }) },
   set,

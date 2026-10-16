@@ -6,7 +6,7 @@ import ModuleFront from '../components/hall-of-mirrors/ModuleFront'
 import { MODULE_REGISTRY, MODULE_HEIGHT } from '../data/moduleRegistry'
 import { HAS_FRONT } from '../data/mixerModules'
 import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
-import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx, fxPath, fxCapability } from '../hooks/useCanvasFx'
+import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx, fxPath, fxCapability, expandFx } from '../hooks/useCanvasFx'
 import { buildPasses } from '../hooks/gpuFxShaders'
 import { runChain, gpuAvailable } from '../hooks/gpuFx'
 import { runSlitscan } from '../hooks/gpuSlitscan'
@@ -54,6 +54,9 @@ const H = 500
  * second one that drifts).
  */
 function runOneFx(canvas, fx, key) {
+  /* a composite (Slit-Echo) is several units in order — run each the same way */
+  const units = expandFx([fx])
+  if (units.length > 1) { units.forEach((u, i) => runOneFx(canvas, u, `${key}-${i}`)); return }
   const path = fxPath(fx.type, { gpu: gpuAvailable() })
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
 

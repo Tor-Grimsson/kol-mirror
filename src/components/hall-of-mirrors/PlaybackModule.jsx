@@ -3,6 +3,7 @@ import RotaryDial from './RotaryDial'
 import { Jack, FlipIcon } from './ChannelPatchPanel'
 import { Icon } from '../icons'
 import { transport, useTransport } from '../../hooks/transport'
+import { Scrubber } from '../mirror/TimeStrip'
 
 const MODES = [['reverse', 'REV', 'Reverse'], ['forward', 'FWD', 'Forward'], ['pingpong', 'P·P', 'Ping-pong']]
 const wrap = (x, m) => ((x % m) + m) % m
@@ -198,7 +199,7 @@ export default function PlaybackModule() {
   return (
     <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%' }}>
       <div className="flex items-center justify-between kol-helper-12 mx-2 px-3 border border-fg-08 border-b-0 shrink-0 bg-surface-tertiary" style={{ borderRadius: '4px 4px 0 0', height: '29px' }}>
-        <span className="text-fg-96">Master Clock</span>
+        <span className="text-fg-96">Transport</span>
         <span className="flex items-center gap-3">
           <span className="text-fg-96 cursor-pointer select-none" onClick={() => transport.reset()}>Reset</span>
           <FlipIcon onFlip={() => setFlipped(f => !f)} title={flipped ? 'Flip to controls' : 'Flip to clock outputs'} />
@@ -236,6 +237,9 @@ export default function PlaybackModule() {
           <RotaryDial label="EASE" value={Math.round(t.ease * 100)} min={0} max={100} defaultValue={0} onChange={(v) => transport.set({ ease: v / 100 })} variant="dense" size={30} compact />
         </div>
         <Clock t={now} />
+        {/* THE LOOP SECTION (user 2026-10-15: *"|-->----------|"*) — IN to OUT
+            with the head; drag it to move the head. Same bar as the timeline. */}
+        <Scrubber width={232} />
         {/* The key deck. Two gangs, both inside the module's 228px of usable
             width: the transport at 3 × 64 = 192, the direction keys at 3 × 52
             = 156 and narrower on purpose — a deck's shuttle row is the smaller

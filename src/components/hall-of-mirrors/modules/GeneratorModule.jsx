@@ -3,7 +3,7 @@ import RotaryDial from '../RotaryDial'
 import Divider from '../../atoms/Divider'
 import Dropdown from '../../molecules/Dropdown'
 import { GENERATOR_COMPONENTS } from '../generators'
-import { GENERATOR_VARIANTS, getDefaultParams, findVariant } from '../../../data/mirrorVariants'
+import { GENERATOR_FAMILIES, familyOf, getDefaultParams, findVariant } from '../../../data/mirrorVariants'
 import { useTransportPlaying } from '../../../hooks/transport'
 
 /**
@@ -44,7 +44,12 @@ export default function GeneratorModule({ onLoadToChannel, flipped = false, back
      one module with a dropdown. The dropdown stays: a module you can retune is
      still that module, the way monitor's LFO keeps its shape selector. */
   const [genId, setGenId] = useState(initialId)
-  const [params, setParams] = useState(() => getDefaultParams(findVariant('gen-noise').controls))
+  const [params, setParams] = useState(() => getDefaultParams((findVariant(initialId) || findVariant('gen-noise')).controls))
+  /* ONE MODULE, FOUR TYPES (user 2026-10-15). The type row picks a family; a
+     family with two engines (Noise + Field, Wave + Pattern, Gradient + Color
+     Field) gets an engine dropdown under it. Engines keep their ids, so a saved
+     patch's `gen-field` still loads into the Noise type. */
+  const family = familyOf(genId)
   const [quality, setQuality] = useState(40)
   const [enabled, setEnabled] = useState(true)
   const [preview, setPreview] = useState(true)
@@ -152,25 +157,38 @@ export default function GeneratorModule({ onLoadToChannel, flipped = false, back
               )}
             </div>
 
-            {/* Source row — flat buttons, not a dropdown: the whole point of a
+            {/* Type row — flat buttons, not a dropdown: the whole point of a
                 panel is that every choice is on the face. */}
             <div className="flex items-center gap-1 shrink-0">
-              {GENERATOR_VARIANTS.map((g) => (
+              {GENERATOR_FAMILIES.map((f) => (
                 <button
-                  key={g.id}
+                  key={f.id}
                   className={`flex-1 py-0.5 rounded-sm cursor-pointer border ${
-                    genId === g.id
-                      ? 'bg-fg-96 text-surface-primary border-fg-96'
+                    family.id === f.id
+                      ? 'bg-fg-96 border-fg-96'
                       : 'bg-transparent text-fg-32 border-fg-08 hover:text-fg-64'
                   }`}
-                  style={{ fontSize: '8px', letterSpacing: '0.04em' }}
-                  onClick={() => pickGenerator(g.id)}
-                  title={g.title}
+                  /* the lit chip's ink is the page surface — `text-surface-primary`
+                     was never a utility, so the selected label went white on white */
+                  style={{ fontSize: '8px', letterSpacing: '0.04em', ...(family.id === f.id ? { color: 'var(--kol-surface-primary)' } : null) }}
+                  onClick={() => family.id !== f.id && pickGenerator(f.engines[0])}
+                  title={f.title}
                 >
-                  {g.title.slice(0, 4).toUpperCase()}
+                  {f.label.toUpperCase()}
                 </button>
               ))}
             </div>
+
+            {family.engines.length > 1 && (
+              <Dropdown
+                options={family.engines.map((id) => ({ value: id, label: findVariant(id)?.title || id }))}
+                value={genId}
+                onChange={pickGenerator}
+                variant="minimal"
+                size="md"
+                rowHeight={24}
+              />
+            )}
 
             {selects.map((c) => (
               <Dropdown

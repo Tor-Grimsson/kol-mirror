@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { CatalogPage } from '@kolkrabbi/kol-shell'
 import useCatalogLibrary from '../components/CatalogLibrary'
 import { MODULE_REGISTRY } from '../data/moduleRegistry'
@@ -44,7 +45,19 @@ function ExprThumb({ expr }) {
 /* A patch reads as its signal path: one bar per live channel, in wire colour,
    with the master strip at the end. Cheap, and it distinguishes patches at a
    glance without rendering the actual mixer. */
-function PatchThumb({ patch }) {
+export function PatchThumb({ patch }) {
+  /* A save since 2026-10-15 carries its own frame — that IS the patch. A shipped
+     patch (or a starter copied from one) shows its output captured at build time,
+     `pnpm generate-patch-thumbs` → /previews/patches/. The wiring drawing is the
+     last resort, for an old save with neither. */
+  const [missing, setMissing] = useState(false)
+  if (patch.thumb) return <img src={patch.thumb} alt={patch.name || ''} className="size-full object-cover" />
+  const shipped = (patch.seedOf || (patch.preset ? patch.id : '')).split(':').pop()
+  if (shipped && !missing) return <img src={`/previews/patches/${shipped}.jpg`} alt={patch.name || ''} className="size-full object-cover" onError={() => setMissing(true)} />
+  return <PatchWiring patch={patch} />
+}
+
+function PatchWiring({ patch }) {
   const chans = (patch.data?.channels || []).filter((c) => c.variantId)
   const inputs = patch.data?.master?.inputs || []
   return (

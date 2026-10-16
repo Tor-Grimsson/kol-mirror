@@ -300,6 +300,10 @@ export function useMirrorState() {
     return t === 'light' ? 'light' : 'dark'
   })
   const [symphonyLayout, setSymphonyLayout] = useState('row')
+  /* THE CONSOLE (2026-10-15) — the desk as rows of one U. `rows` holds module keys
+     per row (`Console.jsx`); a key not in any row lands at the end of the last.
+     The default is the mixing desk on top and the bench below. Saved with a patch. */
+  const [symphonyConsole, setSymphonyConsole] = useState({ rows: [['ch-0', 'ch-1', 'ch-2', 'master', 'routing'], ['transport', 'generator', 'expression', 'patch', 'monitor', 'tape']], width: 0 })
   /* How the channel's units are ARRANGED — 'card' stacks them in one box (the
      original), 'modular' puts each on the desk as its own module. Same units,
      same state, two layouts: forking the state would guarantee drift, forking
@@ -413,6 +417,7 @@ export function useMirrorState() {
     if (c.loadMode) setSymphonyLoadMode(c.loadMode)
     if (c.rasterTheme) setSymphonyRasterTheme(c.rasterTheme)
     setSymphonyScreen2(c.screen2 ?? 'off')
+    if (c.console?.rows) setSymphonyConsole(c.console)
     setActiveHall('symphony')
     setSymphonyEditChannel(null)
   }, [symphonyMaster])
@@ -424,8 +429,9 @@ export function useMirrorState() {
       ratio: symphonyRatio, layout: symphonyLayout,
       customWidth: symphonyCustomWidth, customHeight: symphonyCustomHeight,
       loadMode: symphonyLoadMode, rasterTheme: symphonyRasterTheme, screen2: symphonyScreen2,
+      console: symphonyConsole,
     },
-  }, meta)), [symphonyChannels, symphonyMaster, symphonyRatio, symphonyLayout, symphonyCustomWidth, symphonyCustomHeight, symphonyLoadMode, symphonyRasterTheme, symphonyScreen2])
+  }, meta)), [symphonyChannels, symphonyMaster, symphonyRatio, symphonyLayout, symphonyCustomWidth, symphonyCustomHeight, symphonyLoadMode, symphonyRasterTheme, symphonyScreen2, symphonyConsole])
 
 
   return {
@@ -484,6 +490,7 @@ export function useMirrorState() {
     symphonyCanvasIsSvg,
     setSymphonyCanvasIsSvg,
     symphonyLoadMode,
+    symphonyConsole, setSymphonyConsole,
     setSymphonyLoadMode,
     symphonyRasterTheme,
     setSymphonyRasterTheme,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import useDomCaptureCanvas from '../../hooks/useDomCaptureCanvas'
 import MirrorVariant from '../hall-of-mirrors/MirrorVariant'
 import MovementVariant from '../hall-of-mirrors/MovementVariant'
@@ -74,6 +74,11 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   const movementImgRef = useRef(null)
   const captureReadyFired = useRef(false)
   const wrapperRef = useRef(null)
+  /* the wrapper as STATE too: the first render can take an early branch with no
+     wrapper (source still loading), and an effect keyed on capture alone never saw
+     the wrapper that mounted after — see the measure effect below */
+  const [wrapperEl, setWrapperEl] = useState(null)
+  const attachWrapper = useCallback((el) => { wrapperRef.current = el; setWrapperEl(el) }, [])
   const [wrapperSize, setWrapperSize] = useState({ width: 0, height: 0 })
 
   const isNonPixi = isDisplacementVariant(channel.variantId) || isMovementVariant(channel.variantId)
@@ -123,14 +128,26 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
 
   const isGenerator = channel.variantId?.startsWith('gen-')
 
-  // Measure wrapper size for capture canvas resolution and generators
+  /* Measure the wrapper for the capture canvas and generators — and KEEP measuring.
+     It was read once, when capture switched on; a frame not laid out yet (the Monitor
+     dock sizes it a frame later) read 0×0, nothing re-read it — and a wrapper that
+     mounted after an early branch (source still loading) was never measured at all.
+     The capture never started: every canvas FX and bus send on a DOM channel rendered
+     black (Monochrome, found 2026-10-15). */
   useEffect(() => {
-    if ((captureActive || isGenerator) && wrapperRef.current) {
-      const { width, height } = wrapperRef.current.getBoundingClientRect()
+    const el = wrapperEl
+    if (!(captureActive || isGenerator) || !el) return undefined
+    const measure = () => {
+      const { width, height } = el.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
-      setWrapperSize({ width: Math.round(width * dpr), height: Math.round(height * dpr) })
+      const next = { width: Math.round(width * dpr), height: Math.round(height * dpr) }
+      setWrapperSize((s) => (s.width === next.width && s.height === next.height ? s : next))
     }
-  }, [captureActive, isGenerator])
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [captureActive, isGenerator, wrapperEl])
 
   // DOM capture canvas for non-Pixi variants
   const { canvasRef: captureCanvasRef } = useDomCaptureCanvas({
@@ -147,10 +164,15 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   // When capture canvas is active, notify parent
   useEffect(() => {
     if (captureActive && captureCanvasRef.current && onCanvasReady && !captureReadyFired.current) {
-      captureReadyFired.current = true
-      // Small delay to let the canvas initialize and source image load
+      // Small delay to let the canvas initialize and source image load. The flag is set
+      // when the registration HAPPENS — set before the timer, a re-run inside the 200ms
+      // cleared the timer and left the flag up, and the capture was never handed to the
+      // frame buffer (one of Monochrome's two black-frame causes, 2026-10-15).
       const timer = setTimeout(() => {
-        if (captureCanvasRef.current) onCanvasReady(channelIndex, captureCanvasRef.current)
+        if (captureCanvasRef.current) {
+          onCanvasReady(channelIndex, captureCanvasRef.current)
+          captureReadyFired.current = true
+        }
       }, 200)
       return () => clearTimeout(timer)
     }
@@ -202,7 +224,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
     const genHeight = wrapperSize.height > 0 ? wrapperSize.height : 512
 
     return (
-      <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
+      <div ref={attachWrapper} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle }}>
         {hasBg && <div className="absolute inset-0" style={{ backgroundColor: channel.backgroundColor }} />}
         <GenComponent
           width={genWidth}
@@ -271,7 +293,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   // Displacement — renders MirrorVariant with its own SVG filter
   if (isDisplacementVariant(channel.variantId)) {
     return (
-      <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, ...(hasBg ? { backgroundColor: channel.backgroundColor } : {}) }}>
+      <div ref={attachWrapper} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, ...(hasBg ? { backgroundColor: channel.backgroundColor } : {}) }}>
         <MirrorVariant
           key={`${channel.variantId}-ch-${channelIndex}-r${restartKey}`}
           title={`${channel.variantId}-ch-${channelIndex}`}
@@ -305,7 +327,7 @@ export default function ChannelLayer({ channel, channelIndex, imageSrc, rasterSr
   // Movement — renders MovementVariant with GSAP transforms
   if (isMovementVariant(channel.variantId)) {
     return (
-      <div ref={wrapperRef} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, ...(hasBg ? { backgroundColor: channel.backgroundColor } : {}) }}>
+      <div ref={attachWrapper} className="absolute inset-0" style={{ opacity: channel.opacity / 100, pointerEvents: 'none', ...fxStyle, ...blendStyle, ...(hasBg ? { backgroundColor: channel.backgroundColor } : {}) }}>
         <MovementVariant
           key={`${channel.variantId}-ch-${channelIndex}-r${restartKey}`}
           title={`${channel.variantId}-ch-${channelIndex}`}

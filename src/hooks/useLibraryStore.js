@@ -60,6 +60,36 @@ export function seedLibrary(presets) {
   return copies
 }
 
+/* A patch's THUMBNAIL, replaced by hand (user 2026-10-15: *"shouldnt we be able
+   to just upload a custom thumbnail if its wrong?"*). User files only — a shipped
+   preset is read-only. Synced like any save. */
+export function setThumb(id, thumb) {
+  let changed = null
+  write(items.map((i) => (i.id === id ? (changed = { ...i, thumb, savedAt: Date.now() }) : i)))
+  if (changed) pushSave(changed)
+}
+
+/* an image file → the 320×180 JPEG a card shows, cover-cropped */
+export function fileToThumb(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const W = 320
+      const H = 180
+      const c = document.createElement('canvas')
+      c.width = W
+      c.height = H
+      const k = Math.max(W / img.naturalWidth, H / img.naturalHeight)
+      c.getContext('2d').drawImage(img, (W - img.naturalWidth * k) / 2, (H - img.naturalHeight * k) / 2, img.naturalWidth * k, img.naturalHeight * k)
+      URL.revokeObjectURL(url)
+      resolve(c.toDataURL('image/jpeg', 0.8))
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('not an image')) }
+    img.src = url
+  })
+}
+
 /* the sign-in merge (`librarySync.js`) reads the saves and writes the merged list back */
 export const getSaved = () => items
 export const replaceSaved = (next) => write(next)

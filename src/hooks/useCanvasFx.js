@@ -1,5 +1,6 @@
 // Canvas FX Modules — pixel-level post-processing on OffscreenCanvas buffers
 import { GPU_FX, CPU_ONLY } from './gpuFxShaders'
+import { transport } from './transport'
 
 export const CANVAS_FX_DEFS = [
   { id: 'chromatic', label: 'RGB Split', params: { offsetX: { default: 5, min: 0, max: 50, step: 1 }, offsetY: { default: 0, min: 0, max: 50, step: 1 } } },
@@ -13,8 +14,42 @@ export const CANVAS_FX_DEFS = [
   /* The analog chain — one unit, many knobs, because in the original these all
      run at once on the same signal rather than stacking as reorderable passes. */
   { id: 'analog', label: 'Analog TV', params: { split: { default: 25, min: 0, max: 100, step: 1 }, skew: { default: 20, min: 0, max: 100, step: 1 }, roll: { default: 0, min: 0, max: 100, step: 1 }, vhs: { default: 0, min: 0, max: 100, step: 1 }, crt: { default: 0, min: 0, max: 100, step: 1 } } },
+  /* FROM FXR'S EFFECTS SHELF (user 2026-10-15: *"I would f.e. want halftone
+     scanline dither ascii etc in a module"* — dither and ascii were here; these
+     three were not). CPU spatial passes, each a module of its own off the
+     palette (`FxModule`) and a card in /library FX. */
+  { id: 'halftone', label: 'Halftone', params: { cell: { default: 8, min: 3, max: 32, step: 1 }, gain: { default: 100, min: 20, max: 200, step: 5 }, color: { default: 0, min: 0, max: 1, step: 1 }, invert: { default: 0, min: 0, max: 1, step: 1 } } },
+  { id: 'scanline', label: 'Scanline', params: { gap: { default: 3, min: 2, max: 16, step: 1 }, dark: { default: 60, min: 0, max: 100, step: 1 }, roll: { default: 0, min: 0, max: 100, step: 1 }, glow: { default: 20, min: 0, max: 100, step: 1 } } },
+  { id: 'refraction', label: 'Refraction', params: { amount: { default: 30, min: 0, max: 100, step: 1 }, scale: { default: 24, min: 4, max: 128, step: 1 }, flow: { default: 30, min: 0, max: 100, step: 1 } } },
   { id: 'slitscan', label: 'Slitscan', params: { depth: { default: 60, min: 0, max: 100, step: 1 }, bands: { default: 24, min: 2, max: 64, step: 1 }, axis: { default: 0, min: 0, max: 1, step: 1 }, trail: { default: 0, min: 0, max: 100, step: 1 }, echo: { default: 0, min: 0, max: 100, step: 1 }, space: { default: 30, min: 0, max: 100, step: 1 }, fade: { default: 60, min: 0, max: 100, step: 1 } } },
 ]
+
+/* COMPOSITE UNITS — one panel over several units that run in order (user
+   2026-10-15, kol-monitor's SLIT-ECHO: *"a version of that in mirror, since its
+   primed for it being raster/pixel based"*). Mirror already had both halves —
+   slitscan's trail / echo / space / fade and analog's split / skew / roll / vhs /
+   crt — so the module is a front, not a new pass. Their param names do not
+   collide, so the panel's params are the union and `expandFx` hands each unit
+   its own. Expanded at the one place every chain passes through. */
+const unitDef = (id) => CANVAS_FX_DEFS.find((d) => d.id === id)
+CANVAS_FX_DEFS.push({
+  id: 'slit-echo',
+  label: 'Slit-Echo',
+  units: ['slitscan', 'analog'],
+  params: { ...unitDef('slitscan').params, ...unitDef('analog').params },
+})
+
+export function expandFx(chain) {
+  return (chain || []).flatMap((fx) => {
+    const def = unitDef(fx.type)
+    if (!def?.units) return [fx]
+    return def.units.map((u) => {
+      const keys = Object.keys(unitDef(u).params)
+      const params = Object.fromEntries(keys.filter((k) => fx.params?.[k] !== undefined).map((k) => [k, fx.params[k]]))
+      return { type: u, enabled: fx.enabled, params: { ...getDefaultCanvasFxParams(u), ...params } }
+    })
+  })
+}
 
 export const MAX_CANVAS_FX = 8
 
@@ -51,6 +86,12 @@ export function fxPath(type, { gpu = true } = {}) {
  * @returns {{runs: boolean, reason: string|null, deadParams: string[]}}
  */
 export function fxCapability(type, { gpu = true } = {}) {
+  const units = unitDef(type)?.units
+  if (units) {
+    const caps = units.map((u) => fxCapability(u, { gpu }))
+    const dead = caps.find((c) => !c.runs)
+    return { runs: !dead, reason: dead?.reason || null, deadParams: caps.flatMap((c) => c.deadParams) }
+  }
   const onCpu = !!FX_PROCESSORS[type]
   const gpuOnly = { dither: 'Dither', analog: 'Analog TV' }
   if (!onCpu && !gpu) {
@@ -453,6 +494,89 @@ export function fxSlitscan(srcData, outData, w, h, params, ctxState) {
   }
 }
 
+/* HALFTONE — one dot per cell, its radius from the cell's luminance (the
+   centre sample: a cell average is cell² reads for a picture nobody can tell
+   apart at print scale). White dots on black, the instrument's ground; INVERT
+   prints ink on paper. COLOR keeps the cell's hue in its dot. */
+function fxHalftone(srcData, outData, w, h, params) {
+  const cell = Math.max(3, params.cell | 0)
+  const gain = (params.gain ?? 100) / 100
+  const color = (params.color | 0) === 1
+  const inv = (params.invert | 0) === 1
+  const half = cell / 2
+  for (let cy = 0; cy < h; cy += cell) {
+    for (let cx = 0; cx < w; cx += cell) {
+      const sx = Math.min(w - 1, (cx + half) | 0)
+      const sy = Math.min(h - 1, (cy + half) | 0)
+      const si = (sy * w + sx) << 2
+      const r = srcData[si], g = srcData[si + 1], b = srcData[si + 2]
+      let lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255
+      if (inv) lum = 1 - lum
+      const rad = Math.min(half * 1.42, Math.sqrt(Math.min(1, lum * gain)) * half * 1.42)
+      const r2 = rad * rad
+      const ground = inv ? 255 : 0
+      const ink = color ? [r, g, b] : inv ? [0, 0, 0] : [255, 255, 255]
+      for (let y = cy; y < Math.min(h, cy + cell); y++) {
+        const dy = y - cy - half + 0.5
+        for (let x = cx; x < Math.min(w, cx + cell); x++) {
+          const dx = x - cx - half + 0.5
+          const o = (y * w + x) << 2
+          const on = dx * dx + dy * dy <= r2
+          outData[o] = on ? ink[0] : ground
+          outData[o + 1] = on ? ink[1] : ground
+          outData[o + 2] = on ? ink[2] : ground
+          outData[o + 3] = 255
+        }
+      }
+    }
+  }
+}
+
+/* SCANLINE — every GAP-th row lit, the rows between darkened by DARK; GLOW
+   bleeds a little of the lit row into its neighbour so it reads as a beam, not
+   a comb. ROLL scrolls the raster on the transport, so it stands still paused. */
+function fxScanline(srcData, outData, w, h, params) {
+  const gap = Math.max(2, params.gap | 0)
+  const dark = 1 - (params.dark ?? 60) / 100
+  const glow = (params.glow ?? 20) / 100
+  const shift = Math.floor(transport.now() * (params.roll ?? 0) * 0.4) % gap
+  for (let y = 0; y < h; y++) {
+    const k = ((y + shift) % gap + gap) % gap
+    const f = k === 0 ? 1 : k === 1 || k === gap - 1 ? dark + (1 - dark) * glow : dark
+    const row = y * w << 2
+    for (let x = 0; x < w; x++) {
+      const o = row + (x << 2)
+      outData[o] = srcData[o] * f
+      outData[o + 1] = srcData[o + 1] * f
+      outData[o + 2] = srcData[o + 2] * f
+      outData[o + 3] = srcData[o + 3]
+    }
+  }
+}
+
+/* REFRACTION — the picture through rippled glass: each pixel reads from a point
+   pushed by two crossed sines. SCALE is the ripple size, AMOUNT how far it
+   bends, FLOW how fast the glass moves on the transport. */
+function fxRefraction(srcData, outData, w, h, params) {
+  const amt = ((params.amount ?? 30) / 100) * Math.min(w, h) * 0.06
+  const sc = Math.max(4, params.scale | 0)
+  const t = transport.now() * ((params.flow ?? 30) / 100) * 2
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = Math.sin(y / sc + t) * amt + Math.sin((x + y) / (sc * 1.7) - t * 0.7) * amt * 0.5
+      const dy = Math.cos(x / sc - t * 0.8) * amt + Math.cos((x - y) / (sc * 2.1) + t * 0.5) * amt * 0.5
+      const sx = Math.min(w - 1, Math.max(0, (x + dx) | 0))
+      const sy = Math.min(h - 1, Math.max(0, (y + dy) | 0))
+      const si = (sy * w + sx) << 2
+      const o = (y * w + x) << 2
+      outData[o] = srcData[si]
+      outData[o + 1] = srcData[si + 1]
+      outData[o + 2] = srcData[si + 2]
+      outData[o + 3] = srcData[si + 3]
+    }
+  }
+}
+
 const FX_PROCESSORS = {
   'chromatic': fxChromatic,
   'ascii': fxAscii,
@@ -462,6 +586,9 @@ const FX_PROCESSORS = {
   'pixel-sort': fxPixelSort,
   'mirror': fxMirror,
   'threshold': fxThreshold,
+  'halftone': fxHalftone,
+  'scanline': fxScanline,
+  'refraction': fxRefraction,
 }
 
 /**
@@ -547,6 +674,8 @@ function isNeutral(fx) {
     case 'pixel-sort': return p.threshold >= 100                     // nothing passes the gate
     case 'slitscan': return !(p.depth > 0) && !(p.trail > 0)         // no displacement and no trail is a passthrough
     case 'analog': return !(p.split > 0) && !(p.skew > 0) && !(p.roll > 0) && !(p.vhs > 0) && !(p.crt > 0)
+    case 'scanline': return !(p.dark > 0)
+    case 'refraction': return !(p.amount > 0)
     default: return false                                            // edge-detect and mirror always transform
   }
 }
@@ -567,7 +696,7 @@ function buffers(canvas, ctx, w, h) {
 
 export function applyCanvasFx(canvas, fxChain) {
   if (!fxChain || fxChain.length === 0) return
-  const enabledFx = fxChain.filter(fx => fx.enabled && FX_PROCESSORS[fx.type] && !isNeutral(fx))
+  const enabledFx = expandFx(fxChain).filter(fx => fx.enabled && FX_PROCESSORS[fx.type] && !isNeutral(fx))
   // Every effect neutral → skip the getImageData/putImageData readback entirely.
   if (enabledFx.length === 0) return
 
