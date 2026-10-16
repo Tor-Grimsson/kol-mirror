@@ -785,8 +785,10 @@ export default function SymphonyMixer({
     const onWheel = (e) => {
       if (lockedRef.current) return
       /* a plain wheel / two-finger scroll PANS the console (it scrolled the embla
-         loop until 2026-10-15); alt / ⌘ + wheel still zooms */
-      if (!(e.altKey || e.metaKey)) {
+         loop until 2026-10-15); alt / ⌘ + wheel still zooms. A TRACKPAD PINCH
+         arrives as a wheel with ctrlKey set (user 2026-10-16: it panned instead) —
+         it zooms, at kol-monitor's pinch rate (RackViewport). */
+      if (!(e.altKey || e.metaKey || e.ctrlKey)) {
         if (e.target.closest?.('input, textarea, select, [data-scroll-own]')) return
         e.preventDefault()
         setView(v => ({ ...v, x: v.x - (e.shiftKey ? e.deltaY : e.deltaX), y: v.y - (e.shiftKey ? 0 : e.deltaY) }))
@@ -797,9 +799,28 @@ export default function SymphonyMixer({
       const cx = e.clientX - box.left
       const cy = e.clientY - box.top
       setView(v => {
-        const z = Math.max(0.25, Math.min(3, v.z * (1 - e.deltaY * 0.0015)))
+        const f = e.ctrlKey ? Math.exp(-e.deltaY * 0.01) : 1 - e.deltaY * 0.0015
+        const z = Math.max(0.25, Math.min(3, v.z * f))
         const k = z / v.z
         // hold the point under the cursor still while the scale changes
+        return { z, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }
+      })
+    }
+    /* Safari sends a trackpad pinch as gesture events, not a ctrl-wheel — same
+       zoom toward the cursor, driven by the gesture's running scale */
+    let gScale = 1
+    const onGestureStart = (e) => { e.preventDefault(); gScale = 1 }
+    const onGestureChange = (e) => {
+      e.preventDefault()
+      if (lockedRef.current) return
+      const f = e.scale / gScale
+      gScale = e.scale
+      const box = el.getBoundingClientRect()
+      const cx = e.clientX - box.left
+      const cy = e.clientY - box.top
+      setView(v => {
+        const z = Math.max(0.25, Math.min(3, v.z * f))
+        const k = z / v.z
         return { z, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }
       })
     }
@@ -863,6 +884,8 @@ export default function SymphonyMixer({
     el.addEventListener('pointerenter', onEnter)
     el.addEventListener('pointerleave', onLeave)
     el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('gesturestart', onGestureStart)
+    el.addEventListener('gesturechange', onGestureChange)
     el.addEventListener('pointerdown', onDown)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -872,6 +895,8 @@ export default function SymphonyMixer({
       el.removeEventListener('pointerenter', onEnter)
       el.removeEventListener('pointerleave', onLeave)
       el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('gesturestart', onGestureStart)
+      el.removeEventListener('gesturechange', onGestureChange)
       el.removeEventListener('pointerdown', onDown)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
