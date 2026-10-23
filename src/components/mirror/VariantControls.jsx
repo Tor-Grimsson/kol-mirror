@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Slider from '../atoms/Slider'
 import Dropdown from '../molecules/Dropdown'
 import Divider from '../atoms/Divider'
-import Icon from '../icons/Icon'
+import { Icon } from '@kolkrabbi/kol-icons'
 import ColorPicker from '../atoms/ColorPicker'
 import { getActiveTab } from '../../data/mirrorVariants'
 

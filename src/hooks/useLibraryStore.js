@@ -60,6 +60,21 @@ export function seedLibrary(presets) {
   return copies
 }
 
+/* the `app` card's Rename · Duplicate. User files only for rename; a duplicate of anything
+   (a shipped preset included) is a new user file — `seedOf` dropped so the catalog lists both. */
+export function renameInLibrary(id, name) {
+  let changed = null
+  write(items.map((i) => (i.id === id ? (changed = { ...i, name, savedAt: Date.now() }) : i)))
+  if (changed) pushSave(changed)
+}
+
+export function duplicateInLibrary(entry) {
+  const { seedOf, ...rest } = entry
+  // a shipped patch's cover is looked up by `seedOf` / preset id (PatchThumb) — the copy carries it as its own thumb
+  const shipped = entry.kind === 'patch' && !entry.thumb && (seedOf || (entry.preset ? entry.id : '')).split(':').pop()
+  return addToLibrary({ ...rest, name: `${entry.name} copy`, ...(shipped ? { thumb: `/previews/patches/${shipped}.jpg` } : {}) })
+}
+
 /* A patch's THUMBNAIL, replaced by hand (user 2026-10-15: *"shouldnt we be able
    to just upload a custom thumbnail if its wrong?"*). User files only — a shipped
    preset is read-only. Synced like any save. */

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { findVariant } from '../data/mirrorVariants'
 import Button from '../components/atoms/Button'
-import { useLibrary } from '../hooks/useLibraryStore'
+import { useLibrary, renameInLibrary, duplicateInLibrary, removeFromLibrary, exportEntry } from '../hooks/useLibraryStore'
 import { useLibrarySession } from '../hooks/librarySync'
 import { PatchThumb } from './LibraryPage'
 
@@ -119,11 +119,25 @@ export function useHomeProps() {
   const home = {
     items: (view) => (view === 'recent' ? recent : savedItems()),
     filtersTitle: 'Studio',
+    /* the DS `app` preset; HubHome hard-sets rowVariant="file", so the row is passed back too */
+    preset: 'app',
+    rowVariant: 'app',
     toCard: (item) => ({
       key: item.name,
       title: item.title,
       detail: item.detail,
       media: item.patch ? <PatchThumb patch={item.patch} /> : <img src={item.src} alt={item.alt} />,
+      /* a saved patch carries fxr's file contract (plan 39); the Empty Studio and memory slots are not files */
+      ...(item.patch && {
+        date: item.patch.savedAt,
+        size: new Blob([JSON.stringify(item.patch)]).size,
+        verbs: {
+          rename: (name) => renameInLibrary(item.patch.id, name),
+          duplicate: () => duplicateInLibrary(item.patch),
+          remove: () => removeFromLibrary(item.patch.id),
+        },
+        download: () => exportEntry(item.patch),
+      }),
       onClick: item.patch
         ? () => navigate('/studio', { state: { patch: item.patch } })
         : item.slotIndex != null

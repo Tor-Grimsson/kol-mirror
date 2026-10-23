@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Icon from '../../components/icons/Icon'
+import { Icon } from '@kolkrabbi/kol-icons'
 
 /**
  * IconsPage — /icons, every glyph in mirror's local registry, searchable

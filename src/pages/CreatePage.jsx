@@ -428,7 +428,7 @@ export default function CreatePage() {
                   {items.map((m) => (
                     <div key={m.id} onPointerDown={(e) => handleModuleDragStart(m, e)} style={{ opacity: canPlace(m) ? 1 : 0.4 }}>
                       <ContentCard
-                        variant="catalog"
+                        variant="app"
                         /* 0.3 preview scale below the fold, 0.5 above */
                         fit={narrow ? 'compact' : 'natural'}
                         title={m.name}
@@ -456,7 +456,7 @@ export default function CreatePage() {
                 {items.map((m) => (
                   <div key={m.id} onPointerDown={(e) => handleModuleDragStart(m, e)}>
                     <ContentRow
-                      variant="catalog"
+                      variant="app"
                       title={m.name}
                       detail={detail(m)}
                       actions={insertAction(m)}

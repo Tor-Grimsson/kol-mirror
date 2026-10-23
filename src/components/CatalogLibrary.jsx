@@ -4,7 +4,7 @@ import usePersistedState from '../hooks/usePersistedState'
 import ModuleMedia from './ModuleMedia'
 import Button from '../components/atoms/Button.jsx'
 import { slugFor } from '../data/moduleRegistry.js'
-import { exportEntry, importEntry, removeFromLibrary, setThumb, fileToThumb } from '../hooks/useLibraryStore.js'
+import { exportEntry, importEntry, removeFromLibrary, renameInLibrary, duplicateInLibrary, setThumb, fileToThumb } from '../hooks/useLibraryStore.js'
 
 /* the card's Thumb menu row: pick an image, it becomes the patch's thumbnail */
 function pickThumb(id) {
@@ -75,14 +75,20 @@ export default function useCatalogLibrary({ storageKey, views, viewsConfig, medi
         detail: item.detail,
         media: media?.(item),
         date: item.entry.savedAt,
-        /* the `app` card (MirrorLibraryOnAppPreset): trash confirms through the DS; Export and Thumb ride the cog / right-click */
-        verbs: item.entry.preset ? undefined : { remove: () => removeFromLibrary(item.entry.id) },
-        menuItems: (
-          <>
-            <MenuDropdownItem onClick={() => exportEntry(item.entry)}>Export</MenuDropdownItem>
-            {!item.entry.preset && item.entry.kind === 'patch' && <MenuDropdownItem onClick={() => pickThumb(item.entry.id)}>Thumb</MenuDropdownItem>}
-          </>
-        ),
+        size: new Blob([JSON.stringify(item.entry)]).size,
+        /* the `app` card (MirrorLibraryOnAppPreset): Export is the cover's download; Rename prompts and
+           Delete confirms through the DS; a shipped preset can only be duplicated; Thumb rides the cog */
+        download: () => exportEntry(item.entry),
+        verbs: item.entry.preset
+          ? { duplicate: () => duplicateInLibrary(item.entry) }
+          : {
+              rename: (name) => renameInLibrary(item.entry.id, name),
+              duplicate: () => duplicateInLibrary(item.entry),
+              remove: () => removeFromLibrary(item.entry.id),
+            },
+        menuItems: !item.entry.preset && item.entry.kind === 'patch'
+          ? <MenuDropdownItem onClick={() => pickThumb(item.entry.id)}>Thumb</MenuDropdownItem>
+          : undefined,
         onClick: () => item.entry.kind === 'patch'
           ? navigate('/studio', { state: { patch: item.entry } })
           : navigate('/studio', { state: { expr: item.entry.data.expr } }),

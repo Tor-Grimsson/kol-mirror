@@ -46,3 +46,5 @@ Reference: kol-ds-ui `apps/catalog` (Variants → Preset **App**) and the showca
 - [x] No grey Export / Thumb / Remove buttons left on any card (DOM count 0). No console errors.
 
 Screenshots: `_tmp/2026-10-23-app-preset/`.
+
+**Completed 2026-10-23 (second pass):** the rest of the card spec wired. `useLibraryStore.js` gains `renameInLibrary` / `duplicateInLibrary`; a user file passes `verbs: { rename, duplicate, remove }`, a shipped preset `{ duplicate }`; Export moved off the cog onto the cover as `download`; `size` passed (the entry's JSON bytes). Thumb stays in `menuItems`. A duplicate of a shipped patch carries its cover as `thumb`. Home (`preset: 'app'` + `rowVariant: 'app'`, HubHome hard-sets `file`) and `/create` (`variant="app"`) moved too. Verified on screen: duplicate → rename (prompt) → trash (confirm *Delete “Renamed Halls”?*) all wrote through; home grid + list and `/create` modules draw the `app` card; 0 console errors. Screenshots in `_tmp/2026-10-23-app-preset/`.

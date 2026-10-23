@@ -1,7 +1,7 @@
 // Subpath import — the barrel export pulls every organism into the bundle
 // (+5.5MB). Upstream ships deep exports since kol-component@0.35.0.
 import DSButton from '@kolkrabbi/kol-component/atoms/Button'
-import Icon from '../icons/Icon'
+import { Icon } from '@kolkrabbi/kol-icons'
 
 /**
  * Button — thin adapter over the DS Button (@kolkrabbi/kol-component).

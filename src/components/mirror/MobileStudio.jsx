@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { DISPLACEMENT_VARIANTS, MOVEMENT_VARIANTS, COPIES_VARIANTS, findVariant } from '../../data/mirrorVariants'
 import MirrorViewport from './MirrorViewport'
 import VariantControls from './VariantControls'
-import Icon from '../icons/Icon'
+import { Icon } from '@kolkrabbi/kol-icons'
 import { ShellDrawer, SegmentedToggle, ContentRow, Button } from '@kolkrabbi/kol-component'
 
 /**

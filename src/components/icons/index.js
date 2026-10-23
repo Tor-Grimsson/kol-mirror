@@ -5,7 +5,9 @@
  * Usage: <Icon name="arrow-up" size={16} />
  */
 
-export { default as Icon } from './Icon.jsx'
+/* the DS <Icon> (2026-10-23, user: "use DS ICONS"): mirror's own glyphs are registered at boot
+   (App.jsx registerIcons) for names the DS does not draw; every shared name renders the DS glyph */
+export { Icon } from '@kolkrabbi/kol-icons'
 
 // Icon Registry - Complete list of all 221 icons
 export const ICONS = {
