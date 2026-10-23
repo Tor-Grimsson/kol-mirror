@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
+import { MenuDropdownItem } from '@kolkrabbi/kol-component'
 import usePersistedState from '../hooks/usePersistedState'
 import ModuleMedia from './ModuleMedia'
 import Button from '../components/atoms/Button.jsx'
 import { slugFor } from '../data/moduleRegistry.js'
 import { exportEntry, importEntry, removeFromLibrary, setThumb, fileToThumb } from '../hooks/useLibraryStore.js'
 
-/* the card's Thumb button: pick an image, it becomes the patch's thumbnail */
+/* the card's Thumb menu row: pick an image, it becomes the patch's thumbnail */
 function pickThumb(id) {
   const input = document.createElement('input')
   input.type = 'file'
@@ -73,11 +74,13 @@ export default function useCatalogLibrary({ storageKey, views, viewsConfig, medi
         title: item.title,
         detail: item.detail,
         media: media?.(item),
-        actions: (
+        date: item.entry.savedAt,
+        /* the `app` card (MirrorLibraryOnAppPreset): trash confirms through the DS; Export and Thumb ride the cog / right-click */
+        verbs: item.entry.preset ? undefined : { remove: () => removeFromLibrary(item.entry.id) },
+        menuItems: (
           <>
-            <Button tone="grey" size="sm" onClick={(e) => { e.stopPropagation(); exportEntry(item.entry) }}>Export</Button>
-            {!item.entry.preset && item.entry.kind === 'patch' && <Button tone="grey" size="sm" onClick={(e) => { e.stopPropagation(); pickThumb(item.entry.id) }} title="Upload a custom thumbnail">Thumb</Button>}
-            {!item.entry.preset && <Button tone="grey" size="sm" onClick={(e) => { e.stopPropagation(); removeFromLibrary(item.entry.id) }}>Remove</Button>}
+            <MenuDropdownItem onClick={() => exportEntry(item.entry)}>Export</MenuDropdownItem>
+            {!item.entry.preset && item.entry.kind === 'patch' && <MenuDropdownItem onClick={() => pickThumb(item.entry.id)}>Thumb</MenuDropdownItem>}
           </>
         ),
         onClick: () => item.entry.kind === 'patch'
@@ -107,6 +110,7 @@ export default function useCatalogLibrary({ storageKey, views, viewsConfig, medi
     filterGroups: view.filterGroups.filter((g) => g.values.length),
     searchKeys: ['title', 'name', 'kind', 'group', 'detail'],
     toCard,
+    preset: 'app',
     listLayout: 'stack',
     views,
     view: tab,
