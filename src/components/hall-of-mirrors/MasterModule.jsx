@@ -600,7 +600,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                 { key: 'effects', icon: 'frequency', title: 'Effects', iconSize: 18 },
                 { key: 'color', icon: 'layers', title: 'Color & Blend' },
                 { key: 'master', icon: 'circle', title: 'Master' },
-                { key: 'aux-fx', icon: 'atomic-molecule', title: 'AUX / FX Returns' },
+                { key: 'aux-fx', icon: 'atomic-molecule-04', title: 'AUX / FX Returns' },
               ].map(btn => (
                 <div
                   key={btn.key}

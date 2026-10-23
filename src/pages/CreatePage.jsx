@@ -529,10 +529,10 @@ export default function CreatePage() {
               className={`cursor-pointer ${channels.length ? 'text-oq-80 hover:text-oq-96' : 'text-oq-32'}`}
               style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0 }}
             >
-              <Icon name="flip-y" size={20} />
+              <Icon name="flip-vertical" size={20} />
             </button>
             <button type="button" onClick={() => setDots((v) => !v)} title="Dot grid" className="text-oq-80 hover:text-oq-96 cursor-pointer" style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0, opacity: dots ? 1 : 0.4 }}>
-              <Icon name="grid-02" size={20} />
+              <Icon name="maximize" size={20} />
             </button>
             <button type="button" onClick={clear} title="Clear the mixer" className="text-oq-80 hover:text-oq-96 cursor-pointer" style={{ background: 'none', border: 'none', padding: 8, lineHeight: 0 }}>
               <Icon name="x" size={20} />

@@ -178,7 +178,7 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                 onClick={() => { if (shelfOpen && shelfTab === 'output') { setShelfOpen(false) } else { setShelfTab('output'); setShelfOpen(true) } }}
                 title="Channel Output"
               >
-                <Icon name="settings-02" size={16} />
+                <Icon name="settings-01" size={16} />
               </div>
             </div>
           </div>

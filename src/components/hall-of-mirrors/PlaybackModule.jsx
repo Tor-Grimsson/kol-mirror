@@ -256,13 +256,13 @@ export default function PlaybackModule() {
           </div>
           <Gang width={232}>
             <Key down={!t.playing} onClick={() => transport.pause()} title="Pause (Space)">
-              <Icon name="control-pause" size={16} />
+              <Icon name="pause" size={16} />
             </Key>
             <Key down={false} onClick={() => transport.stop()} title="Stop — back to 0">
-              <Icon name="control-stop" size={16} />
+              <Icon name="stop" size={16} />
             </Key>
             <Key down={t.playing} onClick={() => transport.play()} title="Play (Space)">
-              <Icon name="control-play" size={16} />
+              <Icon name="play" size={16} />
             </Key>
           </Gang>
           {/* No silkscreen over this gang — the caps carry their own legend,

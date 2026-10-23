@@ -266,7 +266,7 @@ function ShellBody() {
           ),
         }}
         create={{ children: <CreatePage /> }}
-        use={{ path: '/studio', label: 'Studio', icon: 'nav-studio', children: <MirrorPlayground /> }}
+        use={{ path: '/studio', label: 'Studio', icon: 'rack-h', children: <MirrorPlayground /> }}
         /* Dev is kol-shell's HubDev (2026-10-22): a dev server's page only, the local DevPage retired to
            `_tmp/2026-10-22-dev-page/`. Expression left it for the studio's Expressions tab. */
         dev={{ subtitle: 'Experiments and reference — nothing here is the app', tabs: DEV_TABS }}

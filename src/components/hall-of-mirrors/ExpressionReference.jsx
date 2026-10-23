@@ -267,7 +267,7 @@ export function Oscilloscope({ expr, setExpr, expanded, setExpanded, fitRequest 
       </div>
       <div className="flex items-center justify-between pt-1 kol-helper-xs-2" style={{ height: '24px' }}>
         <span className="text-fg-64 cursor-pointer select-none hover:text-fg-96 flex items-center gap-1" onClick={fit}><Icon name="maximize" size={12} /> Fit</span>
-        <span className="text-fg-64 cursor-pointer select-none hover:text-fg-96 flex items-center gap-1" onClick={() => setExpanded(!expanded)}><Icon name="grid-05" size={12} /> {expanded ? 'Collapse' : 'Expand'}</span>
+        <span className="text-fg-64 cursor-pointer select-none hover:text-fg-96 flex items-center gap-1" onClick={() => setExpanded(!expanded)}><Icon name="dith-grid" size={12} /> {expanded ? 'Collapse' : 'Expand'}</span>
         <span className="text-fg-64 cursor-pointer select-none hover:text-fg-96 flex items-center gap-1" onClick={() => { setZoomX(1); setZoomY(1); setPanX(0); setPanY(0) }}><Icon name="refresh" size={14} /> Reset</span>
       </div>
       <Divider className="py-2" />

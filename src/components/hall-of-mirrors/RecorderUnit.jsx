@@ -164,15 +164,15 @@ export default function RecorderUnit({
                   {isActive ? (
                     <div className="flex items-center" style={{ gap: '2px' }}>
                       <span className="cursor-pointer select-none" style={{ color: '#2dd4bf' }} onClick={() => onRecPauseToggle && onRecPauseToggle()}>
-                        <Icon name={recPaused ? 'control-play' : 'control-pause'} size={16} />
+                        <Icon name={recPaused ? 'play' : 'pause'} size={16} />
                       </span>
                       <span className="cursor-pointer select-none" style={{ color: '#2dd4bf' }} onClick={() => onClearActiveRecSlot()}>
-                        <Icon name="control-stop" size={16} />
+                        <Icon name="stop" size={16} />
                       </span>
                     </div>
                   ) : (
                     <span className="cursor-pointer select-none" style={{ color: '#2dd4bf' }} onClick={() => onSetActiveRecSlot(si)}>
-                      <Icon name="control-play" size={16} />
+                      <Icon name="play" size={16} />
                     </span>
                   )}
                 </div>

@@ -1040,7 +1040,7 @@ export default function SymphonyMixer({
           ...(mixerTab === 'mixer' ? [{
             key: 'patch',
             label: allFlipped ? 'Controls' : 'Patch',
-            icon: 'flip-y',
+            icon: 'flip-vertical',
             active: allFlipped,
             title: allFlipped ? 'Flip all to controls (P)' : 'Flip all to patch bays (P)',
             onClick: () => setFlippedCards(allFlipped ? {} : { ...Object.fromEntries(channels.map((_, i) => [i, true])), master: true, routing: true }),
@@ -1087,7 +1087,7 @@ export default function SymphonyMixer({
             />
           )}
           <IconToggle
-            icon="grid-02"
+            icon="maximize"
             label="Dot grid"
             title={dots ? 'Hide dot grid (G)' : 'Show dot grid (G)'}
             pressed={dots}

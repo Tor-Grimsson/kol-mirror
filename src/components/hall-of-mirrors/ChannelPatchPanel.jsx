@@ -27,10 +27,10 @@ const SEND_LABEL = { aux1: 'AUX 1', aux2: 'AUX 2', rtn1: 'RTN 1', rtn2: 'RTN 2',
 /* The flip control, in the header of every face — a real slot, not an overlay
    (it sat over the master's Reset). `onFlip` absent = the decorative mark. */
 export function FlipIcon({ onFlip, title = 'Flip', size = 12 }) {
-  if (!onFlip) return <Icon name="flip-y" size={size} className="text-oq-32" />
+  if (!onFlip) return <Icon name="flip-vertical" size={size} className="text-oq-32" />
   return (
     <span className="cursor-pointer select-none text-oq-32 hover:text-oq-96 flex" onClick={onFlip} title={title}>
-      <Icon name="flip-y" size={size} />
+      <Icon name="flip-vertical" size={size} />
     </span>
   )
 }
