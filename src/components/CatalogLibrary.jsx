@@ -82,7 +82,7 @@ export default function useCatalogLibrary({ storageKey, views, viewsConfig, medi
         ),
         onClick: () => item.entry.kind === 'patch'
           ? navigate('/studio', { state: { patch: item.entry } })
-          : navigate('/dev', { state: { expr: item.entry.data.expr } }),
+          : navigate('/studio', { state: { expr: item.entry.data.expr } }),
       }
     : item.slotIndex != null
     ? {

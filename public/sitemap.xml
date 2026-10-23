@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- the rail's pages (front-door, 2026-10-22); add a row when the rail gains one -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://mirror.kolkrabbi.io/</loc></url>
+  <url><loc>https://mirror.kolkrabbi.io/library</loc></url>
+  <url><loc>https://mirror.kolkrabbi.io/create</loc></url>
+  <url><loc>https://mirror.kolkrabbi.io/studio</loc></url>
+  <url><loc>https://mirror.kolkrabbi.io/settings</loc></url>
+</urlset>

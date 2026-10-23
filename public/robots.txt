@@ -1,0 +1,6 @@
+# Mirror is a front door — indexable. The dev page is not.
+User-agent: *
+Allow: /
+Disallow: /dev
+
+Sitemap: https://mirror.kolkrabbi.io/sitemap.xml

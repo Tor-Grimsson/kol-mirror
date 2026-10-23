@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation } from 'react-router-dom'
 import Slider from '../atoms/Slider'
 import { Icon } from '../icons'
 import { IconToggle } from '@kolkrabbi/kol-component'
@@ -21,7 +22,7 @@ import FxModule from './modules/FxModule'
 import { fxKey, isFxKey } from '../../hooks/patchGraph'
 import { CANVAS_FX_DEFS } from '../../hooks/useCanvasFx'
 import { WIRE_COLORS } from './wireColors'
-import ExpressionReference from './ExpressionReference'
+import ExpressionBench from './ExpressionBench'
 import Dropdown from '../molecules/Dropdown'
 import GrabEdge from '../GrabEdge'
 import MediaBrowser from './MediaBrowser'
@@ -906,7 +907,9 @@ export default function SymphonyMixer({
     }
   }, [])
 
-  const [mixerTab, setMixerTab] = useState('mixer')
+  /* a Library expression card lands here, on the Expressions tab */
+  const deepExpr = useLocation().state?.expr
+  const [mixerTab, setMixerTab] = useState(deepExpr ? 'expressions' : 'mixer')
   // Flip-to-patch (2026-08-12) — per-channel card flip + pending patch source
   const [flippedCards, setFlippedCards] = useState({})
   const [pendingOut, setPendingOut] = useState(null)
@@ -1410,7 +1413,7 @@ export default function SymphonyMixer({
       </DeskTrack>
       </div>
       </div>{/* close the zoom/pan layer */}
-      {mixerTab === 'expressions' && <ExpressionReference />}
+      {mixerTab === 'expressions' && <ExpressionBench key={deepExpr ?? ''} />}
       </div>{/* close relative wrapper */}
       </PatchJacksProvider>
 

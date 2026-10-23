@@ -451,6 +451,8 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
      slot and follows it through the desk's pan and zoom; OVERLAY, it floats as
      before. The frame never re-mounts — only its box moves. */
   const [frameDocked, setFrameDocked] = useState(true)
+  /* the slot is on a hidden desk (the Expressions tab) — a docked window goes with it */
+  const [slotOff, setSlotOff] = useState(false)
   const [monitorWidth, setMonitorWidth] = useState(360)
   const slotElRef = useRef(null)
   const slotRef = useCallback((el) => { slotElRef.current = el }, [])
@@ -846,6 +848,7 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
       const el = slotElRef.current
       const r = rootRef.current
       if (!el || !r) return
+      setSlotOff(!el.checkVisibility({ visibilityProperty: true }))
       const a = el.getBoundingClientRect()
       const o = r.getBoundingClientRect()
       if (a.width <= 0) return
@@ -1124,7 +1127,7 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
 
   /* the float arrangement swaps the stage for a window; the monitor inside is the same tree */
   const Stage = floating ? FloatingFrame : InfiniteCanvas
-  const stageProps = floating ? { frame, hidden: frameHidden, docked: frameDocked, onClose: () => setFrameHidden(true) } : { style: { flex: 1, minHeight: 0 } }
+  const stageProps = floating ? { frame, hidden: frameHidden || (frameDocked && slotOff), docked: frameDocked, onClose: () => setFrameHidden(true) } : { style: { flex: 1, minHeight: 0 } }
   /* and the monitor inside it: a bare frame in the window, the bezel on the stage */
   const Screen = floating ? Frame : Bezel
 

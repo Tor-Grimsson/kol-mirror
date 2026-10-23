@@ -7,7 +7,11 @@ import logomarkUrl from '@kolkrabbi/kol-brand/svg/favicon-01.svg?url'
 import { Icon as DSIcon, registerIcons } from '@kolkrabbi/kol-icons'
 import { useHomeProps } from './pages/HomePage'
 import LibrarySheet from './pages/LibraryPage'
-import DevPage from './pages/DevPage'
+import WideOnly from './components/WideOnly'
+import Tape from './pages/dev/Tape'
+import Fronts from './pages/dev/Fronts'
+import Icons from './pages/dev/Icons'
+import ConsoleSkin from './pages/dev/Console'
 import CreatePage from './pages/CreatePage'
 import { CreateDeskProvider } from './hooks/useCreateDesk'
 import ModuleDetailPage from './pages/ModuleDetailPage'
@@ -63,6 +67,13 @@ const SETTINGS = {
    does not — fell through and logged "not found in icon set" every render.
    Registered names also resolve synchronously, with no wait on the packaged
    async chunk. `03-custom.md` in the DS docs is the page for this. */
+const DEV_TABS = [
+  { value: 'tape', label: 'Tape', content: <Tape /> },
+  { value: 'fronts', label: 'Fronts', content: <WideOnly what="The front sketchbook"><Fronts /></WideOnly> },
+  { value: 'icons', label: 'Icons', content: <WideOnly what="The icon sheet"><Icons /></WideOnly> },
+  { value: 'console', label: 'Console', content: <WideOnly what="The console skin"><ConsoleSkin /></WideOnly> },
+]
+
 registerIcons(import.meta.glob('./components/icons/svg/**/*.svg', { eager: true, query: '?raw', import: 'default' }))
 
 /**
@@ -234,7 +245,7 @@ function ShellBody() {
           Studio · Dev · Settings. Library is Modules · Patches, monitor's shape, with every module's
           page under it; the Studio is the float arrangement, the monitor a bare frame; Expression is
           a module on the desk, not a row; the Mixer sheet, Tape, Fronts and Icons are gone from the
-          rail — the three sketchbooks live under Dev. */}
+          rail — the sketchbooks live under Dev. */}
       <AppStudio
         app={APP}
         currentPath={location.pathname}
@@ -256,9 +267,9 @@ function ShellBody() {
         }}
         create={{ children: <CreatePage /> }}
         use={{ path: '/studio', label: 'Studio', icon: 'nav-studio', children: <MirrorPlayground /> }}
-        pages={[
-          { path: '/dev', icon: 'component', label: 'Dev', children: <DevPage /> },
-        ]}
+        /* Dev is kol-shell's HubDev (2026-10-22): a dev server's page only, the local DevPage retired to
+           `_tmp/2026-10-22-dev-page/`. Expression left it for the studio's Expressions tab. */
+        dev={{ subtitle: 'Experiments and reference — nothing here is the app', tabs: DEV_TABS }}
         settings={SETTINGS}
         /* `drawer` below 768, not the Hub's phone bar — the bar and the studio's bottom sheet would
            both own the phone's bottom edge */

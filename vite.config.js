@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { THEME_BOOT_SCRIPT } from '@kolkrabbi/kol-framework/src/theme.js'
+import { devFavicon, loaderApp } from '@kolkrabbi/kol-framework/vite'
 
 /* The no-flash theme boot — kol-framework's own snippet (0.28.0), inlined
    before the app script so the stored choice stamps data-theme pre-paint.
@@ -15,7 +16,7 @@ const themeBoot = {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), themeBoot],
+  plugins: [react(), tailwindcss(), devFavicon({ label: 'W', ground: '#49A0A2', ink: '#000000' }), themeBoot, loaderApp({ graphic: 'public/svg/wordmark.svg', size: 332 })],
   // THE RAW-SOURCE KOL PACKAGES ARE NOT PRE-BUNDLED. They publish JSX, and two
   // things in them break under the dep optimizer: kol-icons builds its registry
   // via `import.meta.glob(...svg)`, which only expands when Vite source-transforms
