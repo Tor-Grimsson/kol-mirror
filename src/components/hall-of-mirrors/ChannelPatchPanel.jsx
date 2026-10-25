@@ -4,6 +4,9 @@ import { Icon } from '../icons'
 import { usePatchJacks, patchDrag } from './patchJacksContext'
 import Divider from '../atoms/Divider'
 import { WIRE_COLORS } from './wireColors'
+import { listCables, removeCable } from '../../hooks/patchGraph'
+import { cableLabels } from '../../data/cableLabels'
+import { StripPort } from './modules/JackStrip'
 
 /**
  * ChannelPatchPanel — the BACK of a flipped channel card (2026-08-12,
@@ -148,13 +151,14 @@ export function Jack({ connected, pending, onClick, title, jackId, source, onDro
  * OUT patches its send here; click a lit jack to clear every send into that
  * bus) + RTN OUT jacks as loop sources.
  */
-export function MasterPatchPanel({ channels, onChannelUpdate, master, onMasterChange, pendingOut, setPendingOut, screen2 = 'off', setScreen2, onFlip }) {
-  /* IN 1-3 — the master's input slots (user, 2026-08-27: "the point of
-     modularity is NOT to set anything, USER sets"). Any channel OUT into any
-     IN; the slot is `master.inputs[n]`, and patching turns the channel on. */
+/**
+ * MasterInJacks — the master's IN 1–3, on its FRONT strip (plan 11 § 3.1). The jacks and drop rules the back carried:
+ * IN 1-3 are the master's input slots (user, 2026-08-27: "the point of modularity is NOT to set anything, USER
+ * sets"). Any channel OUT into any IN; the slot is `master.inputs[n]`, and patching turns the channel on.
+ */
+export function MasterInJacks({ channels, onChannelUpdate, master, onMasterChange, pendingOut, setPendingOut }) {
   const inputs = master?.inputs || [null, null, null]
   const setInput = (n, src) => onMasterChange?.({ inputs: inputs.map((v, i) => (i === n ? src : v)) })
-  /* an FX module's OUT goes into a slot as its key (2026-10-03) — it is a source like a channel is */
   const patchInput = (n, src) => {
     if (src.type === 'fxm') { setInput(n, src.key); return }
     if (src.type !== 'ch') return
@@ -165,6 +169,88 @@ export function MasterPatchPanel({ channels, onChannelUpdate, master, onMasterCh
     if (pendingOut?.type === 'ch' || pendingOut?.type === 'fxm') { patchInput(n, pendingOut); setPendingOut(null); return }
     if (inputs[n] != null) setInput(n, null)
   }
+  return inputs.map((src, n) => (
+    <StripPort key={n} label={`IN ${n + 1}`}>
+      <Jack
+        jackId={`mst-in-${n}`}
+        connected={src != null}
+        color={typeof src === 'number' ? wireOf(src) : undefined}
+        pending={(pendingOut?.type === 'ch' || pendingOut?.type === 'fxm') && src == null}
+        onClick={() => onInput(n)}
+        onDrop={(s) => patchInput(n, s)}
+        title={src != null ? `${srcLabel(src)} → IN ${n + 1} — click to unpatch` : `IN ${n + 1} — drop a channel OUT here`}
+      />
+    </StripPort>
+  )).concat(
+    /* the mix's OUT — hardwired to the Monitor's IN: the one cable nobody patches, drawn so it is seen */
+    <StripPort key="out" label="OUT" end>
+      <Jack jackId="mst-out" connected title="Master OUT — wired to the Monitor" />
+    </StripPort>,
+  )
+}
+
+/**
+ * RoutingJacks — the Routing Matrix's front jack row (plan 16 W6, user: *"routing matrix has no in or outs in the
+ * bottom footer like other modules?"*). IN CH 1–3: lit while that channel sends into the matrix (its knobs set the
+ * levels, a channel is not cabled in). OUT R1 · R2: the two returns, real sources — drag one to a channel IN or a
+ * master IN, as from the back's BUS OUT.
+ */
+export function RoutingJacks({ channels = [], pendingOut, setPendingOut }) {
+  return channels.map((ch, i) => (
+    <StripPort key={`in-${i}`} label={`CH ${i + 1}`}>
+      <Jack jackId={`rt-ch-${i}-in`} connected={!!ch.enabled && Object.values(ch.sends || {}).some((v) => v > 0)} color={wireOf(i)} title={`CH ${i + 1} into the matrix — set by its knobs`} />
+    </StripPort>
+  )).concat(['rtn1', 'rtn2'].map((key, n) => (
+    <StripPort key={key} label={`R${n + 1}`} end={n === 0}>
+      <Jack
+        jackId={`rt-${key}-out`}
+        connected={channels.some((c) => c.routeFrom === key)}
+        pending={pendingOut?.type === 'bus' && pendingOut.key === key}
+        source={{ type: 'bus', key }}
+        onClick={() => setPendingOut?.((p) => (p?.type === 'bus' && p.key === key ? null : { type: 'bus', key }))}
+        title={`${SEND_LABEL[key]} out — drag to a channel IN`}
+      />
+    </StripPort>
+  )))
+}
+
+/**
+ * MonitorJacks — the Monitor module's two sides (plan 11 § 3.1): IN on the front strip (the master's OUT, hardwired)
+ * and Screen 2's IN on the back — the MON IN the master's back also carries, the same `screen2` field.
+ */
+export function MonitorJacks({ screen2 = 'off', setScreen2, pendingOut, setPendingOut }) {
+  const monFrom = /^\d+$/.test(screen2) ? +screen2 : null
+  const onMonIn = () => {
+    if (pendingOut?.type === 'ch') { setScreen2?.(String(pendingOut.idx)); setPendingOut(null); return }
+    if (monFrom != null) setScreen2?.('off')
+  }
+  return {
+    strip: (
+      <StripPort label="IN">
+        <Jack jackId="mon-in" connected title="IN — the Master OUT, wired" />
+      </StripPort>
+    ),
+    back: (
+      <div className="flex flex-col h-full bg-surface-secondary border border-fg-08 kol-helper-12" style={{ borderRadius: 4, padding: 12, gap: 8 }}>
+        <span className="flex items-center" style={{ gap: 6 }}>
+          <Jack
+            jackId="mon-in-2"
+            connected={monFrom != null}
+            color={monFrom != null ? wireOf(monFrom) : undefined}
+            pending={pendingOut?.type === 'ch' && monFrom == null}
+            onClick={onMonIn}
+            onDrop={(src) => { if (src.type === 'ch') setScreen2?.(String(src.idx)) }}
+            title={monFrom != null ? `Ch ${monFrom + 1} on Screen 2 — click to unpatch` : 'SCREEN 2 IN — drop a channel OUT here'}
+          />
+          <span className="text-fg-64">SCREEN 2 IN</span>
+          <span className="text-fg-32">{monFrom != null ? `CH ${monFrom + 1}` : '—'}</span>
+        </span>
+      </div>
+    ),
+  }
+}
+
+export function MasterPatchPanel({ channels, onChannelUpdate, pendingOut, setPendingOut, screen2 = 'off', setScreen2 }) {
   const busConnected = (key) => channels.some(ch => (ch.sends?.[key] || 0) > 0)
   // A click toggles the send; a dropped cable always connects (level 100).
   const patchSend = (idx, key, level) => {
@@ -191,32 +277,8 @@ export function MasterPatchPanel({ channels, onChannelUpdate, master, onMasterCh
 
   return (
     <div className="flex flex-col h-full bg-surface-secondary border border-fg-08 kol-helper-12" style={{ borderRadius: 4, padding: 12, gap: 8, overflowY: 'auto' }}>
-      <div className="flex items-center justify-between" style={{ height: 20 }}>
-        <span className="text-fg-96">Master · Patch</span>
-        <FlipIcon onFlip={onFlip} />
-      </div>
-
-      <div>
-        <div className="text-fg-32" style={{ marginBottom: 6 }}>IN</div>
-        <div className="flex items-center" style={{ gap: 10 }}>
-          {inputs.map((src, n) => (
-            <span key={n} className="flex items-center" style={{ gap: 4 }}>
-              <Jack
-                jackId={`mst-in-${n}`}
-                connected={src != null}
-                color={typeof src === 'number' ? wireOf(src) : undefined}
-                pending={(pendingOut?.type === 'ch' || pendingOut?.type === 'fxm') && src == null}
-                onClick={() => onInput(n)}
-                onDrop={(s) => patchInput(n, s)}
-                title={src != null ? `${srcLabel(src)} → IN ${n + 1} — click to unpatch` : `IN ${n + 1} — drop a channel OUT here`}
-              />
-              <span className="text-fg-64">IN {n + 1}</span>
-              <span className="text-fg-32">{src != null ? srcLabel(src).toUpperCase() : '—'}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
+      {/* the header is the module's tab now (outside the flip), and IN 1–3 face out on the front strip
+          (`MasterInJacks`, plan 11 § 3.1) — the back is MON · BUS IN · RTN OUT */}
       <div className="flex items-center" style={{ gap: 6 }}>
         <Jack
           jackId="mst-mon"
@@ -424,45 +486,27 @@ function MatrixBay({ channels, onChannelUpdate, master, onMasterChange, screen2,
   )
 }
 
-export function RoutingPatchPanel({ channels, onChannelUpdate, master, onMasterChange, screen2 = 'off', setScreen2, onFlip, pendingOut, setPendingOut }) {
-  const rows = []
-  const inputs = master?.inputs || []
-  inputs.forEach((src, n) => {
-    if (src != null) rows.push({ key: `in-${n}`, label: `${srcLabel(src).toUpperCase()} → MASTER IN ${n + 1}`, color: typeof src === 'number' ? wireOf(src) : undefined, off: () => onMasterChange?.({ inputs: inputs.map((v, i) => (i === n ? null : v)) }) })
-  })
-  if (/^\d+$/.test(screen2)) rows.push({ key: 'mon', label: `CH ${+screen2 + 1} → MON IN · Screen 2`, color: wireOf(+screen2), off: () => setScreen2?.('off') })
-  channels.forEach((ch, i) => {
-    if (ch.routeFrom != null) {
-      const from = typeof ch.routeFrom === 'string' ? (ch.routeFrom.startsWith('fxm:') ? 'FX' : ch.routeFrom.toUpperCase()) : `CH ${ch.routeFrom + 1}`
-      rows.push({ key: `route-${i}`, label: `${from} → CH ${i + 1} IN`, color: typeof ch.routeFrom === 'number' ? wireOf(ch.routeFrom) : undefined, off: () => onChannelUpdate(i, { routeFrom: null }) })
-    }
-    Object.entries(ch.sends || {}).forEach(([bus, lvl]) => {
-      if (lvl > 0) rows.push({ key: `send-${i}-${bus}`, label: `CH ${i + 1} → ${SEND_LABEL[bus]} · ${lvl}%`, color: wireOf(i), off: () => onChannelUpdate(i, { sends: { ...ch.sends, [bus]: 0 } }) })
-    })
-    /* Cross-sends were missing from this list entirely, so a patch made in the
-       matrix's NxN grid (or now in the bay) left no trace here. */
-    Object.entries(ch.routeSendLevels || {}).forEach(([to, lvl]) => {
-      const j = parseInt(to)
-      if (!isNaN(j) && lvl > 0) {
-        rows.push({
-          key: `xsend-${i}-${j}`,
-          label: `CH ${i + 1} → CH ${j + 1} · ${lvl}%`,
-          color: wireOf(i),
-          off: () => onChannelUpdate(i, { routeSendLevels: { ...ch.routeSendLevels, [j]: 0 } }),
-        })
-      }
-    })
-    if (ch.feedback?.enabled) {
-      rows.push({ key: `fb-${i}`, label: `CH ${i + 1} ⟲ feedback`, color: wireOf(i), off: () => onChannelUpdate(i, { feedback: { ...ch.feedback, enabled: false } }) })
-    }
-  })
+export function RoutingPatchPanel({ channels, onChannelUpdate, master, onMasterChange, screen2 = 'off', setScreen2, fxModules = [], onFxModuleUpdate, pendingOut, setPendingOut }) {
+  /* THE CONNECTIONS LIST reads `patchGraph`'s one cable list (plan 10 § 4.2) — the patch table's list, so the
+     two can't disagree. FX module INs were missing here. Removing a cable writes back only what changed. */
+  const patch = { channels, master, screen2, fxModules }
+  const { fromLabel, toLabel } = cableLabels(patch)
+  const apply = (next) => {
+    next.channels.forEach((c, i) => { if (c !== channels[i]) onChannelUpdate(i, c) })
+    if (next.master !== master) onMasterChange?.({ inputs: next.master.inputs })
+    if (next.screen2 !== screen2) setScreen2?.(next.screen2)
+    next.fxModules.forEach((m, i) => { if (m !== fxModules[i]) onFxModuleUpdate?.(m.id, { input: m.input }) })
+  }
+  const rows = listCables(patch).map((c) => ({
+    key: c.key,
+    label: `${fromLabel(c.from)} → ${toLabel(c.to)}${c.level != null ? ` · ${c.level}%` : ''}`.toUpperCase(),
+    color: typeof c.from === 'number' ? wireOf(c.from) : undefined,
+    off: () => apply(removeCable(patch, c)),
+  }))
 
   return (
     <div className="flex flex-col h-full bg-surface-secondary border border-fg-08 kol-helper-12" style={{ borderRadius: 4, padding: 12, gap: 10, overflowY: 'auto' }}>
-      <div className="flex items-center justify-between" style={{ height: 20 }}>
-        <span className="text-fg-96">Connections</span>
-        <FlipIcon onFlip={onFlip} />
-      </div>
+      {/* the header is the module's tab now, outside the flip (plan 11 § 3.2) */}
       <MatrixBay
         channels={channels}
         onChannelUpdate={onChannelUpdate}
@@ -486,69 +530,77 @@ export function RoutingPatchPanel({ channels, onChannelUpdate, master, onMasterC
   )
 }
 
-export default function ChannelPatchPanel({ channelIndex, channel, channels = [], master, screen2 = 'off', onChannelUpdate, pendingOut, setPendingOut, onFlip }) {
+/**
+ * ChannelIOJacks — a channel's IN and OUT, on its FRONT strip (plan 11 § 3.1: the most-used points face out,
+ * the rest stay on the back). Same jacks, ids and drop rules the back carried, so every cable keeps its end.
+ */
+export function ChannelIOJacks({ channelIndex, channel, channels = [], master, screen2 = 'off', onChannelUpdate, pendingOut, setPendingOut }) {
   const routeFrom = channel.routeFrom
-  const feedback = channel.feedback || { enabled: false, decay: 80, mix: 50, freeze: false }
   const sends = channel.sends || {}
   const wire = wireOf(channelIndex)
-  // OUT is live when this channel feeds anything — a master input, another
-  // channel's IN, a bus send, or Screen 2 — and glows in its wire colour.
   const isSource = (master?.inputs || []).includes(channelIndex)
     || channels.some((c) => c.routeFrom === channelIndex)
     || Object.values(sends).some((v) => v > 0)
     || screen2 === String(channelIndex)
-
-  const routeLabel = routeFrom == null
+  const routeLabel = channel.genFrom ? 'GEN' : routeFrom == null
     ? '—'
     : typeof routeFrom === 'string' ? (routeFrom.startsWith('fxm:') ? 'FX' : routeFrom.toUpperCase()) : `CH ${routeFrom + 1}`
-
   // Any source, including this channel's own OUT — a mixer doesn't argue; a
   // self-patch is a one-frame feedback route like any other cycle.
-  const patchIn = (src) => onChannelUpdate(channelIndex, { routeFrom: src.type === 'ch' ? src.idx : src.key })
+  const patchIn = (src) => {
+    /* a generator OUT loads its source here and stays patched, live (plan 11 § 3.3) */
+    if (src.type === 'gen') { onChannelUpdate(channelIndex, { ...src.load(), enabled: true, genFrom: src.key, routeFrom: null }); return }
+    onChannelUpdate(channelIndex, { routeFrom: src.type === 'ch' ? src.idx : src.key, genFrom: null })
+  }
+  const fed = routeFrom != null || !!channel.genFrom
   const onInClick = () => {
-    if (routeFrom != null) { onChannelUpdate(channelIndex, { routeFrom: null }); return }
+    if (fed) { onChannelUpdate(channelIndex, { routeFrom: null, genFrom: null }); return }
     if (!pendingOut) return
     patchIn(pendingOut)
     setPendingOut(null)
   }
-
   const onOutClick = () => {
     setPendingOut(prev => (prev?.type === 'ch' && prev.idx === channelIndex) ? null : { type: 'ch', idx: channelIndex })
   }
-
   const isPendingSelf = pendingOut?.type === 'ch' && pendingOut.idx === channelIndex
+  return (
+    <>
+      <StripPort label="IN">
+        <Jack
+          jackId={`ch-${channelIndex}-in`}
+          connected={fed}
+          color={typeof routeFrom === 'number' ? wireOf(routeFrom) : undefined}
+          pending={!!pendingOut && !fed}
+          onClick={onInClick}
+          onDrop={patchIn}
+          title={fed ? `Patched from ${routeLabel} — click to unpatch` : pendingOut ? 'Click to patch pending source here' : 'IN — drop an OUT jack here'}
+        />
+      </StripPort>
+      <span className="text-fg-32">{routeLabel}</span>
+      <StripPort label="OUT" end>
+        <Jack
+          jackId={`ch-${channelIndex}-out`}
+          connected={isSource}
+          color={wire}
+          pending={isPendingSelf}
+          source={{ type: 'ch', idx: channelIndex }}
+          onClick={onOutClick}
+          title={isPendingSelf ? 'Pending — click an IN jack to connect, or click again to cancel' : 'OUT — drag to an IN jack'}
+        />
+      </StripPort>
+    </>
+  )
+}
 
+export default function ChannelPatchPanel({ channelIndex, channel, channels = [], onChannelUpdate, pendingOut, setPendingOut }) {
+  const routeFrom = channel.routeFrom
+  const feedback = channel.feedback || { enabled: false, decay: 80, mix: 50, freeze: false }
+  const sends = channel.sends || {}
+  const wire = wireOf(channelIndex)
   return (
     <div className="flex flex-col h-full bg-surface-secondary border border-fg-08 kol-helper-12" style={{ borderRadius: 4, padding: 12, gap: 8, overflowY: 'auto' }}>
 
-      {/* IN / OUT row */}
-      <div className="flex items-center justify-between">
-        <span className="flex items-center" style={{ gap: 6 }}>
-          <Jack
-            jackId={`ch-${channelIndex}-in`}
-            connected={routeFrom != null}
-            color={typeof routeFrom === 'number' ? wireOf(routeFrom) : undefined}
-            pending={!!pendingOut && routeFrom == null}
-            onClick={onInClick}
-            onDrop={patchIn}
-            title={routeFrom != null ? `Patched from ${routeLabel} — click to unpatch` : pendingOut ? 'Click to patch pending source here' : 'IN — drop an OUT jack here'}
-          />
-          <span className="text-fg-64">IN</span>
-          <span className="text-fg-32">{routeLabel}</span>
-        </span>
-        <span className="flex items-center" style={{ gap: 6 }}>
-          <span className="text-fg-64">OUT</span>
-          <Jack
-            jackId={`ch-${channelIndex}-out`}
-            connected={isSource}
-            color={wire}
-            pending={isPendingSelf}
-            source={{ type: 'ch', idx: channelIndex }}
-            onClick={onOutClick}
-            title={isPendingSelf ? 'Pending — click an IN jack to connect, or click again to cancel' : 'OUT — drag to an IN jack'}
-          />
-        </span>
-      </div>
+      {/* IN / OUT moved to the front strip (`ChannelIOJacks`, plan 11 § 3.1) — the back is the rest */}
 
       {/* Bus sources — any of the six can feed this channel's IN. Grid, not a
           row: six labelled jacks do not fit the card's width. */}

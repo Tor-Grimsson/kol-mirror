@@ -17,7 +17,8 @@ pnpm only — `yarn` or `npm install` writes a competing lockfile. Node 22 (`.nv
 
 | Command | Does |
 |---|---|
-| `pnpm dev` | Dev server |
+| `pnpm dev` | Dev server + the local library Worker on 8788 |
+| `pnpm dev:app` | Dev server alone, against the live Worker |
 | `pnpm build` | Production build |
 | `pnpm preview` | Serve the production build |
 | `pnpm lint` | ESLint |

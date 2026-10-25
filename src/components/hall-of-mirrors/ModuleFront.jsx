@@ -7,12 +7,13 @@ import GeneratorModule from './modules/GeneratorModule'
 import PatchModule from './modules/PatchModule'
 import RecorderUnit from './RecorderUnit'
 import FxUnit from './FxUnit'
-import FxModule from './modules/FxModule'
+import FxRackModule from './modules/FxRackModule'
+import TapeModule from './modules/TapeModule'
+import { getDefaultCanvasFxParams } from '../../hooks/useCanvasFx'
 import InputModule from './modules/InputModule'
 import FeedbackModule from './modules/FeedbackModule'
 import ExpressionModule from './modules/ExpressionModule'
 import MemoryModule from './modules/MemoryModule'
-import TapeDelay from '../mirror/TapeDelay'
 import MonitorModule from './modules/MonitorModule'
 import { findVariant } from '../../data/mirrorVariants'
 
@@ -53,15 +54,12 @@ export default function ModuleFront({ id, index = 0, channel, channels = [], mas
      mirror resolves through here because a variant's "panel" is a loaded
      channel strip rather than a component of its own. */
   if (front) {
+    /* an FX unit's front is the module it stands on the desk as (plan 16 W2): the four-slot FX module with this effect
+       in slot 1, or Tape's own front — IN / OUT drawn, nothing patched */
     if (front.kind === 'fx') {
-      return (
-        <FxModule
-          defId={front.id}
-          params={channel?.canvasFx?.find((f) => f.type === front.id)?.params}
-          onParamChange={noop}
-          enabled
-        />
-      )
+      const jacks = { id: 'front', input: null, onInput: noop, setPendingOut: noop, isHeadSource: () => false }
+      if (front.id === 'tape') return <TapeModule module={{ id: 'front', type: 'tape', params: getDefaultCanvasFxParams('tape'), enabled: true, input: null }} onParams={noop} jacks={jacks} />
+      return <FxRackModule module={{ id: 'front', type: front.id, enabled: true, input: null }} onSlot={noop} jacks={jacks} />
     }
     if (front.kind === 'generator') {
       return <GeneratorModule initialId={front.id} />
@@ -118,8 +116,9 @@ export default function ModuleFront({ id, index = 0, channel, channels = [], mas
       return <RoutingMatrix channels={channels} onChannelUpdate={onChannelUpdate} master={master} onMasterChange={onMasterChange} />
     case 'playback':
       return <PlaybackModule />
+    /* Tape is an FX module since plan 13 § 3.2 — a frame delay with its reels as the body */
     case 'tape':
-      return <TapeDelay />
+      return <TapeModule module={{ id: 'front', type: 'tape', params: getDefaultCanvasFxParams('tape'), enabled: true, input: null }} onParams={noop} jacks={{ id: 'front', input: null, onInput: noop, setPendingOut: noop, isHeadSource: () => false }} />
     /* the specimen: the panel with its slot empty — the frame lives in the studio */
     case 'monitor':
       return <MonitorModule />

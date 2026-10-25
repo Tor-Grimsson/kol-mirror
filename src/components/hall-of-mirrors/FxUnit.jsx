@@ -1,3 +1,4 @@
+import { ModuleFooter } from './modules/ModuleFrame'
 import { useRef, useState } from 'react'
 import Divider from '../atoms/Divider'
 import Slider from '../atoms/Slider'
@@ -35,6 +36,8 @@ export default function FxUnit({
   onRasterThemeChange,
   feedback,
   onFeedbackChange,
+  /* a JackStrip sits under it (plan 11 § 3.1): square bottom corners, the strip rounds instead */
+  square = false,
 }) {
   const [fxTab, setFxTab] = useState('color')
   /* Live preview of a blend mode while hovering its dropdown row: the ref holds
@@ -42,25 +45,15 @@ export default function FxUnit({
   const blendPreviewRef = useRef(null)
 
   return (
-      <div
-        className="flex flex-col mx-2 border border-fg-08 border-t-0 kol-helper-12"
-        style={{ borderRadius: '0 0 4px 4px', backgroundColor: 'var(--kol-surface-tertiary)', height: '124px', overflow: 'hidden', width: `${320 - 16}px`, paddingTop: '4px' }}
+      /* the footer band is the standard's (`ModuleFooter`, plan 12) — this unit is its tabs and rows */
+      <ModuleFooter
+        width={320}
+        square={square}
+        tabs={['color', 'blend', 'fx', 'fb'].map((t) => ({ value: t, label: t }))}
+        value={fxTab}
+        onChange={setFxTab}
+        readout={enabled && <span className="kol-helper-12" style={{ color: renderCost > 80 ? '#e74c3c' : renderCost > 70 ? '#f39c12' : '#2ecc71', animation: renderCost >= 70 ? 'kol-mirror-pulse 1s ease-in-out infinite' : 'none' }}>{renderCost}%</span>}
       >
-        <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 shrink-0" style={{ backgroundColor: 'var(--kol-surface-tertiary)' }}>
-          <div className="flex items-center gap-3">
-            {['color', 'blend', 'fx', 'fb'].map(tab => (
-              <span
-                key={tab}
-                className={`cursor-pointer select-none uppercase ${fxTab === tab ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`}
-                onClick={() => setFxTab(tab)}
-              >
-                {tab}
-              </span>
-            ))}
-          </div>
-          {enabled && <span className="kol-helper-12" style={{ color: renderCost > 80 ? '#e74c3c' : renderCost > 70 ? '#f39c12' : '#2ecc71', animation: renderCost >= 70 ? 'kol-mirror-pulse 1s ease-in-out infinite' : 'none' }}>{renderCost}%</span>}
-        </div>
-        <div className="flex flex-col gap-2 px-4 py-3" style={{ overflow: 'auto', flex: '1 1 0', minHeight: 0 }}>
         {fxTab === 'fx' && (
           <>
             {fx.map((fxItem, fi) => {
@@ -204,7 +197,6 @@ export default function FxUnit({
         {fxTab === 'fb' && (
           <TrailUnit feedback={feedback} onFeedbackChange={onFeedbackChange} />
         )}
-        </div>
-      </div>
+      </ModuleFooter>
   )
 }

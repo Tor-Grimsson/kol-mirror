@@ -5,6 +5,7 @@ import { GENERATOR_COMPONENTS } from '../components/hall-of-mirrors/generators'
 import ModuleFront from '../components/hall-of-mirrors/ModuleFront'
 import { MODULE_REGISTRY, MODULE_HEIGHT } from '../data/moduleRegistry'
 import { HAS_FRONT } from '../data/mixerModules'
+import { DESK_U } from '../components/hall-of-mirrors/modules/bands'
 import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
 import { CANVAS_FX_DEFS, getDefaultCanvasFxParams, applyCanvasFx, fxPath, fxCapability, expandFx } from '../hooks/useCanvasFx'
 import { buildPasses } from '../hooks/gpuFxShaders'
@@ -25,6 +26,8 @@ import PixiKaleidoscopeVariant from '../components/hall-of-mirrors/PixiKaleidosc
  *   ?module=<id>     → a desk module's FRONT, for its catalogue preview
  *   ?variant=<id>    → that variant standalone at default params in #capture-target
  *   ?fx=<id>         → ONE canvas-FX unit over the canonical still, ditto
+ *   ?patch=<id>      → a registry patch's OUTPUT: its own `add` verb run against a recording api (the
+ *                      verbs Create's `placeApi` exposes), the FX it adds run over its source, ditto
  * Not instrument navigation — the studio stays state-driven (ARCHITECTURE §1);
  * this is a tooling seam the studio never links to.
  *
@@ -97,7 +100,7 @@ function runOneFx(canvas, fx, key) {
 const DRIFT_PX = 8
 const DRIFT_FRAMES = 24
 
-function FxCapture({ id }) {
+function FxCapture({ ids }) {
   const canvasRef = useRef(null)
   const doneRef = useRef(false)
 
@@ -108,16 +111,16 @@ function FxCapture({ id }) {
     canvas.width = W
     canvas.height = H
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    const fx = { type: id, enabled: true, params: getDefaultCanvasFxParams(id) }
-    const key = `preview-${id}`
+    const chain = ids.map((type) => ({ type, enabled: true, params: getDefaultCanvasFxParams(type) }))
+    const key = `preview-${ids.join('+')}`
 
     /* A unit that cannot run HERE must not bake a PNG. Dither and Analog TV are
        shader-only, so on a machine without WebGL2 they would write out an
        unchanged copy of the still and the card would advertise "this unit does
        nothing" — the stock-photo lie in a new costume. Flag it and let the
        script skip: no PNG, and the card falls to the glyph, which is true. */
-    const capability = fxCapability(id, { gpu: gpuAvailable() })
-    if (!capability.runs) { canvas.dataset.captureReady = 'skip'; canvas.dataset.captureReason = capability.reason || ''; return }
+    const blocked = ids.map((type) => fxCapability(type, { gpu: gpuAvailable() })).find((c) => !c.runs)
+    if (blocked) { canvas.dataset.captureReady = 'skip'; canvas.dataset.captureReason = blocked.reason || ''; return }
 
     const img = new Image()
     img.onload = () => {
@@ -130,7 +133,7 @@ function FxCapture({ id }) {
         const drift = frame * DRIFT_PX
         ctx.clearRect(0, 0, W, H)
         ctx.drawImage(img, (W - dw) / 2 - drift, (H - dh) / 2, dw, dh)
-        runOneFx(canvas, fx, key)
+        chain.forEach((fx, i) => runOneFx(canvas, fx, `${key}-${i}`))
         if (++frame < DRIFT_FRAMES) requestAnimationFrame(tick)
         else canvas.dataset.captureReady = 'true'
       }
@@ -138,10 +141,30 @@ function FxCapture({ id }) {
     }
     img.onerror = () => { canvas.dataset.captureReady = 'error' }
     img.src = DEFAULT_IMAGE
-  }, [id])
+  }, [ids.join()]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return <canvas id="capture-canvas" ref={canvasRef} style={{ width: W, height: H, display: 'block' }} />
 }
+
+/* A REGISTRY PATCH's verbs, recorded instead of placed — the same api Create's `placeApi` hands every entry, so the
+   patch says what it is (a source and the FX that finish it) without a second description of it. */
+function recordPatch(entry) {
+  const rec = { source: null, fx: [] }
+  entry.add({
+    loadVariant: (id) => { rec.source = id },
+    addCanvasFx: (type) => { rec.fx.push(type) },
+    patchToMaster: () => {},
+    addChannel: () => {},
+    placeUnit: () => {},
+  })
+  return rec
+}
+
+/* The sources a patch's output can be shot from. LIVE INPUT HAS NO CANONICAL FRAME (see the list below) — a camera
+   patch is shot over the canonical drifting still, which is what its FX do to a moving subject; a fake-device test
+   card would be the lie. ponytail: a patch whose source is a variant or a procedural generator skips until one
+   ships — the registry's only patch is Slit-Scan Camera (Live Input → Slitscan). */
+const STILL_SOURCES = new Set(['gen-live'])
 
 /** A generator at default params, running, so the frame captured is its own output. */
 function GeneratorCapture({ id }) {
@@ -175,8 +198,11 @@ export default function DevCapturePage() {
        these the Library and `/create` cards drew the glyph for every desk unit
        (2026-09-02). */
     /* every id `ModuleFront` draws — the registry desk units AND the catalogue parts (2026-10-13) */
-    const moduleIds = [...new Set([...MODULE_REGISTRY.filter(m => m.front?.kind === 'desk').map(m => m.front.id), ...HAS_FRONT])]
-    return <pre id="capture-list">{JSON.stringify({ variantIds, generatorIds, fxIds, moduleIds })}</pre>
+    /* `fx-<id>`: an FX unit's module front, the Library's MODULES cover (plan 16 W2) */
+    const moduleIds = [...new Set([...MODULE_REGISTRY.filter(m => m.front?.kind === 'desk').map(m => m.front.id), ...HAS_FRONT, ...CANVAS_FX_DEFS.map((d) => `fx-${d.id}`)])]
+    /* the registry's one-tap patches — their cover is their output, shot by `?patch=` */
+    const patchIds = MODULE_REGISTRY.filter(m => m.kind === 'Patch' && !m.front).map(m => m.id)
+    return <pre id="capture-list">{JSON.stringify({ variantIds, generatorIds, fxIds, moduleIds, patchIds })}</pre>
   }
 
   const moduleId = search.get('module')
@@ -187,16 +213,18 @@ export default function DevCapturePage() {
          and `ContentCard fit="cover"` crops a portrait image to a landscape
          card by showing the middle sliver — measured in the Library grid,
          2026-09-02. A module is 490 tall, so 500 clears it. */
-      <div id="capture-target" className="relative overflow-hidden bg-surface-primary flex items-center justify-center" style={{ width: W, height: H }}>
+      /* the frame is the desk's U plus air since plan 15 — a 530 module in the old 500 frame lost its header and jacks */
+      <div id="capture-target" className="relative overflow-hidden bg-surface-primary flex items-center justify-center" style={{ width: W, height: Math.max(H, DESK_U + 30) }}>
         {/* `#capture-fit` is what the script scales. The desk's widest modules
             (Master with its meter bank, the Routing matrix) are wider than this
             frame, and a module that overflows gets its edges cut off in the
             card — so the script measures this box after render and sets a
             `zoom` that fits it. Done at capture time because the width is the
             component's, not something this route can know. */}
-        <div id="capture-fit" className="flex">
+        {/* at the desk's U (plan 15) — a module is photographed the size it stands on the desk, every band in place */}
+        <div id="capture-fit" className="flex" style={{ height: DESK_U }}>
         <ModuleFront
-          front={{ kind: 'desk', id: moduleId }}
+          front={moduleId.startsWith('fx-') ? { kind: 'fx', id: moduleId.slice(3) } : { kind: 'desk', id: moduleId }}
           id={moduleId}
           channel={{ ...EMPTY_CHANNEL }}
           channels={[{ ...EMPTY_CHANNEL }]}
@@ -209,12 +237,27 @@ export default function DevCapturePage() {
     )
   }
 
+  const patchId = search.get('patch')
+  if (patchId) {
+    const entry = MODULE_REGISTRY.find(m => m.id === patchId && m.kind === 'Patch')
+    if (!entry) return <pre>unknown patch: {String(patchId)}</pre>
+    const { source, fx } = recordPatch(entry)
+    if (!STILL_SOURCES.has(source)) {
+      return <div id="capture-target"><canvas id="capture-canvas" data-capture-ready="skip" data-capture-reason={`source ${source} not capturable yet`} /></div>
+    }
+    return (
+      <div id="capture-target" className="relative overflow-hidden bg-surface-primary" style={{ width: W, height: H }}>
+        <FxCapture ids={fx} />
+      </div>
+    )
+  }
+
   const fxId = search.get('fx')
   if (fxId) {
     if (!CANVAS_FX_DEFS.some(d => d.id === fxId)) return <pre>unknown fx: {String(fxId)}</pre>
     return (
       <div id="capture-target" className="relative overflow-hidden bg-surface-primary" style={{ width: W, height: H }}>
-        <FxCapture id={fxId} />
+        <FxCapture ids={[fxId]} />
       </div>
     )
   }

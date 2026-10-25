@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react'
-import { applyCanvasFx, fxPath, expandFx } from './useCanvasFx'
+import { applyCanvasFx, fxPath, expandFx, tapeHeadsOf, TAPE_HEADS } from './useCanvasFx'
+import { chainOf } from './fxSlots'
 import { begin, end } from './renderStats'
 import { runChain, gpuAvailable } from './gpuFx'
 import { buildPasses } from './gpuFxShaders'
@@ -61,6 +62,13 @@ export default function useFrameBuffer(channelCount, qualityRef) {
     } else {
       canvasRegistryRef.current.delete(index)
     }
+  }, [])
+
+  /* A MODULE'S OWN PICTURE AS A SOURCE (plan 16 W8): the Generator's composite registers its canvas under a string
+     key (`gen:mix`) beside the bus buffers, so a channel IN cabled to it reads it like a return */
+  const registerSource = useCallback((key, canvasEl) => {
+    if (canvasEl) busBuffersRef.current.set(key, canvasEl)
+    else busBuffersRef.current.delete(key)
   }, [])
 
   const unregisterCanvas = useCallback((index) => {
@@ -289,7 +297,21 @@ export default function useFrameBuffer(channelCount, qualityRef) {
         ctx.clearRect(0, 0, w, h)
         if (src) { try { ctx.drawImage(src, 0, 0, w, h) } catch { /* frame not ready */ } }
       }
-      if (m.enabled) runFxOn(buf, [{ type: m.type, enabled: true, params: m.params }], `fxm-${m.id}`)
+      /* the module's four slots in order (plan 16 W3); a Tape module is its one unit */
+      const tape = m.type === 'tape' && !m.slots
+      if (m.enabled) runFxOn(buf, tape ? [{ type: 'tape', enabled: true, params: m.params }] : chainOf(m), `fxm-${m.id}`)
+      /* the Tape's H1–H4 outs (plan 16 W4): each head alone, as a source a cable can take (`fxm:<id>:h<k>`) */
+      if (tape) {
+        const heads = m.enabled ? tapeHeadsOf(buf, 0) : null
+        for (let k = 0; k < TAPE_HEADS; k++) {
+          const hk = `${key}:h${k + 1}`
+          keys.add(hk)
+          if (!heads) { busBuffersRef.current.delete(hk); continue }
+          const hb = ensureBusBuffer(hk, w, h)
+          const img = new ImageData(heads[k], w, h)
+          try { ctx2d(hb).putImageData(img, 0, 0) } catch { /* size changed mid-frame */ }
+        }
+      }
     }
     // a module that is gone leaves no frame behind for a stale cable to read
     for (const key of [...busBuffersRef.current.keys()]) {
@@ -306,7 +328,7 @@ export default function useFrameBuffer(channelCount, qualityRef) {
     }
   }, [])
 
-  return { registerCanvas, unregisterCanvas, getChannelFrame, captureAll, compositeBuses, getBusFrame, applyFeedback, getFeedbackFrame, clearFeedbackBuffer, processChannelFx, processFxModules, sizeRef }
+  return { registerCanvas, registerSource, unregisterCanvas, getChannelFrame, captureAll, compositeBuses, getBusFrame, applyFeedback, getFeedbackFrame, clearFeedbackBuffer, processChannelFx, processFxModules, sizeRef }
 }
 
 export function resolveRenderOrder(channels) {

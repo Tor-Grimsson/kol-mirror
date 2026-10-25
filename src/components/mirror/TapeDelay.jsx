@@ -69,9 +69,15 @@ function Reel({ cx, cy, R, fill, id, spinRef }) {
   )
 }
 
-export default function TapeDelay() {
-  const playing = useTransportPlaying()
-  const [time, setTime] = useState(38)
+/* `lip={false}` — the deck without its control lip: on the desk the lip's keys and SPEED are the module's own
+   text-button row and footer (plan 12). `time` / `onTime` let the module hold the speed. */
+export default function TapeDelay({ lip = true, time: timeProp, onTime, running }) {
+  /* `running` — the reels follow it instead of the transport (the Tape FX module's PLAY / STOP, plan 13 § 3.2) */
+  const transportPlaying = useTransportPlaying()
+  const playing = running ?? transportPlaying
+  const [timeOwn, setTimeOwn] = useState(38)
+  const time = timeProp ?? timeOwn
+  const setTime = onTime ?? setTimeOwn
   const [wound, setWound] = useState(0.92)
   const spinL = useRef(null)
   const spinR = useRef(null)
@@ -190,7 +196,7 @@ export default function TapeDelay() {
         {/* THE FRONT LIP — stands up from the plate's near edge. This is the
             face that gives the box its thickness, and it carries the controls,
             exactly as the references do. */}
-        <div style={{ marginTop: -1 }}>
+        {lip && <div style={{ marginTop: -1 }}>
           <svg width={W} height={LIP} viewBox={`0 0 ${W} ${LIP}`} style={{ display: 'block' }}>
             <rect x="0" y="0" width={W} height={LIP} rx="4" fill="url(#lip)" stroke="#000" />
 
@@ -229,7 +235,7 @@ export default function TapeDelay() {
               <text x="26" y="60" textAnchor="middle" fill="#9a9a97" style={{ font: '600 8px ui-monospace, monospace' }}>SPEED</text>
             </g>
           </svg>
-        </div>
+        </div>}
       </div>
     </div>
   )

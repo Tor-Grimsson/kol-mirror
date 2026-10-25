@@ -74,7 +74,7 @@ export default function ChannelModules({ index, channel, onChannelUpdate, onMedi
           onBackgroundColorChange={(v) => onChannelUpdate(index, { backgroundColor: v })}
           rasterTheme={channel.rasterTheme}
           onRasterThemeChange={(v) => onChannelUpdate(index, { rasterTheme: v })}
-          feedback={params.feedback}
+          feedback={channel.feedback}
           onFeedbackChange={(fb) => onChannelUpdate(index, { feedback: fb })}
         />
       </Module>

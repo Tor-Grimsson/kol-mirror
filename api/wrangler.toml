@@ -1,6 +1,6 @@
 # kol-mirror-api — the one D1 binding this app has (2026-10-14, after kol-fxr's plan 07).
 # The app deploys on Vercel and cannot hold a D1 binding; this Worker is the API beside it.
-# Deploy: `pnpm api:deploy`. Local: `pnpm api:dev` on 8787.
+# Deploy: `pnpm api:deploy`. Local: `pnpm dev` (app + Worker) or `pnpm api:dev`, on 8788.
 name = "kol-mirror-api"
 main = "src/index.js"
 compatibility_date = "2026-10-06"

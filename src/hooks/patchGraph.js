@@ -72,6 +72,7 @@ export function clearAllPatches(channels, master) {
       routeSendLevels: {},
       sends: Object.fromEntries(Object.keys(ch.sends || {}).map((k) => [k, 0])),
       feedback: { ...(ch.feedback || {}), enabled: false },
+      genFrom: null,
     })),
     master: { ...master, inputs: (master?.inputs || []).map(() => null) },
   }
@@ -131,4 +132,83 @@ export function removeFxModule(modules = [], channels = [], master, id) {
     channels: channels.map((ch) => (ch.routeFrom === key ? { ...ch, routeFrom: null } : ch)),
     master: { ...master, inputs: (master?.inputs || []).map((src) => (src === key ? null : src)) },
   }
+}
+
+/* ── THE CABLE LIST (plan 10 § 4.2, 2026-10-24) ─────────────────────────────────────────────────
+ * The user: *"everything should be cable connected … we have to conform and unify how we do things,
+ * visually and logically."* The fields above stay the storage (saved patches keep loading), and this is
+ * the ONE reading of them: every connection the desk holds, as `{ key, from, to, level? }`, plus the one
+ * way to make and break one. The patch table, the routing bay's list and the drawn cables all read
+ * `listCables`, so a connection can't exist in one and not another.
+ *
+ *   from  a source: a channel index · a bus key (`rtn1` …) · an FX module key (`fxm:<id>`) · a generator (`gen:<id>`)
+ *   to    `mst-in:<n>` · `mon` (Screen 2) · `ch-in:<i>` · `bus:<key>` · `ch-x:<j>` · `fb:<i>` · `fxm-in:<id>`
+ */
+
+/** Every cable in this patch state. `level` is a send's amount (0–100) where the connection has one. */
+export function listCables({ channels = [], master, screen2 = 'off', fxModules = [] }) {
+  const out = []
+  ;(master?.inputs || []).forEach((src, n) => { if (src != null) out.push({ key: `mst-in:${n}`, from: src, to: `mst-in:${n}` }) })
+  if (/^\d+$/.test(String(screen2))) out.push({ key: 'mon', from: parseInt(String(screen2)), to: 'mon' })
+  channels.forEach((ch, i) => {
+    if (ch.routeFrom != null) out.push({ key: `ch-in:${i}`, from: ch.routeFrom, to: `ch-in:${i}` })
+    /* a generator cabled into a channel IN (plan 11 § 3.3) — it is the channel's SOURCE, kept live, not a frame route */
+    if (ch.genFrom) out.push({ key: `gen>ch-in:${i}`, from: ch.genFrom, to: `ch-in:${i}` })
+    for (const [bus, lvl] of Object.entries(ch.sends || {})) if (lvl > 0) out.push({ key: `bus:${bus}:${i}`, from: i, to: `bus:${bus}`, level: lvl })
+    for (const [k, lvl] of Object.entries(ch.routeSendLevels || {})) {
+      const j = parseInt(k)
+      if (!isNaN(j) && lvl > 0) out.push({ key: `ch-x:${j}:${i}`, from: i, to: `ch-x:${j}`, level: lvl })
+    }
+    if (ch.feedback?.enabled) out.push({ key: `fb:${i}`, from: i, to: `fb:${i}` })
+  })
+  for (const m of fxModules) if (m.input != null) out.push({ key: `fxm-in:${m.id}`, from: m.input, to: `fxm-in:${m.id}` })
+  return out
+}
+
+const SPLIT = (to) => { const c = to.indexOf(':'); return c < 0 ? [to, ''] : [to.slice(0, c), to.slice(c + 1)] }
+
+/** Which sources a destination takes — a send, a cross-send and Screen 2 read a channel only. */
+export function accepts(to, from) {
+  const [kind] = SPLIT(to)
+  if (kind === 'bus' || kind === 'ch-x' || kind === 'mon' || kind === 'fb') return typeof from === 'number'
+  return from != null
+}
+
+/**
+ * Make (any accepted source) or break (`from` null) one level-less connection — sends are `setSend`.
+ * @returns {{channels: Array, master: Object, screen2: string, fxModules: Array}} new state — every part, changed or not
+ */
+export function setCable(state, to, from) {
+  const { channels = [], master, screen2 = 'off', fxModules = [] } = state
+  const next = { channels, master, screen2, fxModules }
+  const [kind, arg] = SPLIT(to)
+  const ch = (i, patch) => channels.map((c, k) => (k === i ? { ...c, ...patch } : c))
+  if (from != null && !accepts(to, from)) return next
+  if (kind === 'mst-in') next.master = { ...master, inputs: (master?.inputs || []).map((v, n) => (n === +arg ? from ?? null : v)) }
+  else if (kind === 'mon') next.screen2 = from == null ? 'off' : String(from)
+  else if (kind === 'ch-in') next.channels = ch(+arg, { routeFrom: from ?? null })
+  else if (kind === 'fxm-in') next.fxModules = fxModules.map((m) => (m.id === arg ? { ...m, input: from ?? null } : m))
+  else if (kind === 'fb') next.channels = ch(+arg, { feedback: { ...(channels[+arg]?.feedback || {}), enabled: from != null } })
+  return next
+}
+
+/** A level-carrying connection (`bus:<key>` · `ch-x:<j>`) from channel `i` — 0 breaks it. */
+export function setSend(state, to, i, level) {
+  const { channels = [] } = state
+  const [kind, arg] = SPLIT(to)
+  const c = channels[i]
+  if (!c) return { ...state }
+  const patch = kind === 'bus' ? { sends: { ...c.sends, [arg]: level } } : kind === 'ch-x' ? { routeSendLevels: { ...c.routeSendLevels, [arg]: level } } : null
+  return { ...state, channels: patch ? channels.map((x, k) => (k === i ? { ...x, ...patch } : x)) : channels }
+}
+
+export const isGenKey = (v) => typeof v === 'string' && v.startsWith('gen:')
+
+/** Break the cable `listCables` returned. A generator's cable unpatches the source and leaves the channel loaded. */
+export function removeCable(state, cable) {
+  if (isGenKey(cable.from)) {
+    const i = +cable.to.slice(6)
+    return { ...state, channels: (state.channels || []).map((c, k) => (k === i ? { ...c, genFrom: null } : c)) }
+  }
+  return cable.level != null ? setSend(state, cable.to, cable.from, 0) : setCable(state, cable.to, null)
 }

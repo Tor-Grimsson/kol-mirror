@@ -1,14 +1,13 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { useLocation } from 'react-router-dom'
 import Slider from '../atoms/Slider'
 import { Icon } from '../icons'
-import { IconToggle } from '@kolkrabbi/kol-component'
+import { CanvasStudio } from '@kolkrabbi/kol-component'
 import Divider from '../atoms/Divider'
 import VariantControls from '../mirror/VariantControls'
 import { findVariant, filterControlsByTab, CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
 import RotaryDial from './RotaryDial'
-import ChannelPatchPanel, { MasterPatchPanel, RoutingPatchPanel, FlipIcon } from './ChannelPatchPanel'
+import ChannelPatchPanel, { MasterPatchPanel, RoutingPatchPanel, FlipIcon, ChannelIOJacks, MasterInJacks, MonitorJacks, RoutingJacks } from './ChannelPatchPanel'
 import PlaybackModule from './PlaybackModule'
 import PatchCableOverlay, { PatchJacksProvider } from './PatchCableOverlay'
 import ColorPicker from '../atoms/ColorPicker'
@@ -18,13 +17,13 @@ import RoutingMatrix from './RoutingMatrix'
 import GeneratorModule from './modules/GeneratorModule'
 import ExpressionModule from './modules/ExpressionModule'
 import PatchModule from './modules/PatchModule'
-import FxModule from './modules/FxModule'
+import FxRackModule from './modules/FxRackModule'
+import TapeModule from './modules/TapeModule'
+import { withSlot } from '../../hooks/fxSlots'
 import { fxKey, isFxKey } from '../../hooks/patchGraph'
 import { CANVAS_FX_DEFS } from '../../hooks/useCanvasFx'
 import { WIRE_COLORS } from './wireColors'
-import ExpressionBench from './ExpressionBench'
 import Dropdown from '../molecules/Dropdown'
-import GrabEdge from '../GrabEdge'
 import MediaBrowser from './MediaBrowser'
 import useFileDrop from '../../hooks/useFileDrop'
 import LoadUnit from './LoadUnit'
@@ -39,7 +38,9 @@ import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
 const DEFAULT_SVG_SRC = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
 
 import { CSS_BLEND_MODES } from './blendOptions'
-import ModuleFrame, { ModuleTab } from './modules/ModuleFrame'
+import ModuleFrame, { ModuleTab, DeskModule } from './modules/ModuleFrame'
+import { DESK_U } from './modules/bands'
+import { JackStrip } from './modules/JackStrip'
 export { CSS_BLEND_MODES }
 
 const VECTOR_SHAPES = [
@@ -151,6 +152,8 @@ export function Channel({
   onFlip,
   flipped = false,
   patchPanel,
+  /* the front strip's jacks (plan 11 § 3.1) — IN · OUT, under the FX rack */
+  strip,
   value,
   onChange,
   enabled,
@@ -236,8 +239,9 @@ export function Channel({
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return
       const t = playheadRef.current
       if (t == null) return
-      if (e.key === 'i') onUpdateRecSlotTrim(activeRecSlot, t, slot.mark2)
-      if (e.key === 'o') onUpdateRecSlotTrim(activeRecSlot, slot.mark1, t)
+      /* [ / ] mark in / out (plan 13 § 1.3) — `I / O` until O became monitor's cable visibility */
+      if (e.key === '[') onUpdateRecSlotTrim(activeRecSlot, t, slot.mark2)
+      if (e.key === ']') onUpdateRecSlotTrim(activeRecSlot, slot.mark1, t)
       const fps = slot.fps || 30
       const frameDur = 1 / fps
       if (e.key === 'ArrowLeft') { e.preventDefault(); onSeek(t - (e.shiftKey ? frameDur * 10 : frameDur)) }
@@ -325,7 +329,7 @@ export function Channel({
     /* Drop an image or a video anywhere on the card — the fastest path from a
        file to the mixer. Highlight on drag, so the target is obvious. */
     <div
-      className="flex flex-row items-stretch shrink-0 relative"
+      className="flex flex-row items-stretch shrink-0 relative h-full"
       /* The card lifts while its shelf is open. The shelf's own z-index only
          orders it INSIDE this card; the next slide is a later sibling on the
          track and paints over it regardless, which put the shelf behind
@@ -341,8 +345,31 @@ export function Channel({
           Drop image or video
         </div>
       )}
-      <div className="flex flex-col shrink-0">
-      <ModuleTab style={{ width: 304 }}>
+      {/* THE STANDARD (plan 12): header · body · footer · back, drawn by DeskModule. ONLY THE BODY FLIPS (user,
+          2026-08-27) — the header and the FX rack belong to the channel in both states. The strip sits a rung below
+          the desk (user 2026-08-28: "make channel strip a little darker"): the plate's --kol-oq-04. */}
+      <DeskModule
+        width={320}
+        /* the strip's ON lamp is the header's power switch (plan 16 W5); right-click it for Remove Channel */
+        power={{
+          on: !!enabled,
+          onToggle: () => { setShowRemove(false); onEnabledChange(!enabled) },
+          onContextMenu: (e) => { e.preventDefault(); setShowRemove(!showRemove) },
+          title: enabled ? 'ON' : 'OFF',
+          children: showRemove && onRemove && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowRemove(false) }} />
+              <div
+                className="absolute left-0 top-full mt-1 bg-surface-primary border border-fg-16 z-50 kol-helper-12 px-3 py-1.5 text-fg-64 hover:text-fg-96 hover:bg-surface-secondary cursor-pointer transition-all"
+                style={{ borderRadius: '4px', whiteSpace: 'nowrap' }}
+                onClick={(e) => { e.stopPropagation(); setShowRemove(false); onRemove() }}
+              >
+                Remove Channel
+              </div>
+            </>
+          ),
+        }}
+        head={(
         <span className={`${enabled ? 'text-fg-96' : 'text-fg-32'} truncate group`}>
           {loadedName ? (
             <>
@@ -352,69 +379,19 @@ export function Channel({
           ) : (defaultName || '\u00A0')}
           {activeRecSlot != null && <span className="text-fg-32 ml-1">[REC]</span>}
         </span>
-        <span className="flex items-center gap-3 shrink-0">
+        )}
+        headRight={(
+          <>
           {onEdit && loadedName && (
             <span className="flex items-center gap-1 text-fg-96 cursor-pointer select-none" onClick={onEdit}>Edit<Icon name="edit" size={12} /></span>
           )}
-          <FlipIcon onFlip={onFlip} title="Flip to patch bay" />
-        </span>
-      </ModuleTab>
-      {/* ONLY THE MIDDLE FLIPS (user, 2026-08-27). The header and the FX
-          rack belong to the channel in both states — flipping the whole card
-          took them with it and made the back a different-shaped object. Now the
-          grey body turns over in place and everything around it holds still. */}
-      <div className="mirror-flip-scene" style={{ width: '320px' }}>
-        <div className={`mirror-flip-inner ${flipped ? 'is-flipped' : ''}`}>
-          <div className="mirror-flip-front">
-        <div
-          /* the strip sits a rung BELOW the desk (user 2026-08-28: "make
-             channel strip a little darker"). `--kol-oq-04` is an opaque step
-             down from surface-secondary rather than another translucent wash —
-             the desk already carries the page wash, and stacking a second one
-             lifts the plate instead of sinking it. */
-          className="flex flex-col items-center gap-4 p-4 border border-fg-08 relative"
-          style={{
-            backgroundColor: 'var(--kol-oq-04)',
-            borderRadius: '4px',
-            overflow: 'visible',
-            width: '320px',
-            zIndex: 1,
-          }}
-        >
-        <div className="w-full flex items-stretch gap-4">
-          <div className="flex flex-col flex-1 gap-2">
-            <div
-              className="cursor-pointer select-none flex items-center justify-center relative self-start"
-              onClick={() => { setShowRemove(false); onEnabledChange(!enabled) }}
-              onContextMenu={(e) => { e.preventDefault(); setShowRemove(!showRemove) }}
-              title={enabled ? 'ON' : 'OFF'}
-            >
-              {showRemove && onRemove && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowRemove(false)} />
-                  <div
-                    className="absolute left-0 top-full mt-1 bg-surface-primary border border-fg-16 z-50 kol-helper-12 px-3 py-1.5 text-fg-64 hover:text-fg-96 hover:bg-surface-secondary cursor-pointer transition-all"
-                    style={{ borderRadius: '4px', whiteSpace: 'nowrap' }}
-                    onClick={(e) => { e.stopPropagation(); setShowRemove(false); onRemove() }}
-                  >
-                    Remove Channel
-                  </div>
-                </>
-              )}
-              <div className="w-6 h-6 rounded-full border-2 border-fg-48 flex items-center justify-center">
-                <div className={`w-3 h-3 rounded-full transition-all ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-x-2 gap-y-1 flex-1 w-full">
-              <RotaryDial label="INT" value={value} onChange={onChange} size={36} compact />
-              <RotaryDial label="HUE" value={Math.round(getFxValue('hue-rotate', 'angle') / 360 * 100)} onChange={(v) => setFxValue('hue-rotate', 'angle', Math.round(v / 100 * 360))} size={36} compact />
-              <RotaryDial label="SAT" value={Math.round(getFxValue('saturate', 'amount') / 3 * 100)} onChange={(v) => setFxValue('saturate', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-              <RotaryDial label="BRT" value={Math.round(getFxValue('brightness', 'amount') / 3 * 100)} onChange={(v) => setFxValue('brightness', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-              <RotaryDial label="CTR" value={Math.round(getFxValue('contrast', 'amount') / 3 * 100)} onChange={(v) => setFxValue('contrast', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-              <RotaryDial label="BLR" value={Math.round(getFxValue('blur', 'amount') / 20 * 100)} onChange={(v) => setFxValue('blur', 'amount', Math.round(v / 100 * 20 * 10) / 10)} size={36} compact />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
+          </>
+        )}
+        flipped={flipped}
+        onFlip={onFlip}
+        back={patchPanel}
+        tools={(
+          <>
             {[
               { key: 'src', icon: 'library', title: 'Source' },
               { key: 'res', icon: 'foundation', title: 'Resolution' },
@@ -432,10 +409,10 @@ export function Channel({
                 <Icon name={btn.icon} size={btn.iconSize || 16} />
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="w-full flex flex-col" style={{ gap: '4px' }}>
+          </>
+        )}
+        rows={(
+          <>
           <Slider
             label="Speed"
             min={0}
@@ -458,20 +435,17 @@ export function Channel({
             className="w-full"
             variant="minimal"
           />
-          <Divider className="pt-2" />
-          <div className="flex items-end justify-between kol-helper-12" style={{ height: '24px' }}>
+          </>
+        )}
+        actions={(
+          <>
             <div className="cursor-pointer select-none text-fg-96" onClick={(e) => { onReset && onReset(e.altKey); e.currentTarget.animate([{ color: 'var(--kol-accent-primary)' }, { color: 'var(--kol-surface-on-primary)' }], { duration: 2000, easing: 'ease-out' }) }} title="Reset channel (Alt+click: reset all)">RESET</div>
             <div className="cursor-pointer select-none" style={{ color: shelfOpen && shelfTab === 'rec' ? '#e74c3c' : 'var(--kol-surface-on-primary)' }} onClick={() => { if (shelfOpen && shelfTab === 'rec') { setShelfOpen(false) } else { setShelfOpen(true); setShelfTab('rec') } }} title="Open REC panel">REC/LOOP</div>
             <div className="cursor-pointer select-none" style={{ color: boosted ? '#2dd4bf' : 'var(--kol-fg-32)' }} onClick={() => onBoostChange(!boosted)} title="Boost intensity">BOOST</div>
-          </div>
-        </div>
-      </div>
-          </div>
-          <div className="mirror-flip-back" style={{ overflowY: 'auto', scrollbarWidth: 'none' }}>
-            {patchPanel}
-          </div>
-        </div>
-      </div>
+          </>
+        )}
+        footer={(
+          <>
     {/* FX rack — COLOR · BLEND · FX · FB, extracted as a unit (2026-08-27) */}
     {fxOpen && (
       <FxUnit
@@ -487,11 +461,24 @@ export function Channel({
         onBackgroundColorChange={onBackgroundColorChange}
         rasterTheme={rasterTheme}
         onRasterThemeChange={onRasterThemeChange}
-        feedback={params?.feedback}
+        feedback={feedback}
         onFeedbackChange={onFeedbackChange}
+        square={!!strip}
       />
     )}
-    </div>{/* close column wrapper */}
+          </>
+        )}
+        jacks={strip}
+      >
+            <div className="grid grid-cols-3 gap-x-2 gap-y-1 flex-1 w-full">
+              <RotaryDial label="INT" value={value} onChange={onChange} size={36} compact />
+              <RotaryDial label="HUE" value={Math.round(getFxValue('hue-rotate', 'angle') / 360 * 100)} onChange={(v) => setFxValue('hue-rotate', 'angle', Math.round(v / 100 * 360))} size={36} compact />
+              <RotaryDial label="SAT" value={Math.round(getFxValue('saturate', 'amount') / 3 * 100)} onChange={(v) => setFxValue('saturate', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+              <RotaryDial label="BRT" value={Math.round(getFxValue('brightness', 'amount') / 3 * 100)} onChange={(v) => setFxValue('brightness', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+              <RotaryDial label="CTR" value={Math.round(getFxValue('contrast', 'amount') / 3 * 100)} onChange={(v) => setFxValue('contrast', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
+              <RotaryDial label="BLR" value={Math.round(getFxValue('blur', 'amount') / 20 * 100)} onChange={(v) => setFxValue('blur', 'amount', Math.round(v / 100 * 20 * 10) / 10)} size={36} compact />
+            </div>
+      </DeskModule>
     {/* Shelf — OVERLAYS to the right, it does not push (user 2026-08-28: "can we
         stop matrix from reacting to channel being open"). It used to be a flex
         sibling taking real width, so opening it grew the slide 336 → 604 and
@@ -662,7 +649,7 @@ export function Channel({
 
 /* The desk's track: the Console in the row layout, the old stack otherwise. Wearing the
    console skin (`.console-skin`, components.css) — approved off /dev › Console 2026-10-15. */
-function DeskTrack({ row, consoleState, onConsole, rowHeight, children }) {
+function DeskTrack({ row, consoleState, onConsole, rowHeight, editMode, children }) {
   if (!row) return <div className="flex flex-col" style={{ width: 'fit-content', marginInline: 'auto' }}>{children}</div>
   return (
     <div className="console-skin">
@@ -670,8 +657,8 @@ function DeskTrack({ row, consoleState, onConsole, rowHeight, children }) {
       rows={consoleState?.rows || []}
       width={consoleState?.width || 0}
       onRows={(rows) => onConsole?.((c) => ({ ...c, rows }))}
-      onWidth={(width) => onConsole?.((c) => ({ ...c, width }))}
       rowHeight={rowHeight}
+      editMode={editMode}
     >
       {children}
     </Console>
@@ -721,9 +708,9 @@ export default function SymphonyMixer({
   onUpdateRecSlotTrim,
   patchApi,
   /* THE FLOAT ARRANGEMENT (2026-10-03, `SymphonyViewport arrangement="float"`): `fill` gives the
-     desk the whole view, `deck` is the tape deck as one more module on it, and `frameToggle`
-     `{ on, onToggle }` is the monitor window's show / hide in the tab row. All three absent is
-     the desk as it was. */
+     desk the whole view and `deck` is the tape deck as one more module on it. Both absent is the
+     desk as it was. (`frameToggle`, the monitor window's show / hide in the tab row, left with plan
+     13 § 2.4 — V still does it.) */
   fill = false,
   deck = null,
   /* the Monitor module (2026-10-15) — built by the viewport, which owns the frame */
@@ -731,7 +718,12 @@ export default function SymphonyMixer({
   /* the console's rows and width (`useMirrorState.symphonyConsole`) */
   consoleState = null,
   onConsole,
-  frameToggle = null,
+  /* edit mode (E, plan 15) — the console shows monitor's move arrows on the hovered module */
+  deskEdit = false,
+  /* the viewport's frame copy — a module's live picture registers here by key (`fxm:<id>`) */
+  onBusCanvas,
+  /* the frame buffer's source registry — the Generator's stack registers there as `gen:mix` */
+  onSourceCanvas,
   /* FX MODULES (2026-10-03) — effects standing on the desk as modules of their own, each with
      an IN and an OUT that start empty (`useMirrorState.symphonyFxModules`). */
   fxModules = [],
@@ -741,240 +733,66 @@ export default function SymphonyMixer({
   const [masterFxOpen, setMasterFxOpen] = useState(false)
   const [fxOpenAll, setFxOpenAll] = useState({ open: false, tick: 0 })
   const [masterFxTab, setMasterFxTab] = useState('fx')
-  /* DESK VIEW — pan and zoom over the desk (user 2026-08-28: "I want to move
-     around either with space bar grab and move or some other key bind").
-     A LAYER over embla, not a replacement: with no modifier held the loop and
-     its wheel-scroll behave exactly as before.
-
-       hold SPACE + drag   pan   (the canvas idiom — grab the surface and move)
-       middle-drag         pan   (no keys, for a mouse)
-       alt / ⌘ + drag      pan
-       alt / ⌘ + wheel     zoom toward the cursor, 0.25× – 3×
-       alt + 0             reset
-
-     SPACE IS THE TRANSPORT'S (App.jsx — play/pause, every route). Over the desk
-     this takes it in the CAPTURE phase so a grab cannot also start the clock —
-     but a TAP still plays (user 2026-10-15: *"why doesnt it play on
-     spacebar?"* — with the pointer over the desk, which is where it always is,
-     Space only ever armed a pan). So: Space held + drag pans; Space pressed and
-     released with no drag toggles the transport, on keyup.
-
-     The transform wraps ONLY the embla viewport. PatchCableOverlay stays
-     outside it on purpose — it measures jacks in screen pixels, so leaving it
-     unscaled keeps cables landing on jacks instead of double-applying the zoom. */
-  const [view, setView] = useState({ z: 1, x: 0, y: 0 })
-  /* LOCK — kol-monitor's idiom exactly (RackViewport/useKeybindings): a state
-     for the label and a REF the handlers read, because they are registered once
-     and would otherwise close over a stale value. `L` toggles it; every pan and
-     zoom handler early-returns on it. */
+  /* DESK VIEW — the KOL canvas's (plan 13 § 1.1). `CanvasStudio` below owns pan, zoom, the grid, the lock and
+  their keys; this keeps only the controlled state, so the patch table and anything else can read it. */
+  const [view, setView] = useState({ zoom: 1, x: 0, y: 0 })
   const [locked, setLocked] = useState(false)
-  const lockedRef = useRef(false)
-  /* The dot grid, kol-monitor's exactly (hooks/useDotGrid.js): a radial-gradient
-     cell whose SIZE scales with the zoom and whose POSITION carries the pan, so
-     the surface visibly moves under the modules instead of the modules sliding
-     over a static field. `g` toggles it, same key as over there. */
   const [dots, setDots] = useState(true)
-  const [grab, setGrab] = useState(null) // null | 'ready' | 'panning'
-  const panRef = useRef(null)
-  const overRef = useRef(false)
-  const spaceRef = useRef(false)
-  const spacePannedRef = useRef(false)
-  useEffect(() => {
-    const el = deskRef.current
-    if (!el) return
-    const onEnter = () => { overRef.current = true }
-    const onLeave = () => { overRef.current = false }
-    const onWheel = (e) => {
-      if (lockedRef.current) return
-      /* a plain wheel / two-finger scroll PANS the console (it scrolled the embla
-         loop until 2026-10-15); alt / ⌘ + wheel still zooms. A TRACKPAD PINCH
-         arrives as a wheel with ctrlKey set (user 2026-10-16: it panned instead) —
-         it zooms, at kol-monitor's pinch rate (RackViewport). */
-      if (!(e.altKey || e.metaKey || e.ctrlKey)) {
-        if (e.target.closest?.('input, textarea, select, [data-scroll-own]')) return
-        e.preventDefault()
-        setView(v => ({ ...v, x: v.x - (e.shiftKey ? e.deltaY : e.deltaX), y: v.y - (e.shiftKey ? 0 : e.deltaY) }))
-        return
-      }
-      e.preventDefault()
-      const box = el.getBoundingClientRect()
-      const cx = e.clientX - box.left
-      const cy = e.clientY - box.top
-      setView(v => {
-        const f = e.ctrlKey ? Math.exp(-e.deltaY * 0.01) : 1 - e.deltaY * 0.0015
-        const z = Math.max(0.25, Math.min(3, v.z * f))
-        const k = z / v.z
-        // hold the point under the cursor still while the scale changes
-        return { z, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }
-      })
-    }
-    /* Safari sends a trackpad pinch as gesture events, not a ctrl-wheel — same
-       zoom toward the cursor, driven by the gesture's running scale */
-    let gScale = 1
-    const onGestureStart = (e) => { e.preventDefault(); gScale = 1 }
-    const onGestureChange = (e) => {
-      e.preventDefault()
-      if (lockedRef.current) return
-      const f = e.scale / gScale
-      gScale = e.scale
-      const box = el.getBoundingClientRect()
-      const cx = e.clientX - box.left
-      const cy = e.clientY - box.top
-      setView(v => {
-        const z = Math.max(0.25, Math.min(3, v.z * f))
-        const k = z / v.z
-        return { z, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }
-      })
-    }
-    const onDown = (e) => {
-      if (lockedRef.current) return
-      const wants = spaceRef.current || e.button === 1 || ((e.altKey || e.metaKey) && e.button === 0)
-      if (!wants) return
-      e.preventDefault()
-      if (spaceRef.current) spacePannedRef.current = true
-      panRef.current = { x: e.clientX, y: e.clientY }
-      setGrab('panning')
-    }
-    const onMove = (e) => {
-      const p = panRef.current
-      if (!p) return
-      const dx = e.clientX - p.x
-      const dy = e.clientY - p.y
-      panRef.current = { x: e.clientX, y: e.clientY }
-      setView(v => ({ ...v, x: v.x + dx, y: v.y + dy }))
-    }
-    const onUp = () => {
-      if (!panRef.current) return
-      panRef.current = null
-      setGrab(spaceRef.current ? 'ready' : null)
-    }
-    const noInput = (e) => !e.target.closest('input, textarea, [contenteditable]')
-    const onKeyDown = (e) => {
-      // g toggles the dot grid (kol-monitor binds the same key)
-      if (e.code === 'KeyG' && !e.metaKey && !e.ctrlKey && !e.altKey && noInput(e)) {
-        e.preventDefault()
-        setDots(v => !v)
-        return
-      }
-      // L locks the view (kol-monitor binds the same key)
-      if (e.code === 'KeyL' && !e.metaKey && !e.ctrlKey && noInput(e)) {
-        e.preventDefault()
-        setLocked(v => { lockedRef.current = !v; return !v })
-        return
-      }
-      if (e.code === 'Space' && !e.repeat && !lockedRef.current && overRef.current && noInput(e) && !spaceRef.current) {
-        // take Space from the transport, but only over the desk
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        spaceRef.current = true
-        spacePannedRef.current = false
-        setGrab(g => g === 'panning' ? g : 'ready')
-      }
-      if (e.altKey && e.key === '0' && !lockedRef.current) setView({ z: 1, x: 0, y: 0 })
-    }
-    const onKeyUp = (e) => {
-      if (e.code === 'Space') {
-        if (spaceRef.current) {
-          e.preventDefault()
-          e.stopImmediatePropagation()
-          if (!spacePannedRef.current) transport.toggle()
-        }
-        spaceRef.current = false
-        if (!panRef.current) setGrab(null)
-      }
-    }
-    el.addEventListener('pointerenter', onEnter)
-    el.addEventListener('pointerleave', onLeave)
-    el.addEventListener('wheel', onWheel, { passive: false })
-    el.addEventListener('gesturestart', onGestureStart)
-    el.addEventListener('gesturechange', onGestureChange)
-    el.addEventListener('pointerdown', onDown)
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('keydown', onKeyDown, true)
-    window.addEventListener('keyup', onKeyUp, true)
-    return () => {
-      el.removeEventListener('pointerenter', onEnter)
-      el.removeEventListener('pointerleave', onLeave)
-      el.removeEventListener('wheel', onWheel)
-      el.removeEventListener('gesturestart', onGestureStart)
-      el.removeEventListener('gesturechange', onGestureChange)
-      el.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('keydown', onKeyDown, true)
-      window.removeEventListener('keyup', onKeyUp, true)
-    }
-  }, [])
 
-  /* a Library expression card lands here, on the Expressions tab */
-  const deepExpr = useLocation().state?.expr
-  const [mixerTab, setMixerTab] = useState(deepExpr ? 'expressions' : 'mixer')
+  /* the desk is the only face now (plan 15) — the Expressions tab moved into the E rail */
+  const mixerTab = 'mixer'
   // Flip-to-patch (2026-08-12) — per-channel card flip + pending patch source
   const [flippedCards, setFlippedCards] = useState({})
   const [pendingOut, setPendingOut] = useState(null)
-  // Flip shortcuts — 1/2/3 flip that channel's card, P flips the whole desk.
-  // Gated on the mixer actually being on screen (audit 2026-08-12: keys were
-  // flipping cards invisibly while the mixer was hidden or on Expressions).
-  const channelCount = channels.length
-  const flipKeysActiveRef = useRef(true)
-  useEffect(() => { flipKeysActiveRef.current = isVisible && mixerTab === 'mixer' })
+  /* the generator's live cable reads the channels at change time, not at render */
+  const channelsRef = useRef(channels)
+  useEffect(() => { channelsRef.current = channels }, [channels])
+  /* DIGITS DON'T FLIP (plan 13 § 1.2, user: *"why does 1 flip 1? thats not right."*). Monitor's 1–9 snap the
+     view; that is ticketed to the KOL canvas. Flipping is the Patch tab, P's patch table and each module's flip.
+     O is monitor's cable visibility (`useKeybindings.js`) — the cables hide, the patching stays. */
+  const [cablesShown, setCablesShown] = useState(true)
   useEffect(() => {
     const onKey = (e) => {
-      if (!flipKeysActiveRef.current) return
-      const t = e.target
-      if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
+      const el = e.target
+      if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable) return
       const k = e.key.toLowerCase()
-      if (k === 'p') {
-        setFlippedCards(prev => {
-          const all = channelCount > 0 && Array.from({ length: channelCount }).every((_, i) => prev[i]) && prev.master && prev.routing
-          return all ? {} : { ...Object.fromEntries(Array.from({ length: channelCount }, (_, i) => [i, true])), master: true, routing: true }
+      if (k === 'o' && !e.shiftKey) setCablesShown((v) => !v)
+      /* ⇧P flips the whole desk to its patch bays and back (plan 15 — the Patch tab's job; P alone is the patch table) */
+      if (k === 'p' && e.shiftKey) {
+        const n = channelsRef.current.length
+        setFlippedCards((prev) => {
+          const all = n > 0 && Array.from({ length: n }).every((_, i) => prev[i]) && prev.master && prev.routing
+          return all ? {} : { ...Object.fromEntries(Array.from({ length: n }, (_, i) => [i, true])), master: true, routing: true }
         })
-        return
-      }
-      const n = parseInt(k)
-      if (!isNaN(n) && n >= 1 && n <= channelCount) {
-        setFlippedCards(prev => ({ ...prev, [n - 1]: !prev[n - 1] }))
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [channelCount])
+  }, [])
 
   /* THE EMBLA LOOP IS RETIRED (2026-10-15) — the desk is a Console of rows
      (`components/mirror/Console.jsx`, user: *"rows, so you could add and remove
      rows (height) and width"*). The loop, its wheel plugin and the ring spacers
      are in `_tmp/2026-10-15-desk-track/embla-loop.jsx`. A plain wheel now pans
-     the desk (see the wheel handler above). */
-  const [firstSlideEl, setFirstSlideEl] = useState(null)
+     the desk (`CanvasStudio`, plan 13 § 1.1). */
   /* Which slide has its shelf open. The shelf OVERLAYS now rather than taking
      track width, and an overlay only wins against later slides if the slide
      itself is lifted — a z-index inside the card cannot reach past its own. */
   const [shelfSlide, setShelfSlide] = useState(null)
   /* THE DESK'S HEIGHT is grabbable at its top edge (user 2026-08-28: "where
      is the grab to make channel strip taller"). null = content height, which
-     is what it was before and what a double-click restores. The drag writes
-     px straight to state; `masterH` follows through the ResizeObserver below,
-     so master and routing stay pinned to the channel. */
-  const [deskH, setDeskH] = useState(null)
-  const [masterH, setMasterH] = useState(null)
-  useEffect(() => {
-    if (!firstSlideEl) return
-    const ro = new ResizeObserver(() => setMasterH(firstSlideEl.offsetHeight))
-    ro.observe(firstSlideEl) // fires once on observe
-    return () => ro.disconnect()
-  }, [firstSlideEl])
+     is what it was before and what a double-click restores. It sizes the desk's
+     box, never a module: every module is one U (`DESK_U`, plan 13 § 3.1) — the
+     measured `masterH` it replaced followed Channel 1's content. */
   // (Two-finger touch-pan effect removed 2026-08-12 — the embla loop +
   // WheelGesturesPlugin own desk scrolling now.)
   const deskRef = useRef(null)
-  /* the desk is in patch mode when every card is on its back — the Patch tab's
-     active state and its label both read this */
-  const allFlipped = channels.length > 0 && channels.every((_, i) => flippedCards[i]) && flippedCards.master && flippedCards.routing
+  const layerBoxRef = useRef(null)
   /* any card on its back — the wire diagram's cue */
   const patching = Object.values(flippedCards).some(Boolean)
   return (
-    <div className="flex flex-col gap-6">
+    <div className={fill ? 'relative flex flex-col flex-1 min-h-0' : 'flex flex-col gap-6'}>
       {/* Wire diagram — patch-mode only (user ruling 2026-08-12): the signal
           map earns its 80px while you're actually patching, i.e. any card
           is flipped to its patch bay.
@@ -988,162 +806,50 @@ export default function SymphonyMixer({
           `fill` is the exception: the monitor is a window there and nothing sits
           above the desk to resize, so the row is back to patch-mode only — a
           reserved band was 104px of blank page over the tab row. */}
+      {/* `fill` (plan 16 W10): no band at all — while patching the diagram floats over the canvas's top edge, so the
+          desk starts at the top of the studio and never moves */}
       {(!fill || patching) && (
-        <div style={{ height: '80px', overflow: 'hidden' }}>
+        <div style={{ height: '80px', overflow: 'hidden', ...(fill ? { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 4, pointerEvents: 'none' } : null) }}>
           {patching && (
             <ChannelWireDiagram channels={channels} master={master} />
           )}
         </div>
       )}
-      {/* the desk is in patch mode when every card is on its back */}
-      {/* the rule runs the FULL width (user 2026-08-28: "make the line go all
-          the way across") — the row bleeds out past the studio's 16px viewport
-          gutter and the container's own inset, then pads the tabs back to
-          where they were. The grab edge rides the same box, so the pill can
-          travel the whole line. */}
-      <div
-        /* WRAPS BELOW THE FOLD. The row is Mixer · Expressions · Patch with
-              Lock + Grid pushed right by `margin-left: auto`; at 390 its total
-              runs past the viewport and the right pair simply leaves the
-              screen. `flex-wrap` + a tighter mobile gap lets it fall to a
-              second line instead — measured 2026-09-01, and the desk is on a
-              phone now that nothing is omitted from mobile. */
-            className="flex items-center flex-wrap gap-x-4 gap-y-2 md:gap-x-6 pb-2 mb-1 border-b border-fg-08"
-        style={{ position: 'relative', marginInline: -16, paddingInline: 16 }}
-      >
-        {/* The grab edge sits ON this row's bottom rule — the line between the
-            viewport and the desk (user 2026-08-28: "it needs to be ON THE
-            LINE"). Drag it down to make the strips taller; double-click
-            restores content height. `bottom` rather than `top`: the strip
-            straddles the border below it, not the box's own top edge. */}
-        {/* not in `fill`: the desk already has the whole view, there is nothing to trade height with */}
-        {layout === 'row' && mixerTab === 'mixer' && !fill && (
-          <GrabEdge
-            axis="y"
-            style={{ top: 'auto', bottom: '-4.5px' }}
-            onDoubleClick={() => setDeskH(null)}
-            onDrag={(y) => {
-              const b = deskRef.current?.getBoundingClientRect()
-              if (b) setDeskH(Math.max(240, Math.min(1200, Math.round(b.bottom - y))))
-            }}
-          />
-        )}
-        {/* ONE COMPONENT FOR ALL THREE (user 2026-08-28: "this should be all
-            the same component, not 2 and 1 … same size icon as well"). Patch
-            was a one-off span beside the map with its own type rung, its own
-            gap and its own active rule. Every tab is a row in one list now —
-            what differs is only `active` and what the click does, which is
-            data, not a second rendering path. */}
-        {[
-          { key: 'mixer', label: 'Mixer', icon: 'settings-01', active: mixerTab === 'mixer', onClick: () => setMixerTab('mixer') },
-          { key: 'expressions', label: 'Expressions', icon: 'wave', active: mixerTab === 'expressions', onClick: () => setMixerTab('expressions') },
-          ...(mixerTab === 'mixer' ? [{
-            key: 'patch',
-            label: allFlipped ? 'Controls' : 'Patch',
-            icon: 'flip-vertical',
-            active: allFlipped,
-            title: allFlipped ? 'Flip all to controls (P)' : 'Flip all to patch bays (P)',
-            onClick: () => setFlippedCards(allFlipped ? {} : { ...Object.fromEntries(channels.map((_, i) => [i, true])), master: true, routing: true }),
-          }] : []),
-        ].map(tab => (
-          <span
-            key={tab.key}
-            title={tab.title}
-            className={`cursor-pointer select-none kol-helper-14 flex items-center gap-2 ${
-              tab.active ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'
-            }`}
-            onClick={tab.onClick}
-          >
-            <Icon name={tab.icon} size={14} />
-            {tab.label}
-          </span>
-        ))}
-        {/* LOCK + GRID — were kol-monitor's bracket idiom (VideoModulo.jsx:154),
-            icon-only since 2026-10-15 (below). `L` and `g` bind the same keys it does. */}
-        {/* On the desk this hugs the right. Below md the row wraps, and a
-            group pushed right by `margin-left: auto` lands 8px under "Patch"
-            reading as overlap (user, 2026-09-01: "do you think that's a good
-            look?"). So under md it takes its OWN line — full width,
-            left-aligned, a hairline above — and reads as a second row of chrome
-            instead of a collision. Monitor keeps `[Lock]` out of its tab row
-            entirely, as a fixed corner control; on a desk that scrolls inside a
-            page, a second row is the equivalent that stays with the desk. */}
-        {/* ICON-ONLY (user 2026-10-15: *"why is everything in brackets icon AND
-            TEXT? all of this is also listed in shortcuts … we want to minimise
-            noise"*). The state is the ink — lit when on, red when locked — and
-            the name is the tooltip, with its key. 16px off the right edge: the
-            group used to touch it. kol-component has no IconToggle yet (filed
-            to kol-ds-ui 2026-10-15, shipped kol-component 0.261.0) — the DS atom, fed
-            mirror's own Icon so the local glyph names resolve. */}
-        <span className="flex items-center gap-3 w-full pt-2 mt-1 border-t border-fg-08 md:w-auto md:pt-0 md:mt-0 md:border-t-0 md:ml-auto md:pr-4">
-          {frameToggle && (
-            <IconToggle
-              icon="monitor"
-              label="Frame"
-              title={frameToggle.on ? 'Hide frame (V)' : 'Show frame (V)'}
-              pressed={frameToggle.on}
-              onChange={() => frameToggle.onToggle()}
-              iconComponent={Icon}
-            />
-          )}
-          <IconToggle
-            icon="maximize"
-            label="Dot grid"
-            title={dots ? 'Hide dot grid (G)' : 'Show dot grid (G)'}
-            pressed={dots}
-            onChange={setDots}
-            iconComponent={Icon}
-          />
-          <IconToggle
-            icon="unlock"
-            iconOn="lock"
-            label="Lock the view"
-            title={locked ? 'Unlock the view (L)' : 'Lock the view (L)'}
-            pressed={locked}
-            tone="danger"
-            onChange={(v) => { lockedRef.current = v; setLocked(v) }}
-            iconComponent={Icon}
-          />
-        </span>
-      </div>
+      {/* NO ROW ABOVE THE DESK (plan 15, user 2026-10-25: *"what is with this top? seriously? we can put expression in
+          the bottom rail f.e. and patch can just be in shortcut"*). Mixer · Expressions · Patch and the height grab on
+          its rule are gone: the desk is the studio, Expressions is a view of the E rail, flipping the whole desk to its
+          patch bays is ⇧P. Before: `_tmp/2026-10-25-plan-15/before/SymphonyMixer.jsx`. */}
       <PatchJacksProvider>
-      {/* ONE SURFACE, monitor's (user 2026-10-15: *"why is the background different???? look at
-          monitor … no clipping or different bg"*). The desk box IS the stage: the dot grid is
-          its own background (cell scales with the zoom, position carries the pan), there is no
-          second wash, and it CLIPS — a pan can no longer drag modules over the tab row. The
-          retired wash: `_tmp/2026-10-15-desk-wash/`. */}
-      <div
-        ref={deskRef}
-        /* -mt-7 / pt-7: the 28px between the tab rule and the desk (the row's mb-1 + the
-           column's gap-6) belongs to the desk — the clip sits ON the rule, not 28px under it
-           (user 2026-10-15: "dont clip on padding") */
-        className="-mt-7 pt-7"
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          ...(dots ? {
-            backgroundImage: 'radial-gradient(var(--kol-fg-12) 1px, transparent 1px)',
-            backgroundSize: `${36 * view.z}px ${36 * view.z}px`,
-            backgroundPosition: `${view.x}px ${view.y}px`,
-          } : null),
-        }}
+      {/* THE CANVAS IS THE KOL'S (plan 13 § 1.1, user 2026-10-24: *"this whole canvas is custom, is this not consumed
+          from DS?"*). kol-component's `CanvasStudio` draws the surface — the dot grid, Space+drag, middle- and ⌘-drag,
+          scroll pans, ⌘ wheel / pinch / ⌘= ⌘− zoom, ⌘0 back to the fit, G, L and the F fps chip — the keys
+          `CANVAS_KEYS` lists. `fit` opens it at the zoom that shows the desk's full height. Space is the transport's
+          off the desk; over it the canvas takes it and a tap still plays (`onSpaceTap`). The cables are the
+          canvas's `overlay` — screen space, so they land on the jacks without double-applying the zoom.
+          The old hand-rolled surface: `_tmp/2026-10-25-plan-13/before/SymphonyMixer.jsx`. */}
+      <CanvasStudio
+        surfaceRef={deskRef}
+        view={view}
+        onViewChange={setView}
+        grid={dots}
+        onGridChange={setDots}
+        locked={locked}
+        onLockChange={setLocked}
+        minZoom={0.25}
+        maxZoom={3}
+        fit
+        touch="none"
+        spaceWhenOver
+        onSpaceTap={() => transport.toggle()}
+        /* the desk's top air rides the layer (pt-7 on the box below), so the canvas's fit counts it */
+        /* `fill`: the KOL default, the surface takes the studio (plan 16 W11); otherwise a block in the page */
+        style={fill ? { touchAction: 'auto' } : { flex: 'none', minHeight: 'auto', touchAction: 'auto' }}
       >
-      {/* Patch cables (v2, 2026-08-15) — full between flipped bays, ghosted otherwise */}
-      {isVisible && mixerTab === 'mixer' && (
-        <PatchCableOverlay channels={channels} flipped={flippedCards} inputs={master.inputs} screen2={screen2} fxModules={fxModules} containerRef={deskRef} />
+      {/* the cables ride the pan-zoom layer with the modules (plan 16 W7) — measured against this box, in its space */}
+      <div ref={layerBoxRef} className="relative">
+      {isVisible && mixerTab === 'mixer' && cablesShown && (
+        <PatchCableOverlay channels={channels} flipped={flippedCards} inputs={master.inputs} screen2={screen2} fxModules={fxModules} containerRef={layerBoxRef} />
       )}
-      {/* A Mixer — channels + master section as an EMBLA LOOP (user ruling
-          2026-08-12): the desk is a circle, wheel scrolls it endlessly in
-          either direction. watchDrag off so pointer drags stay with the
-          knobs/sliders; WheelGesturesPlugin carries two-finger scroll.
-          Centering released — the loop has no edges to center between. */}
-      <div
-        style={{
-          transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`,
-          transformOrigin: '0 0',
-          cursor: grab === 'panning' ? 'grabbing' : grab === 'ready' ? 'grab' : undefined,
-        }}
-      >
       <div
         /* THE STAGE GETS AT LEAST HALF THE WINDOW (2026-10-03, the crushed
            viewframe). At content height the desk is 482px under 163px of its
@@ -1154,7 +860,7 @@ export default function SymphonyMixer({
            floor; what is cut is reached by the rule, the pan or the zoom. A
            dragged height wins — the cap is the default only. Above the fold
            only: the phone desk scrolls in its sheet. */
-        className={!deskH && !fill && layout === 'row' ? 'md:max-h-[max(240px,calc(50dvh-195px))]' : undefined}
+        className={fill ? 'p-4' : `pt-7 ${layout === 'row' ? 'md:max-h-[max(240px,calc(50dvh-195px))]' : ''}`}
         /* THE CLIP LINE SITS OUTSIDE THE PADDING (user 2026-08-28: "just
            don't clip where the padding is"). embla needs `overflow: hidden`,
            but with the box ending on the cards' own edge it cut their padding,
@@ -1165,7 +871,7 @@ export default function SymphonyMixer({
           overflow: 'visible',
           overscrollBehaviorX: 'contain',
           visibility: mixerTab === 'mixer' ? 'visible' : 'hidden',
-          ...(layout === 'row' ? { paddingInline: 16, marginInline: -16, paddingBottom: 16, marginBottom: -16 } : null),
+          ...(layout === 'row' && !fill ? { paddingInline: 16, marginInline: -16, paddingBottom: 16, marginBottom: -16 } : null),
           /* THE GRAB GIVES THE DESK ROOM, IT DOES NOT STRETCH THE MODULES
              (user 2026-08-28: "this should not grow, these modules are not
              supposed to be responsive like that — the reason I want to make the
@@ -1174,15 +880,12 @@ export default function SymphonyMixer({
              intrinsic height and the extra is empty desk. That is also the
              shape an infinite canvas needs later — space to arrange in, not
              modules that resize to fill it. */
-          /* `fill`: the whole view less the same chrome the cap above counts (195), or less 91 while
-             the wire row is away (its 80 and one 24 gap) — the modules keep their height at the
-             top and the rest is empty desk, where the monitor window sits */
-          ...(deskH ? { height: deskH } : fill ? { height: `calc(100dvh - ${patching ? 195 : 91}px)` } : null),
+          /* `fill`: the canvas is the studio (plan 16 W11) — the box is its content, 16px of air around the case */
         }}
       >
       {/* THE CONSOLE (2026-10-15) — in the desk's row layout the modules sit in
           rows of one U (`Console`); the column layout keeps its plain stack. */}
-      <DeskTrack row={layout === 'row'} consoleState={consoleState} onConsole={onConsole} rowHeight={masterH}>
+      <DeskTrack row={layout === 'row'} consoleState={consoleState} onConsole={onConsole} rowHeight={DESK_U} editMode={deskEdit}>
         {/* TWO ARRANGEMENTS, ONE MODEL (2026-08-27). 'card' stacks the units in
             one box behind a tab bar; 'modular' puts each on the desk as its own
             module. Both render the SAME unit components off the same channel
@@ -1204,8 +907,7 @@ export default function SymphonyMixer({
             key={i}
             data-console={`ch-${i}`}
             className="shrink-0 pr-4"
-            ref={i === 0 ? setFirstSlideEl : undefined}
-            style={{ position: 'relative', zIndex: shelfSlide === i ? 30 : undefined }}
+            style={{ position: 'relative', zIndex: shelfSlide === i ? 30 : undefined, height: DESK_U }}
           >
           <Channel
             onShelfChange={(open) => setShelfSlide(open ? i : (prev) => (prev === i ? null : prev))}
@@ -1215,12 +917,21 @@ export default function SymphonyMixer({
                 channelIndex={i}
                 channel={ch}
                 channels={channels}
+                onChannelUpdate={onChannelUpdate}
+                pendingOut={pendingOut}
+                setPendingOut={setPendingOut}
+              />
+            }
+            strip={
+              <ChannelIOJacks
+                channelIndex={i}
+                channel={ch}
+                channels={channels}
                 master={master}
                 screen2={screen2}
                 onChannelUpdate={onChannelUpdate}
                 pendingOut={pendingOut}
                 setPendingOut={setPendingOut}
-                onFlip={() => setFlippedCards(prev => ({ ...prev, [i]: !prev[i] }))}
               />
             }
             onFlip={() => setFlippedCards(prev => ({ ...prev, [i]: !prev[i] }))}
@@ -1306,7 +1017,7 @@ export default function SymphonyMixer({
             to the channel height; overflow scrolls inside the module.
             Both FLIP like the channels (scope 2026-08-12): master back =
             bus IN + RTN OUT jacks, routing back = the live cable list. */}
-        <div data-console="master" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="master" className="shrink-0 pr-4" style={{ height: DESK_U }}>
           {/* the module owns its flip now — only its panel turns */}
           <MasterModule
             onFlip={() => setFlippedCards(prev => ({ ...prev, master: !prev.master }))}
@@ -1321,7 +1032,16 @@ export default function SymphonyMixer({
                 setPendingOut={setPendingOut}
                 screen2={screen2}
                 setScreen2={setScreen2}
-                onFlip={() => setFlippedCards(prev => ({ ...prev, master: !prev.master }))}
+              />
+            )}
+            strip={(
+              <MasterInJacks
+                channels={channels}
+                onChannelUpdate={onChannelUpdate}
+                master={master}
+                onMasterChange={onMasterChange}
+                pendingOut={pendingOut}
+                setPendingOut={setPendingOut}
               />
             )}
             master={master}
@@ -1330,40 +1050,44 @@ export default function SymphonyMixer({
             onChannelUpdate={onChannelUpdate}
           />
         </div>
-        <div data-console="routing" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="routing" className="shrink-0 pr-4" style={{ height: DESK_U }}>
           <RoutingMatrix
+            jacks={<RoutingJacks channels={channels} pendingOut={pendingOut} setPendingOut={setPendingOut} />}
             onFlip={() => setFlippedCards(prev => ({ ...prev, routing: !prev.routing }))}
             flipped={!!flippedCards.routing}
-            back={<RoutingPatchPanel channels={channels} onChannelUpdate={onChannelUpdate} master={master} onMasterChange={onMasterChange} screen2={screen2} setScreen2={setScreen2} pendingOut={pendingOut} setPendingOut={setPendingOut} onFlip={() => setFlippedCards(prev => ({ ...prev, routing: !prev.routing }))} />}
+            back={<RoutingPatchPanel channels={channels} onChannelUpdate={onChannelUpdate} master={master} onMasterChange={onMasterChange} screen2={screen2} setScreen2={setScreen2} fxModules={fxModules} onFxModuleUpdate={onFxModuleUpdate} pendingOut={pendingOut} setPendingOut={setPendingOut} onFlip={() => setFlippedCards(prev => ({ ...prev, routing: !prev.routing }))} />}
             channels={channels}
             onChannelUpdate={onChannelUpdate}
             master={master}
             onMasterChange={onMasterChange}
           />
         </div>
-        <div data-console="transport" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="transport" className="shrink-0 pr-4" style={{ height: DESK_U }}>
           <PlaybackModule />
         </div>
         {/* The generators, as a front panel. A bench, not a second home for
             channel state — [Load] hands the built source to the first free
             channel through `onChannelUpdate`, the same seam the palette uses. */}
-        <div data-console="generator" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="generator" className="shrink-0 pr-4" style={{ height: DESK_U }}>
           <GeneratorModule
-            onLoadToChannel={(variantId, params) => {
-              const free = channels.findIndex((c) => !c.variantId)
-              onChannelUpdate(free < 0 ? 0 : free, { variantId, params, enabled: true })
-            }}
+            /* the cable is live: a change reaches every channel this OUT feeds (plan 11 § 3.3) */
+            /* four slots, four live cables (plan 16 W8): slot k reaches every channel its O jack feeds */
+            onSource={(key, variantId, params) => channelsRef.current.forEach((c, i) => {
+              if (c.genFrom === key) onChannelUpdate(i, { variantId, params })
+            })}
+            out={{ connectedKey: (k) => channels.some((c) => c.genFrom === k || c.routeFrom === k), pendingOut, setPendingOut }}
+            onSourceCanvas={onSourceCanvas}
           />
         </div>
         {/* THE EXPRESSION OUTPUT (2026-10-15) — four slots A–D any knob can take by
             right-click. The Expressions tab writes formulas; this sends them out. */}
-        <div data-console="expression" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="expression" className="shrink-0 pr-4" style={{ height: DESK_U }}>
           <ExpressionModule />
         </div>
         {/* The patch, as a front panel (user 2026-09-01, on monitor's
             `PatchModule`). Sits after the bench modules because it acts on the
             whole desk rather than on any one strip. */}
-        <div data-console="patch" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
+        <div data-console="patch" className="shrink-0 pr-4" style={{ height: DESK_U }}>
           <PatchModule api={patchApi} master={master} channels={channels} />
         </div>
         {/* THE FX MODULES — one panel each, in the order they were loaded. A module arrives with
@@ -1379,14 +1103,14 @@ export default function SymphonyMixer({
               ? (CANVAS_FX_DEFS.find((d) => d.id === fxModules.find((o) => fxKey(o.id) === src)?.type)?.label || 'FX')
               : String(src ?? '').toUpperCase()
           return (
-            <div key={`fxm-${m.id}`} data-console={`fxm-${m.id}`} className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
-              <FxModule
-                defId={m.type}
-                params={m.params}
-                enabled={m.enabled}
-                onParamChange={(k, v) => onFxModuleUpdate?.(m.id, { params: { ...m.params, [k]: v } })}
+            <div key={`fxm-${m.id}`} data-console={`fxm-${m.id}`} className="shrink-0 pr-4" style={{ height: DESK_U }}>
+              {m.type !== 'tape' || m.slots ? (
+              <FxRackModule
+                module={m}
+                onSlot={(i, patch) => onFxModuleUpdate?.(m.id, withSlot(m, i, patch))}
                 onToggle={() => onFxModuleUpdate?.(m.id, { enabled: !m.enabled })}
                 onRemove={() => onFxModuleRemove?.(m.id)}
+                onPreviewCanvas={onBusCanvas}
                 jacks={{
                   id: m.id,
                   input: src,
@@ -1398,23 +1122,42 @@ export default function SymphonyMixer({
                   onInput: (from) => onFxModuleUpdate?.(m.id, { input: from == null ? null : from.type === 'ch' ? from.idx : from.key }),
                 }}
               />
+              ) : (
+              /* Tape is Magneto (plan 16 W4) — its own front over the four-head engine */
+              <TapeModule
+                module={m}
+                onParams={(patch) => onFxModuleUpdate?.(m.id, { params: { ...m.params, ...patch } })}
+                onToggle={() => onFxModuleUpdate?.(m.id, { enabled: !m.enabled })}
+                onRemove={() => onFxModuleRemove?.(m.id)}
+                jacks={{
+                  id: m.id,
+                  input: src,
+                  inputLabel,
+                  inputColor: typeof src === 'number' ? WIRE_COLORS[src % WIRE_COLORS.length] : undefined,
+                  isSource: channels.some((c) => c.routeFrom === key) || fxModules.some((o) => o.input === key) || (master.inputs || []).includes(key),
+                  isHeadSource: (hk) => channels.some((c) => c.routeFrom === hk) || fxModules.some((o) => o.input === hk) || (master.inputs || []).includes(hk),
+                  pendingOut,
+                  setPendingOut,
+                  onInput: (from) => onFxModuleUpdate?.(m.id, { input: from == null ? null : from.type === 'ch' ? from.idx : from.key }),
+                }}
+              />
+              )}
             </div>
           )
         })}
         {/* THE TAPE DECK AS A MODULE (float arrangement, user 2026-10-03: "the tape machine could
             be folded into a module, its a bit awkward sitting there above the mixer strip") — the
             deck as it is drawn, in the desk modules' own frame (`PatchModule`'s). */}
-        {monitor && <div data-console="monitor" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>{monitor}</div>}
+        {monitor && <div data-console="monitor" className="shrink-0 pr-4" style={{ height: DESK_U }}>{typeof monitor === 'function' ? monitor(MonitorJacks({ screen2, setScreen2, pendingOut, setPendingOut })) : monitor}</div>}
         {deck && (
-          <div data-console="tape" className="shrink-0 pr-4" style={masterH ? { height: masterH } : undefined}>
-            <ModuleFrame head={<span className="text-fg-96">Tape</span>} className="items-center justify-center p-3">{deck}</ModuleFrame>
+          <div data-console="tape" className="shrink-0 pr-4" style={{ height: DESK_U }}>
+            {deck}
           </div>
         )}
       </DeskTrack>
       </div>
-      </div>{/* close the zoom/pan layer */}
-      {mixerTab === 'expressions' && <ExpressionBench key={deepExpr ?? ''} />}
-      </div>{/* close relative wrapper */}
+      </div>
+      </CanvasStudio>
       </PatchJacksProvider>
 
     </div>

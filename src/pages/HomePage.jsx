@@ -1,9 +1,7 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { findVariant } from '../data/mirrorVariants'
-import Button from '../components/atoms/Button'
-import { useLibrary, renameInLibrary, duplicateInLibrary, removeFromLibrary, exportEntry } from '../hooks/useLibraryStore'
-import { useLibrarySession } from '../hooks/librarySync'
-import { PatchThumb } from './LibraryPage'
+import { useLibrary, renameInLibrary, duplicateInLibrary, removeFromLibrary, exportEntry, setThumb } from '../hooks/useLibraryStore'
+import { PatchThumb } from '../components/PatchThumb'
 
 /**
  * HomePage — `/`, as the DATA the Hub's `HubHome` renders (kol-shell `AppHub`,
@@ -58,93 +56,51 @@ const WALKTHROUGH_STEPS = [
   { title: 'Get started', actions: true },
 ]
 
-const PREVIEW_SRC = '/images/stack-hero-400.jpg'
-
-const EMPTY_STUDIO = [
-  { name: 'empty-studio', title: 'Empty Studio', detail: '3 channels — mixer, buses, routing', src: PREVIEW_SRC, alt: 'Empty Studio' },
-]
-
-/* RECENT, fxr's shape (user 2026-10-15: *"this is USER PATCHES, as in ON LOGIN, when
-   not logged in then show what was there before"*). Signed in: your patches, newest
-   first — the sign-in seed makes that three on a fresh account. Signed out: the one
-   Empty Studio card, as it always was. */
-const RECENT_FILES = 12
-const patchCard = (e) => ({
-  name: e.id,
-  title: e.name,
-  detail: e.description || `${(e.data?.channels || []).filter((c) => c.variantId).length} channels`,
-  patch: e,
+/* A saved patch as the Hub's file — the files are the saved patches, nothing else: no Empty Studio
+   card (Enter Studio is the action), no memory slots (Library has them). The Hub draws RECENT as
+   the 12 newest and SAVED as all. */
+const patchFile = (e) => ({
+  id: e.id,
+  name: e.name,
+  tags: e.tags ?? [],
+  note: e.description ?? '',
+  details: [{ label: 'Channels', value: (e.data?.channels || []).filter((c) => c.variantId).length }],
+  updatedAt: e.savedAt,
+  bytes: new Blob([JSON.stringify(e)]).size,
+  cover: <PatchThumb patch={e} />,
 })
-
-/* Read on every SAVED render, not once per Shell mount: the Shell is mounted
-   for the app's whole life, and a slot saved in the studio has to be on Home
-   when you come back. Nine rows of JSON — cheaper than the stale card. */
-const savedItems = () => {
-  let slots = []
-  try {
-    const raw = localStorage.getItem('mirror-archive')
-    if (raw) slots = JSON.parse(raw) || []
-  } catch { /* no memory */ }
-  return slots.map((slot, i) => ({ slot, i })).filter(({ slot }) => slot).map(({ slot, i }) => ({
-    name: `m${i + 1}`,
-    title: `M${i + 1} — ${findVariant(slot.variantId)?.title || slot.variantId}`,
-    detail: slot.variantId,
-    src: slot.imageSrc || PREVIEW_SRC,
-    alt: '',
-    slotIndex: i,
-  }))
-}
 
 export function useHomeProps() {
   const navigate = useNavigate()
-  const signedIn = !!useLibrarySession()
-  const saved = useLibrary('patch').filter((e) => !e.preset)
-  const recent = signedIn
-    ? [...saved].sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0)).slice(0, RECENT_FILES).map(patchCard)
-    : EMPTY_STUDIO
+  const patches = useLibrary('patch').filter((e) => !e.preset)
+  const key = patches.map((e) => e.id).join()
+  const [files, setFiles] = useState(() => patches.map(patchFile))
+  /* re-read when the store's ids change — during render, not in an effect (react-hooks/set-state-in-effect).
+     ponytail: a Duplicate or Delete re-seeds from the store, so session-only tags and notes on other
+     files reset then; lifts when the store carries tags and description writes */
+  const [seeded, setSeeded] = useState(key)
+  if (seeded !== key) { setSeeded(key); setFiles(patches.map(patchFile)) }
+  const entry = (id) => patches.find((e) => e.id === id)
+  const edit = (id, patch) => setFiles((fs) => fs.map((x) => (x.id === id ? { ...x, ...patch } : x)))
 
-  const illustration = <img src="/images/stack-hero-800.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} />
+  /* the Get started step's actions are data — the Hub draws the DS Buttons and closes the walkthrough
+     before each handler; every other step carries the cover the panel draws */
   const walkthrough = WALKTHROUGH_STEPS.map((s) => s.actions
-    ? {
-        ...s,
-        actions: (close) => (
-          <>
-            <Button tone="grey" size="md" onClick={() => { close(); navigate('/studio') }}>Enter Studio</Button>
-            <Button tone="grey" size="md" onClick={() => { close(); navigate('/library') }}>Browse Library</Button>
-          </>
-        ),
-      }
-    : { ...s, illustration })
+    ? { ...s, actions: [{ label: 'Enter Studio', onClick: () => navigate('/studio') }, { label: 'Browse Library', onClick: () => navigate('/library') }] }
+    : { ...s, cover: '/images/stack-hero-800.jpg' })
 
   const home = {
-    items: (view) => (view === 'recent' ? recent : savedItems()),
-    filtersTitle: 'Studio',
-    /* the DS `app` preset; HubHome hard-sets rowVariant="file", so the row is passed back too */
-    preset: 'app',
-    rowVariant: 'app',
-    toCard: (item) => ({
-      key: item.name,
-      title: item.title,
-      detail: item.detail,
-      media: item.patch ? <PatchThumb patch={item.patch} /> : <img src={item.src} alt={item.alt} />,
-      /* a saved patch carries fxr's file contract (plan 39); the Empty Studio and memory slots are not files */
-      ...(item.patch && {
-        date: item.patch.savedAt,
-        size: new Blob([JSON.stringify(item.patch)]).size,
-        verbs: {
-          rename: (name) => renameInLibrary(item.patch.id, name),
-          duplicate: () => duplicateInLibrary(item.patch),
-          remove: () => removeFromLibrary(item.patch.id),
-        },
-        download: () => exportEntry(item.patch),
-      }),
-      onClick: item.patch
-        ? () => navigate('/studio', { state: { patch: item.patch } })
-        : item.slotIndex != null
-          ? () => navigate('/studio', { state: { slotIndex: item.slotIndex } })
-          : () => navigate('/studio'),
-    }),
-    actions: <Button tone="grey" size="md" onClick={() => navigate('/studio')}>Enter Studio</Button>,
+    files,
+    onOpen: (f) => navigate('/studio', { state: { patch: entry(f.id) } }),
+    onDownload: (f) => exportEntry(entry(f.id)),
+    onRename: (f, name) => { renameInLibrary(f.id, name); edit(f.id, { name, updatedAt: Date.now() }) },
+    onDuplicate: (f) => duplicateInLibrary(entry(f.id)),
+    onRemove: (f) => removeFromLibrary(f.id),
+    onTags: (f, tags) => edit(f.id, { tags }),
+    onNote: (f, note) => edit(f.id, { note }),
+    /* the rail's Upload image — the store's thumb, so the cover is the user's frame everywhere the patch draws */
+    onCover: (f, src) => { setThumb(f.id, src); edit(f.id, { cover: <PatchThumb patch={{ ...entry(f.id), thumb: src }} /> }) },
+    action: { label: 'Enter Studio', onClick: () => navigate('/studio') },
   }
 
   return { home, walkthrough }

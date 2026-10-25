@@ -232,19 +232,20 @@ export const MIXER_MODULES = [
       ['Width', 'The corner grip sizes the screen, 240–720px'],
     ],
   },
-  /* TAPE (user 2026-10-15: *"tape is missing from modules in library?"*). It was
-     on the desk (`deck`) and on /dev since 2026-08-28 and in no list, so the
-     library could not see it. A readout of the one clock, not a recorder. */
+  /* TAPE (user 2026-10-15: *"tape is missing from modules in library?"*). A readout of the clock until plan 13 § 3.2
+     made it an FX module with a real frame delay (user: *"where are the inputs and outputs and settings?? this is a
+     delay?"*); on the transport since plan 14 § 3.1. */
   {
     id: 'tape',
     name: 'Tape',
-    kind: 'Transport',
-    role: 'A reel-to-reel deck that turns with the transport — the emptying reel speeds up as the filling one slows (ω = v / r), and the VU drifts. The clock made visible; PLAY and STOP drive the same transport Space does.',
-    io: { in: 'The transport', out: 'None — it is a readout' },
+    kind: 'Effect',
+    role: 'A frame delay on reels: what comes in on IN goes out TIME frames later, mixed with the dry picture and fed back into the tape. It records while the transport plays and holds while it is stopped; the reels turn with it.',
+    io: { in: 'A frame — a channel, a bus or another module', out: 'The delayed frame' },
     controls: [
+      ['Time', 'Frames back, 1–48'],
+      ['Feedback', 'How much of the delayed frame is written back onto the tape'],
+      ['Mix', 'Dry to wet'],
       ['Keys', 'REW · FF · PLAY · STOP · REC — PLAY and STOP run the transport'],
-      ['Counter', 'Tape position from the clock'],
-      ['Speed', 'The deck’s own knob'],
     ],
   },
 ]

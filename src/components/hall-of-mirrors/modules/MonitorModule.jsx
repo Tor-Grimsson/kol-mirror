@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { ModuleTab } from './ModuleFrame'
+import { DeskModule, ModuleFooter, ModuleAction } from './ModuleFrame'
 
 /**
  * MonitorModule — the output frame's module (user 2026-10-15: *"we are missing a
@@ -26,7 +26,7 @@ import { ModuleTab } from './ModuleFrame'
 export const MONITOR_MIN_W = 240
 export const MONITOR_MAX_W = 720
 
-export default function MonitorModule({ docked = false, onDock, hidden = false, onHidden, width = 360, onWidth, ratio = 9 / 16, slotRef }) {
+export default function MonitorModule({ docked = false, onDock, hidden = false, onHidden, width = 360, onWidth, ratio = 9 / 16, slotRef, flipped = false, onFlip, back = null, strip = null }) {
   const grip = useRef(null)
   const onGrip = (e) => {
     if (e.button !== 0 || !onWidth) return
@@ -39,53 +39,53 @@ export default function MonitorModule({ docked = false, onDock, hidden = false, 
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
   }
-  const key = (on, label, onClick, title) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={`flex-1 kol-helper-10 cursor-pointer select-none ${on ? 'text-accent-primary' : 'text-fg-64 hover:text-fg-96'}`}
-      style={{ height: 24, background: on ? 'var(--kol-oq-12)' : 'var(--kol-surface-tertiary)', boxShadow: on ? 'inset 0 1px 2px rgb(0 0 0 / 0.45)' : undefined }}
-    >
-      {label}
-    </button>
-  )
-
+  /* THE STANDARD (plan 12): the body is the picture's slot with DOCK · OVERLAY · HIDE as its text-button row; the
+     footer carries the width; the jack row the IN; the back the Screen 2 IN. The plate is the slot plus its padding,
+     and the width grip is its corner. */
   return (
-    <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%', width: width + 24 }}>
-      <ModuleTab>
-        <span className="text-fg-96">Monitor</span>
-        <span className="kol-helper-10 text-fg-32">{hidden ? 'Hidden' : docked ? 'Docked' : 'Overlay'}</span>
-      </ModuleTab>
-      <div className="relative flex flex-col flex-1 gap-3 p-3 bg-surface-secondary border border-fg-08" style={{ borderRadius: '4px', minHeight: 0 }}>
-        {/* THE SLOT — where the docked frame lands. Empty-looking on purpose when
-            the frame floats: a monitor with its picture elsewhere. */}
-        <div
-          ref={slotRef}
-          data-monitor-slot=""
-          className="relative shrink-0 border border-fg-08 flex items-center justify-center kol-helper-10 text-fg-24"
-          style={{ width, height: Math.round(width * ratio), borderRadius: 4, background: 'var(--kol-surface-absolute-split, #000)' }}
-        >
-          {(!docked || hidden) && <span>{hidden ? 'Hidden — V' : 'On the overlay'}</span>}
-        </div>
-        <div className="flex shrink-0" style={{ gap: 1, borderRadius: 3, overflow: 'hidden', border: '1px solid var(--kol-fg-08)' }}>
-          {key(docked, 'DOCK', () => { onDock?.(true); onHidden?.(false) }, 'Put the frame in this module')}
-          {key(!docked, 'OVERLAY', () => { onDock?.(false); onHidden?.(false) }, 'Float the frame over the desk')}
-          {key(hidden, hidden ? 'SHOW' : 'HIDE', () => onHidden?.(!hidden), hidden ? 'Show the frame (V)' : 'Hide the frame (V)')}
-        </div>
-        <div className="flex items-center justify-between kol-helper-10 text-fg-32 shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          <span>Width</span>
-          <span className="text-fg-64">{width}px</span>
-        </div>
-        {/* width grip — the panel's bottom-right corner */}
-        <span
-          ref={grip}
-          onPointerDown={onGrip}
-          title="Drag to resize the monitor"
-          className="absolute"
-          style={{ right: 2, bottom: 2, width: 14, height: 14, cursor: 'ew-resize', borderRight: '2px solid var(--kol-fg-24)', borderBottom: '2px solid var(--kol-fg-24)' }}
-        />
+    <DeskModule
+      width={width + 32}
+      power={{ on: !hidden, onToggle: () => onHidden?.(!hidden), title: hidden ? 'Show the frame (V)' : 'Hide the frame (V)' }}
+      head={<span className="text-fg-96">Monitor</span>}
+      headRight={<span className="kol-helper-10 text-fg-32">{hidden ? 'Hidden' : docked ? 'Docked' : 'Overlay'}</span>}
+      flipped={flipped}
+      onFlip={onFlip}
+      back={back}
+      actions={(
+        <>
+          <ModuleAction tone={docked ? 'var(--kol-accent-primary)' : undefined} onClick={() => { onDock?.(true); onHidden?.(false) }} title="Put the frame in this module">DOCK</ModuleAction>
+          <ModuleAction tone={!docked ? 'var(--kol-accent-primary)' : undefined} onClick={() => { onDock?.(false); onHidden?.(false) }} title="Float the frame over the desk">OVERLAY</ModuleAction>
+          <ModuleAction tone={hidden ? 'var(--kol-accent-primary)' : undefined} onClick={() => onHidden?.(!hidden)} title={hidden ? 'Show the frame (V)' : 'Hide the frame (V)'}>{hidden ? 'SHOW' : 'HIDE'}</ModuleAction>
+        </>
+      )}
+      footer={(
+        <ModuleFooter width={width + 32} square={!!strip}>
+          <div className="flex items-center justify-between" style={{ height: 24, fontVariantNumeric: 'tabular-nums' }}>
+            <span className="text-fg-96">Width</span>
+            <span className="text-fg-64">{width}px</span>
+          </div>
+        </ModuleFooter>
+      )}
+      jacks={strip}
+    >
+      {/* THE SLOT — where the docked frame lands. Empty-looking on purpose when
+          the frame floats: a monitor with its picture elsewhere. */}
+      <div
+        ref={slotRef}
+        data-monitor-slot=""
+        className="relative shrink-0 border border-fg-08 flex items-center justify-center kol-helper-10 text-fg-24"
+        style={{ width, height: Math.round(width * ratio), borderRadius: 4, background: 'var(--kol-surface-absolute-split, #000)' }}
+      >
+        {(!docked || hidden) && <span>{hidden ? 'Hidden — V' : 'On the overlay'}</span>}
       </div>
-    </div>
+      {/* width grip — the plate's bottom-right corner */}
+      <span
+        ref={grip}
+        onPointerDown={onGrip}
+        title="Drag to resize the monitor"
+        className="absolute"
+        style={{ right: 2, bottom: 2, width: 14, height: 14, cursor: 'ew-resize', borderRight: '2px solid var(--kol-fg-24)', borderBottom: '2px solid var(--kol-fg-24)' }}
+      />
+    </DeskModule>
   )
 }

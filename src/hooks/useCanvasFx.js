@@ -22,6 +22,14 @@ export const CANVAS_FX_DEFS = [
   { id: 'scanline', label: 'Scanline', params: { gap: { default: 3, min: 2, max: 16, step: 1 }, dark: { default: 60, min: 0, max: 100, step: 1 }, roll: { default: 0, min: 0, max: 100, step: 1 }, glow: { default: 20, min: 0, max: 100, step: 1 } } },
   { id: 'refraction', label: 'Refraction', params: { amount: { default: 30, min: 0, max: 100, step: 1 }, scale: { default: 24, min: 4, max: 128, step: 1 }, flow: { default: 30, min: 0, max: 100, step: 1 } } },
   { id: 'slitscan', label: 'Slitscan', params: { depth: { default: 60, min: 0, max: 100, step: 1 }, bands: { default: 24, min: 2, max: 64, step: 1 }, axis: { default: 0, min: 0, max: 1, step: 1 }, trail: { default: 0, min: 0, max: 100, step: 1 }, echo: { default: 0, min: 0, max: 100, step: 1 }, space: { default: 30, min: 0, max: 100, step: 1 }, fade: { default: 60, min: 0, max: 100, step: 1 } } },
+  /* TAPE (plan 13 § 3.2; plan 16 W4, user 2026-10-25: *"I told you to reference magneto … the module would have MORE
+     PARAMETRIC CONTROL"*). kol-monitor's MagnetoModule, on frames: FOUR HEADS read the tape at 1/4 · 2/4 · 3/4 · 4/4
+     of TIME (scaled by SPEED), each with a LEVEL, a mode (0 play · 1 inf — the head holds its frame · 2 rev · 3 skip
+     — twice as far back · 4 pause — silent) and a PALETTE tint (0 none · 1 70s · 2 neon · 3 mono, Magneto's). DRY ·
+     WET mix, REC is how much input goes onto the tape, REPEATS how much of the heads goes back on. The tape WEARS:
+     AGE fades the repeats toward grey, CRINKLE tears rows sideways, WOW drifts the delay time, SPRING wobbles the
+     picture, CLR cuts the lows. Records while the transport plays, holds while it is stopped (plan 14 § 3.1). */
+  { id: 'tape', label: 'Tape', params: { time: { default: 12, min: 2, max: 48, step: 1 }, dry: { default: 100, min: 0, max: 100, step: 1 }, wet: { default: 70, min: 0, max: 100, step: 1 }, speed: { default: 100, min: 25, max: 200, step: 1 }, rec: { default: 100, min: 0, max: 100, step: 1 }, repeats: { default: 35, min: 0, max: 100, step: 1 }, h1: { default: 100, min: 0, max: 100, step: 1 }, h2: { default: 70, min: 0, max: 100, step: 1 }, h3: { default: 45, min: 0, max: 100, step: 1 }, h4: { default: 25, min: 0, max: 100, step: 1 }, m1: { default: 0, min: 0, max: 4, step: 1 }, m2: { default: 0, min: 0, max: 4, step: 1 }, m3: { default: 0, min: 0, max: 4, step: 1 }, m4: { default: 0, min: 0, max: 4, step: 1 }, palette: { default: 0, min: 0, max: 3, step: 1 }, age: { default: 0, min: 0, max: 100, step: 1 }, crinkle: { default: 0, min: 0, max: 100, step: 1 }, wow: { default: 0, min: 0, max: 100, step: 1 }, spring: { default: 0, min: 0, max: 100, step: 1 }, clr: { default: 0, min: 0, max: 100, step: 1 } } },
 ]
 
 /* COMPOSITE UNITS — one panel over several units that run in order (user
@@ -577,7 +585,97 @@ function fxRefraction(srcData, outData, w, h, params) {
   }
 }
 
+/* the tape's loop — its own ring per canvas + slot, the same byte budget as Slitscan's */
+const tapeStore = new WeakMap()
+/* Magneto's palettes, one tint per head (70s · neon · mono); index 0 is no tint */
+const TAPE_PALETTES = [
+  null,
+  [[1, 0.1, 0.1], [0.1, 1, 0.1], [0.2, 0.2, 1], [1, 0.85, 0.2]],
+  [[0, 1, 1], [1, 0, 1], [1, 1, 0], [1, 1, 1]],
+  [[1, 1, 1], [0.7, 0.7, 0.7], [0.4, 0.4, 0.4], [0.2, 0.2, 0.2]],
+]
+export const TAPE_HEADS = 4
+/* the last frame each head put out, per tape (canvas + slot) — the module's H1–H4 outs read it */
+export const tapeHeadsOf = (canvas, slot = 0) => tapeStore.get(canvas)?.get(slot)?.heads ?? null
+
+export function fxTape(srcData, outData, w, h, params, ctxState) {
+  let per = tapeStore.get(ctxState.canvas)
+  if (!per) { per = new Map(); tapeStore.set(ctxState.canvas, per) }
+  const bytes = w * h * 4
+  const depth = Math.max(4, Math.min(MAX_RING, Math.floor(RING_BUDGET / bytes)))
+  let r = per.get(ctxState.slot)
+  if (!r || r.w !== w || r.h !== h || r.frames.length !== depth) {
+    r = { w, h, idx: 0, f: 0, frames: Array.from({ length: depth }, () => new Uint8ClampedArray(srcData)), heads: Array.from({ length: TAPE_HEADS }, () => new Uint8ClampedArray(bytes)), inf: [null, null, null, null] }
+    per.set(ctxState.slot, r)
+  }
+  const N = r.frames.length
+  const p = (k, d) => (params[k] ?? d)
+  const running = p('run', 1) !== 0
+  const f = r.f
+  /* WOW: the delay time drifts on a slow sine; SPEED scales it (a faster tape, a shorter echo) */
+  const wow = p('wow', 0) / 100
+  const base = (p('time', 12) * 100 / p('speed', 100)) * (1 + Math.sin(f * 0.05) * 0.35 * wow)
+  const tint = TAPE_PALETTES[p('palette', 0) | 0]
+  /* frames[idx] is the previous frame (1 back): `back` frames ago is idx − back + 1 */
+  const at = (back) => r.frames[(r.idx - Math.max(1, Math.min(N - 1, Math.round(back))) + 1 + N * 4) % N]
+  const taps = []
+  for (let k = 0; k < TAPE_HEADS; k++) {
+    const lvl = p(`h${k + 1}`, 0) / 100
+    const mode = p(`m${k + 1}`, 0) | 0
+    if (lvl <= 0 || mode === 4) { r.heads[k].fill(0); r.inf[k] = null; continue }
+    let back = base * (k + 1) / TAPE_HEADS
+    if (mode === 3) back *= 2
+    if (mode === 2) back = base * (k + 1) / TAPE_HEADS * (1 - ((f * 0.02) % 1))
+    let src = at(back)
+    if (mode === 1) { if (!r.inf[k]) r.inf[k] = new Uint8ClampedArray(src); src = r.inf[k] } else r.inf[k] = null
+    taps.push({ k, src, lvl, c: tint ? tint[k] : null })
+  }
+  /* SPRING wobbles each row sideways; CRINKLE tears a few rows hard */
+  const spring = p('spring', 0) / 100
+  const crinkle = p('crinkle', 0) / 100
+  const shift = new Int16Array(h)
+  for (let y = 0; y < h; y++) {
+    let s = spring ? Math.sin(y * 0.06 + f * 0.25) * spring * w * 0.02 : 0
+    if (crinkle && Math.random() < crinkle * 0.04) s += (Math.random() - 0.5) * w * 0.2 * crinkle
+    shift[y] = Math.round(s)
+  }
+  const dry = p('dry', 100) / 100, wet = p('wet', 70) / 100, rec = p('rec', 100) / 100, rpt = p('repeats', 35) / 100
+  const age = p('age', 0) / 100, clr = p('clr', 0) / 100 * 96
+  const next = running ? r.frames[(r.idx + 1) % N] : null
+  for (let y = 0; y < h; y++) {
+    const sy = shift[y]
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4
+      const sx = Math.min(w - 1, Math.max(0, x - sy))
+      const j = (y * w + sx) * 4
+      let R = 0, G = 0, B = 0
+      for (const t of taps) {
+        let tr = t.src[j], tg = t.src[j + 1], tb = t.src[j + 2]
+        if (t.c) { tr *= t.c[0]; tg *= t.c[1]; tb *= t.c[2] }
+        tr *= t.lvl; tg *= t.lvl; tb *= t.lvl
+        const hd = r.heads[t.k]
+        hd[i] = tr; hd[i + 1] = tg; hd[i + 2] = tb; hd[i + 3] = 255
+        R += tr; G += tg; B += tb
+      }
+      if (clr) { R = Math.max(0, R - clr); G = Math.max(0, G - clr); B = Math.max(0, B - clr) }
+      if (age) { const l = (R * 0.3 + G * 0.59 + B * 0.11); R += (l - R) * age; G += (l - G) * age; B += (l - B) * age }
+      outData[i] = srcData[i] * dry + R * wet
+      outData[i + 1] = srcData[i + 1] * dry + G * wet
+      outData[i + 2] = srcData[i + 2] * dry + B * wet
+      outData[i + 3] = 255
+      if (next) {
+        next[i] = srcData[i] * rec + R * rpt * (1 - age * 0.3)
+        next[i + 1] = srcData[i + 1] * rec + G * rpt * (1 - age * 0.3)
+        next[i + 2] = srcData[i + 2] * rec + B * rpt * (1 - age * 0.3)
+        next[i + 3] = 255
+      }
+    }
+  }
+  if (running) { r.idx = (r.idx + 1) % N; r.f = f + 1 }
+}
+
 const FX_PROCESSORS = {
+  'tape': fxTape,
   'chromatic': fxChromatic,
   'ascii': fxAscii,
   'slitscan': fxSlitscan,
@@ -676,6 +774,7 @@ function isNeutral(fx) {
     case 'analog': return !(p.split > 0) && !(p.skew > 0) && !(p.roll > 0) && !(p.vhs > 0) && !(p.crt > 0)
     case 'scanline': return !(p.dark > 0)
     case 'refraction': return !(p.amount > 0)
+    case 'tape': return false
     default: return false                                            // edge-detect and mirror always transform
   }
 }
@@ -745,7 +844,7 @@ export function applyCanvasFx(canvas, fxChain) {
          history, which a pure (src, out, w, h, params) call has nowhere to
          keep. Keyed by canvas + slot, so two slitscans on one channel keep
          separate rings and a channel's ring dies with its canvas. */
-      FX_PROCESSORS[fx.type](srcData, out.data, w, h, fx.params, { canvas, slot })
+      FX_PROCESSORS[fx.type](srcData, out.data, w, h, fx.type === 'tape' ? { ...fx.params, run: transport.playing ? 1 : 0 } : fx.params, { canvas, slot })
       srcData = out.data
       const swap = out; out = other; other = swap
       wrote = true

@@ -5,7 +5,7 @@
 // User 2026-10-15: *"just print the fucking output like fxr does right? thats a
 // saved patch right?"*. A user's save captures its frame on save (`entry.thumb`);
 // a shipped preset has no save, so this does the same thing at build time: open
-// each preset in the studio through the Library and photograph the docked
+// each preset in the studio through its Library page's Load and photograph the docked
 // Monitor's frame → public/previews/patches/<file-stem>.jpg. The literal output,
 // canvas FX and buses included.
 // Own dev server on its own port, killed at the end (generate-previews' pattern).
@@ -24,7 +24,7 @@ const OUT = join(ROOT, 'public/previews/patches')
 const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null
 
 const presets = readdirSync(SRC).filter((f) => f.endsWith('.json'))
-  .map((f) => ({ stem: f.replace(/\.json$/, ''), name: JSON.parse(readFileSync(join(SRC, f), 'utf8')).name }))
+  .map((f) => ({ stem: f.replace(/\.json$/, ''), kind: JSON.parse(readFileSync(join(SRC, f), 'utf8')).kind }))
   .filter((p) => !ONLY || p.stem === ONLY)
 
 function startServer() {
@@ -40,15 +40,16 @@ mkdirSync(OUT, { recursive: true })
 const server = await startServer()
 const browser = await chromium.launch()
 try {
-  for (const { stem, name } of presets) {
+  for (const { stem, kind } of presets) {
     process.stdout.write(`  patches/${stem}... `)
     const page = await browser.newPage({ viewport: { width: 2600, height: 1500 }, colorScheme: 'dark' })
     await page.goto(`${BASE}/library`, { waitUntil: 'networkidle' })
     await page.evaluate(() => localStorage.setItem('mirror-library', '[]'))
     await page.reload({ waitUntil: 'networkidle' })
-    await page.getByText('Patches', { exact: true }).first().click()
-    await page.waitForTimeout(400)
-    await page.getByText(name, { exact: true }).first().click()
+    /* a Library card opens the patch's page (2026-10-24), and Load there opens the studio — the id is the
+       store's `preset:<kind>:<file-stem>` */
+    await page.goto(`${BASE}/library/patch/${encodeURIComponent(`preset:${kind}:${stem}`)}`, { waitUntil: 'networkidle' })
+    await page.getByRole('button', { name: 'Load', exact: true }).click()
     await page.waitForTimeout(2500)
     /* THE FRAME ITSELF, photographed — the docked Monitor's slot is exactly where the
        output sits. A recomposition from channel buffers misses canvas FX and the bus

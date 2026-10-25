@@ -91,7 +91,7 @@ const canvasFx = (f) => ({
   name: f.label,
   kind: 'FX',
   group: 'Canvas FX',
-  detail: 'Pixel processor',
+  detail: f.id === 'tape' ? 'Frame delay — four heads' : 'Pixel processor',
   tags: ['fx', 'canvas'],
   /* PLACED AS ITS OWN PANEL, not appended to a channel's chain. User,
      2026-09-02: *"i also need a self contained fx module that I can load into
@@ -120,8 +120,10 @@ const canvasFx = (f) => ({
    registry of loadable units. Listing them as placeable is the category error
    the user caught: *"in modules you list effexts? why dont you not know what a
    module for the mixer is?"* */
-const DESK_IDS = ['input', 'channel', 'master', 'routing', 'playback', 'expressions', 'monitor', 'tape', 'patch']
-const ONE_PER = new Set(['master', 'routing', 'playback', 'expressions', 'monitor', 'tape', 'patch'])
+/* Tape left this list with plan 16 W1: it is the FX unit `fx:tape` (a frame delay, placed like every effect), and
+   the old deck entry listed it twice */
+const DESK_IDS = ['input', 'channel', 'master', 'routing', 'playback', 'expressions', 'monitor', 'patch']
+const ONE_PER = new Set(['master', 'routing', 'playback', 'expressions', 'monitor', 'patch'])
 
 const desk = (m) => ({
   id: `module:${m.id}`,

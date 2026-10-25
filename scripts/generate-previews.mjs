@@ -30,6 +30,7 @@ const BASE = `http://localhost:${PORT}`
 const VARIANT_DIR = join(ROOT, 'public/previews/variants')
 const FX_DIR = join(ROOT, 'public/previews/fx')
 const MODULE_DIR = join(ROOT, 'public/previews/modules')
+const PATCH_DIR = join(ROOT, 'public/previews/patches')
 
 const arg = (flag) => {
   const i = process.argv.indexOf(flag)
@@ -70,6 +71,7 @@ async function main() {
   mkdirSync(VARIANT_DIR, { recursive: true })
   mkdirSync(FX_DIR, { recursive: true })
   mkdirSync(MODULE_DIR, { recursive: true })
+  mkdirSync(PATCH_DIR, { recursive: true })
 
   console.log('Starting dev server...')
   const server = await startDevServer()
@@ -107,7 +109,7 @@ async function main() {
     })
 
     await page.goto(`${BASE}/dev/capture?kind=list`, { waitUntil: 'networkidle', timeout: 15000 })
-    const { variantIds, generatorIds, fxIds, moduleIds = [] } = JSON.parse(await page.locator('#capture-list').textContent({ timeout: 10000 }))
+    const { variantIds, generatorIds, fxIds, moduleIds = [], patchIds = [] } = JSON.parse(await page.locator('#capture-list').textContent({ timeout: 10000 }))
 
     /* One flat job list — the only differences are the query key, the output
        folder and how long the thing needs before it is worth photographing. */
@@ -120,9 +122,12 @@ async function main() {
       ...fxIds.map((id) => ({ id, kind: 'fx', url: `fx=${id}`, dir: FX_DIR, settle: 0, waitReady: true })),
       // A module front is static markup — it only needs its fonts and icons.
       ...moduleIds.map((id) => ({ id, kind: 'modules', url: `module=${id}`, dir: MODULE_DIR, settle: 600 })),
+      // A registry patch's OUTPUT — its FX over its source, drifted like an FX unit; named by the URL slug and
+      // written as jpeg 82 beside the shipped presets' captures (generate-patch-thumbs' format).
+      ...patchIds.map((id) => ({ id, kind: 'patches', url: `patch=${encodeURIComponent(id)}`, dir: PATCH_DIR, settle: 0, waitReady: true, file: `${id.replace(/:/g, '-')}.jpg` })),
     ].filter((j) => (!KIND || j.kind === KIND) && (!ONLY || j.id === ONLY))
 
-    console.log(`Capturing ${jobs.length} of ${variantIds.length + generatorIds.length + fxIds.length + moduleIds.length}`)
+    console.log(`Capturing ${jobs.length} of ${variantIds.length + generatorIds.length + fxIds.length + moduleIds.length + patchIds.length}`)
 
     let failed = 0
     for (const job of jobs) {
@@ -161,7 +166,9 @@ async function main() {
            2026-09-02. Cropping the capture to the panel means the card shows
            the module as large as its aspect allows, whatever the column count. */
         const target = job.kind === 'modules' ? '#capture-fit' : '#capture-target'
-        await page.locator(target).screenshot({ path: join(job.dir, `${job.id}.png`), type: 'png' })
+        await page.locator(target).screenshot(job.file
+          ? { path: join(job.dir, job.file), type: 'jpeg', quality: 82 }
+          : { path: join(job.dir, `${job.id}.png`), type: 'png' })
         console.log(' ok')
       } catch (err) {
         failed++

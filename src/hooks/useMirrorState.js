@@ -4,6 +4,7 @@ import { rasterDims, capRaster } from '../utils/processImageUpload'
 import { applyPatch, buildPatchEntry } from './patchFile'
 import { addToLibrary } from './useLibraryStore'
 import { pushMemory } from './librarySync'
+import { getDefaultCanvasFxParams } from './useCanvasFx'
 
 const FIRST_VARIANT = {
   displacement: DISPLACEMENT_VARIANTS[0]?.id,
@@ -303,19 +304,26 @@ export function useMirrorState() {
   /* THE CONSOLE (2026-10-15) — the desk as rows of one U. `rows` holds module keys
      per row (`Console.jsx`); a key not in any row lands at the end of the last.
      The default is the mixing desk on top and the bench below. Saved with a patch. */
-  const [symphonyConsole, setSymphonyConsole] = useState({ rows: [['ch-0', 'ch-1', 'ch-2', 'master', 'routing'], ['transport', 'generator', 'expression', 'patch', 'monitor', 'tape']], width: 0 })
+  const [symphonyConsole, setSymphonyConsole] = useState({ rows: [['ch-0', 'ch-1', 'ch-2', 'master', 'routing'], ['transport', 'generator', 'expression', 'patch', 'monitor', 'fxm-1']], width: 0 })
   /* How the channel's units are ARRANGED — 'card' stacks them in one box (the
      original), 'modular' puts each on the desk as its own module. Same units,
      same state, two layouts: forking the state would guarantee drift, forking
      the arrangement costs nothing. */
   const [symphonyDeskMode, setSymphonyDeskMode] = useState('card')
+  /* EDIT MODE — monitor's `E` (plan 15): the Workbench rail is open and the desk's modules show their move arrows.
+     Session-only, never saved with a patch. */
+  const [deskEdit, setDeskEdit] = useState(false)
+  /* which Workbench view opens — 'edit' · 'library' · 'expressions' (a Library expression card lands on the last) */
+  const [workbenchView, setWorkbenchView] = useState('edit')
   /* FX MODULES (2026-10-03) — effects placed on the desk as modules of their own:
      `{ id, type, params, enabled, input }`. `input` is what the IN jack is cabled to — a channel
      index, a bus key, another module's key — and starts null: a module lands with no cable, and
      every path is patched by hand (rules in hooks/patchGraph.js).
      ponytail: not in the undo snapshot and not in a saved patch file yet — add both when the
      module is kept. */
-  const [symphonyFxModules, setSymphonyFxModules] = useState([])
+  /* the desk starts with the Tape — a frame delay, an FX module like any other (plan 13 § 3.2); the fixed deck
+     module it replaced had no signal path */
+  const [symphonyFxModules, setSymphonyFxModules] = useState([{ id: '1', type: 'tape', params: getDefaultCanvasFxParams('tape'), enabled: true, input: null }])
   const [symphonyRatio, setSymphonyRatio] = useState('16:9')
   const [symphonyCustomWidth, setSymphonyCustomWidth] = useState(1024)
   const [symphonyCustomHeight, setSymphonyCustomHeight] = useState(600)
@@ -498,6 +506,10 @@ export function useMirrorState() {
     setSymphonyLayout,
     symphonyDeskMode,
     setSymphonyDeskMode,
+    deskEdit,
+    setDeskEdit,
+    workbenchView,
+    setWorkbenchView,
     symphonyFxModules,
     setSymphonyFxModules,
     symphonyRatio,

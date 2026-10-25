@@ -1,9 +1,8 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useNavHidden } from '@kolkrabbi/kol-shell'
-import { ShellSearchOverlay } from '@kolkrabbi/kol-component'
+import { ShellSearchOverlay, useRailKey } from '@kolkrabbi/kol-component'
 import { MODULE_REGISTRY, searchModules } from '../data/moduleRegistry'
-import ModulePalette from '../components/mirror/ModulePalette'
+import Workbench from '../components/mirror/Workbench'
 import PatchTableOverlay from '../components/hall-of-mirrors/PatchTableOverlay'
 import { EMPTY_CHANNEL } from '../hooks/useMirrorState'
 import { getDefaultCanvasFxParams } from '../hooks/useCanvasFx'
@@ -11,7 +10,7 @@ import { findVariant, getDefaultParams } from '../data/mirrorVariants'
 import { useMirrorState } from '../hooks/useMirrorState'
 import { transport } from '../hooks/transport'
 import { useTheme } from '@kolkrabbi/kol-framework/src/theme.js'
-import MirrorSidebar from '../components/mirror/MirrorSidebar'
+import StudioRail from '../components/mirror/StudioRail'
 import MirrorViewport from '../components/mirror/MirrorViewport'
 import MobileStudio from '../components/mirror/MobileStudio'
 import { useNarrow } from '../hooks/useNarrow'
@@ -31,21 +30,9 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
   const state = useMirrorState()
   const narrow = useNarrow()
 
-  // Sidebar open/close — monitor's rack mechanics verbatim: closed by default,
-  // the global rail hides only WHILE the sidebar is open, [Show]/[Hide]
-  // affordances, H toggles.
-  const nav = useNavHidden()
+  // Sidebar — closed by default, H toggles. A right-edge Rail since plan 13 § 2.3 (user: *"put H siderail on the
+  // right side like monitor"*), so it no longer hides the shell's rail on the left while it is open.
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const navRef = useRef(nav)
-  useEffect(() => { navRef.current = nav })
-  // The rail follows the sidebar from an EFFECT, not from inside the state
-  // updater. A updater must be pure — calling the shell's setNavHidden in there
-  // is a setState-during-render, which React reports as "Cannot update a
-  // component while rendering a different component". Reading nav through the
-  // ref keeps this off the shell's context identity, which changes every render.
-  useEffect(() => { navRef.current?.setNavHidden(sidebarOpen) }, [sidebarOpen])
-  // Reset nav visibility when leaving the studio
-  useEffect(() => () => navRef.current?.setNavHidden(false), [])
 
   // Deep-link entry from the home page gallery / memory row (router location.state)
   const location = useLocation()
@@ -54,6 +41,8 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
     if (deepLinkDone.current) return
     deepLinkDone.current = true
     const { variantId, slotIndex, patch, slot, slots, channelIndex } = location.state || {}
+    /* a Library expression card — the bench lives in the Workbench rail since plan 15 (the studio's tab row is gone) */
+    if (location.state?.expr) { state.setWorkbenchView('expressions'); state.setDeskEdit(true) }
     /* `slots` — the whole mixer, from CREATE's builder view (2026-09-01, on
        kol-monitor's CreatePage shape: you assemble the instrument and then open
        it). Same merge semantics as the single `slot` below, N at a time: each
@@ -195,6 +184,25 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
       })
     },
   }), [])
+  /* THE RAIL KEYS ARE THE ROLES' (plan 17): E the bottom rail (edit mode), H the page rail. P stays the handler below —
+     the role's key ignores Shift, and ⇧P is the whole-desk flip. */
+  useRailKey('bottom', () => state.setDeskEdit((v) => !v))
+  useRailKey('page', () => setSidebarOpen((v) => !v))
+  /* the channels M muted, so the next M restores exactly those */
+  const mutedRef = useRef(null)
+  /* ⌘K IS THE STUDIO'S ADD-MODULE SEARCH (monitor's key). The Hub binds ⌘K to its own search on every page, so on
+     /studio both opened and the Hub's stayed over the desk. The studio takes it first — window capture, before the
+     Hub's bubble listener — and stops it there; off the studio the Hub's search is untouched. */
+  useEffect(() => {
+    const onK = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k' || e.shiftKey || e.altKey || e.repeat) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      setPalette((m) => (m === 'search' ? null : 'search'))
+    }
+    window.addEventListener('keydown', onK, true)
+    return () => window.removeEventListener('keydown', onK, true)
+  }, [])
   useEffect(() => {
     const onKey = (e) => {
       const t = e.target
@@ -206,18 +214,19 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
         else s.symphonyUndo()
         return
       }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        setPalette((m) => (m === 'search' ? null : 'search'))
-        return
-      }
       if (e.metaKey || e.ctrlKey || e.altKey) return
       switch (e.key.toLowerCase()) {
-        case 'e': setPalette((m) => (m === 'shelf' ? null : 'shelf')); break
-        case 'p': setPatchTable((v) => !v); break
-        case 'h': setSidebarOpen(v => !v); break
+        case 'p': if (!e.shiftKey) setPatchTable((v) => !v); break
         case 't': cycleRef.current?.(); break
-        case 'm': s.setSymphonyMixerVisible(v => !v); break
+        /* M and D are monitor's (plan 13 § 1.3): M mutes every channel and a second M brings back the ones
+           that were on; D clears the display — here, the mixer — which M used to do */
+        case 'm': {
+          const on = s.symphonyChannels.map((c) => c.enabled)
+          if (on.some(Boolean)) { mutedRef.current = on; s.setSymphonyChannels((prev) => prev.map((c) => ({ ...c, enabled: false }))) }
+          else if (mutedRef.current) { const was = mutedRef.current; mutedRef.current = null; s.setSymphonyChannels((prev) => prev.map((c, i) => ({ ...c, enabled: !!was[i] }))) }
+          break
+        }
+        case 'd': s.setSymphonyMixerVisible(v => !v); break
         case 'r': s.symphonyReloaded?.(null); break
         case 'b': setTimeline((v) => !v); break
         default:
@@ -234,46 +243,6 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
     s.setSymphonyAnimating(playing)
     if (s.activeVariant && !['symphony', 'archive', 'presets'].includes(s.activeHall)) s.setVariantParam(s.activeVariant, 'animate', playing)
   }), [])
-  const [sidebarWidth, setSidebarWidth] = useState(null)
-  const dragging = useRef(false)
-  const startX = useRef(0)
-  const startW = useRef(0)
-  const asideRef = useRef(null)
-
-  const getDefaultWidth = useCallback(() => {
-    return window.innerWidth >= 1024 ? 320 : 288
-  }, [])
-
-  const onPointerDown = useCallback((e) => {
-    e.preventDefault()
-    dragging.current = true
-    startX.current = e.clientX
-    startW.current = sidebarWidth ?? getDefaultWidth()
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-  }, [sidebarWidth, getDefaultWidth])
-
-  useEffect(() => {
-    const onPointerMove = (e) => {
-      if (!dragging.current) return
-      const defaultW = getDefaultWidth()
-      const delta = e.clientX - startX.current
-      const next = Math.max(defaultW, Math.min(defaultW * 3, startW.current + delta))
-      setSidebarWidth(next)
-    }
-    const onPointerUp = () => {
-      if (!dragging.current) return
-      dragging.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
-    }
-  }, [getDefaultWidth])
 
   /* BELOW THE FOLD, a different studio (2026-09-01). Placed after every hook in
      this component, never inside a condition — `MirrorViewport` already carries
@@ -293,7 +262,9 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
      with no `add` (one per desk) is listed and a pick on it does nothing. */
   const modulePalette = (
     <>
-      <ModulePalette mode={palette === 'shelf' ? 'shelf' : null} onClose={() => setPalette(null)} api={paletteApi} />
+      {/* E is monitor's edit mode — the bottom Workbench rail: the case's rows, and the module shelf as its Library
+          view (plan 13 § 2.2). Its open state is edit mode (`state.deskEdit`, plan 15) — the desk's move arrows follow it. */}
+      <Workbench open={state.deskEdit} onClose={() => state.setDeskEdit(false)} view={state.workbenchView} onView={state.setWorkbenchView} consoleState={state.symphonyConsole} onConsole={state.setSymphonyConsole} api={paletteApi} />
       <ShellSearchOverlay
         open={palette === 'search'}
         onClose={() => { setPalette(null); setModuleQuery('') }}
@@ -323,10 +294,10 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
           you are trying to see, and the shelf is the browsable half. Bottom-LEFT
           because the drawer trigger owns the top-right corner and the mobile
           sheet owns the bottom edge's full width. */}
-      {!palette && (
+      {!palette && !state.deskEdit && (
         <button
           type="button"
-          onClick={() => setPalette('shelf')}
+          onClick={() => { state.setWorkbenchView('library'); state.setDeskEdit(true) }}
           className="fixed kol-helper-12 text-fg-64"
           style={{ bottom: 72, left: 16, zIndex: 'var(--kol-z-overlay)', background: 'var(--kol-surface-primary)', border: '1px solid var(--kol-fg-08)', borderRadius: 'var(--kol-radius-xs)', height: 40, padding: '0 12px' }}
         >
@@ -348,10 +319,13 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
       <PatchTableOverlay
         open={patchTable}
         onClose={() => setPatchTable(false)}
-        channels={state.symphonyChannels}
-        master={state.symphonyMaster}
-        onChannelUpdate={(i, patch) => state.setSymphonyChannels((prev) => prev.map((c, n) => (n === i ? { ...c, ...patch } : c)))}
-        onMasterChange={(patch) => state.setSymphonyMaster((m) => ({ ...m, ...patch }))}
+        patch={{ channels: state.symphonyChannels, master: state.symphonyMaster, screen2: state.symphonyScreen2, fxModules: state.symphonyFxModules }}
+        onApply={(next) => {
+          state.setSymphonyChannels(next.channels)
+          state.setSymphonyMaster(next.master)
+          state.setSymphonyScreen2(next.screen2)
+          state.setSymphonyFxModules(next.fxModules)
+        }}
       />
 
     </>
@@ -366,10 +340,13 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
       <PatchTableOverlay
         open={patchTable}
         onClose={() => setPatchTable(false)}
-        channels={state.symphonyChannels}
-        master={state.symphonyMaster}
-        onChannelUpdate={(i, patch) => state.setSymphonyChannels((prev) => prev.map((c, n) => (n === i ? { ...c, ...patch } : c)))}
-        onMasterChange={(patch) => state.setSymphonyMaster((m) => ({ ...m, ...patch }))}
+        patch={{ channels: state.symphonyChannels, master: state.symphonyMaster, screen2: state.symphonyScreen2, fxModules: state.symphonyFxModules }}
+        onApply={(next) => {
+          state.setSymphonyChannels(next.channels)
+          state.setSymphonyMaster(next.master)
+          state.setSymphonyScreen2(next.screen2)
+          state.setSymphonyFxModules(next.fxModules)
+        }}
       />
 
       {/* `MobileHeader` + `MobileDrawer` stood here and are retired to
@@ -379,47 +356,13 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
           a drawer. `MobileStudio` replaced them above; this tree is now only
           ever rendered above the fold, so both were dead. */}
 
-      {/* Desktop sidebar — closed by default; a FIXED OVERLAY like monitor's
-          rack sidebar (VideoModulo ~85): the studio never reflows on H, the
-          panel floats over the canvas at z-40. */}
-      {sidebarOpen && (
-        <aside
-          ref={asideRef}
-          className="mirror-sidebar-desktop border-r border-fg-08 overflow-y-auto"
-          style={{
-            /* the sidebar is a PANEL, not the page — surface-primary, like
-               the rail. Painting the wash here too stacked it on the root's
-               (user 2026-08-28: "there is double wash"); the page carries
-               exactly one, on the root below, which is PageShell's stack. */
-            backgroundColor: 'var(--kol-surface-primary)',
-            height: '100vh',
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            zIndex: 40,
-            ...(sidebarWidth ? { width: `${sidebarWidth}px` } : {}),
-          }}
-        >
-          {!sidebarWidth && <style>{`.mirror-sidebar-desktop { width: 18rem; } @media (min-width: 1024px) { .mirror-sidebar-desktop { width: 20rem; } }`}</style>}
-          <MirrorSidebar state={state} onHide={() => setSidebarOpen(false)} />
-          {/* Drag handle — below channel area */}
-          <div
-            className="absolute bottom-0 right-0 cursor-col-resize"
-            style={{ width: '5px', height: '50%' }}
-            onPointerDown={onPointerDown}
-            onDoubleClick={() => setSidebarWidth(null)}
-          />
-        </aside>
-      )}
+      {/* H IS THE PAGE ROLE (plan 17 W2): the studio's own settings as the KOL page rail — `StudioRail` */}
+      <StudioRail state={state} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Sidebar opens via H (or the rail) — no floating affordance, per user. */}
 
-      {/* Main viewport — pushed right while the sidebar overlay is open
-          (+24px breathing room between panel and content) */}
-      <main
-        className="mirror-viewport flex-1 relative"
-        style={sidebarOpen ? { paddingLeft: (sidebarWidth ?? getDefaultWidth()) + 24 } : undefined}
-      >
+      {/* Main viewport — the sidebar Rail floats over it, as monitor's does over the rack */}
+      <main className="mirror-viewport flex-1 relative">
         <MirrorViewport state={state} arrangement={arrangement} />
         {timeline && <TimelineStrip onClose={() => setTimeline(false)} />}
       </main>

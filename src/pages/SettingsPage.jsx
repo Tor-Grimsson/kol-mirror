@@ -1,156 +1,83 @@
-import { LabeledControlSection, SettingsRow } from '@kolkrabbi/kol-component'
 import { useRenderQuality, setQuality, resetQuality, SCALE_OPTIONS, PIXEL_CAP_OPTIONS, PIXEL_RATIO_OPTIONS, FRAME_DIVISOR_OPTIONS } from '../hooks/renderQuality'
-import Dropdown from '../components/molecules/Dropdown'
-import ToggleSwitch from '@kolkrabbi/kol-component/atoms/ToggleSwitch'
 
 /**
- * SettingsPage — `/settings`, as the PIECES the Hub's `HubSettings` renders
- * (kol-shell `AppHub`, 2026-10-13). The scaffold, SETTINGS · ABOUT · REPO, the
- * masthead cluster with the theme toggle, the colophon, the links and the
- * shortcuts list are the Hub's — monitor, fxr and mirror each had them on
- * `SettingsScaffold` by hand. What is mirror's stays, as components: the Memory
- * section (`SettingsContent`), the PERFORMANCE tab (`PerformanceContent`) and
- * the About prose (`AboutContent`). `App.jsx` hands them to `AppHub settings=`
- * and `app.about`; the route itself renders nothing because the Hub owns
- * `/settings`. Components only — react-refresh's rule — so the repo links and
- * the tab's title live beside the `APP` in `App.jsx`.
+ * ON THE HUB (apps/mixer-hub, 2026-10-03): Mirror's settings as the ROWS of the Hub's settings rail — studio-hub's
+ * tier. Every word is Mirror's `SettingsPage.jsx`; the Hub draws every label, value and note in its own class (user
+ * 2026-10-24: *"YOU ARE USING A HELPER text for paragraphs"* — the rows were JSX, and the JSX wore `kol-helper-12` on
+ * sentences; the rail takes rows now and no JSX). Every section sits under Settings — the rail has no app tabs (user
+ * 2026-10-24: a fifth tab does not fit the rail on one line, *"not 2 lines"*) — the render budget first;
+ * reset is the rail's footer control (`drawer.onReset`), as studio-hub's.
  *
- * The Hub stacks the keyboard shortcuts as rows under the settings column
- * (`KEYBOARD_SHORTCUTS` goes in through `AppHub shortcuts=`), so the local
- * `SettingsShortcuts` block and the search plumbing are gone with the page.
+ * CONTROLS ONLY (plan 10 § 5.1, user 2026-10-24: *"settings are so overloaded with information that its hard to
+ * navigate"*): each section is its controls and their one-line hints. The paragraph notes moved verbatim to
+ * `docs/documentation/00-mirrors/render-settings.md`; the Memory section left (*"dunno memory slots, probably not"*).
+ * Both are in `_tmp/2026-10-24-settings-notes/`.
  */
 
-const MEMORY_ROWS = [
-  ['Save', 'Save to Slot in the studio sidebar, per variant'],
-  ['Load', 'Home → Saved, Library → Memory, or the studio Memory list'],
+
+/* THE LABEL ALONE in the dropdown (user 2026-10-24: *"every dropdown super long and gnarly"* — Mirror's own page had
+ * joined `label — detail` into one string); the detail of the picked option rides the row's hint */
+const opts = (list) => list.map((o) => ({ value: o.value, label: o.label }))
+const detailOf = (list, v) => list.find((o) => o.value === v)?.detail
+const SVG_OPTIONS = [
+  { value: 1, label: '1x', detail: 'cheapest' },
+  { value: 2, label: '2x', detail: 'default' },
+  { value: 3, label: '3x' },
+  { value: 4, label: '4x', detail: 'legacy' },
+]
+const TARGET_OPTIONS = [{ value: 30, label: '30 fps' }, { value: 45, label: '45 fps' }, { value: 55, label: '55 fps', detail: 'default' }]
+
+/* the rail's rows need the live quality, so this is a hook — `AppStudio settings={useSettings()}` */
+export function useSettings() {
+  const q = useRenderQuality()
+  return {
+    sections: [
+        {
+          label: 'Render Budget',
+          rows: [
+            { label: 'Render scale', type: 'choice', options: opts(SCALE_OPTIONS), value: q.scale, onChange: (v) => setQuality({ scale: v }), hint: detailOf(SCALE_OPTIONS, q.scale) },
+            { label: 'Output pixel cap', type: 'choice', options: opts(PIXEL_CAP_OPTIONS), value: q.maxPixels, onChange: (v) => setQuality({ maxPixels: v }), hint: detailOf(PIXEL_CAP_OPTIONS, q.maxPixels) },
+            { label: 'Device pixel ratio', type: 'choice', options: opts(PIXEL_RATIO_OPTIONS), value: q.pixelRatio, onChange: (v) => setQuality({ pixelRatio: v }), hint: detailOf(PIXEL_RATIO_OPTIONS, q.pixelRatio) },
+            { label: 'Render every', type: 'choice', options: opts(FRAME_DIVISOR_OPTIONS), value: q.frameDivisor, onChange: (v) => setQuality({ frameDivisor: v }), hint: detailOf(FRAME_DIVISOR_OPTIONS, q.frameDivisor) },
+          ],
+        },
+        {
+          label: 'Adaptive',
+          rows: [
+            { label: 'Adaptive quality', type: 'switch', on: !!q.adaptive, onChange: (v) => setQuality({ adaptive: v }) },
+            { label: 'Target', type: 'choice', options: opts(TARGET_OPTIONS), value: q.targetFps, onChange: (v) => setQuality({ targetFps: v }), hint: detailOf(TARGET_OPTIONS, q.targetFps) },
+            ...(q.adaptive ? [{ label: 'Currently', value: q.autoScale && q.autoScale < q.scale ? `Holding ${q.autoScale}x — below your ceiling` : 'At your ceiling', align: 'fill' }] : []),
+          ],
+        },
+        {
+          label: 'Source Quality',
+          rows: [
+            { label: 'Vector raster scale', type: 'choice', options: opts(SVG_OPTIONS), value: q.svgRasterScale, onChange: (v) => setQuality({ svgRasterScale: v }), hint: detailOf(SVG_OPTIONS, q.svgRasterScale) },
+            { label: 'Channel pixel cap', type: 'choice', options: opts(PIXEL_CAP_OPTIONS), value: q.maxChannelPixels, onChange: (v) => setQuality({ maxChannelPixels: v }), hint: detailOf(PIXEL_CAP_OPTIONS, q.maxChannelPixels) },
+          ],
+        },
+    ],
+    /* Restore defaults — the rail's footer reset, studio-hub's */
+    drawer: { onReset: () => resetQuality() },
+  }
+}
+
+/* About as DATA — paragraphs the Hub draws (2026-10-24) */
+export const ABOUT = [
+  'An interactive image distortion playground. Three halls of distortion variants — Displacement (SVG turbulence), Movement (GSAP transforms), Copies (WebGL slicing, glitch, kaleidoscope) — feeding a compositing Symphony mixer with send/return buses, cross-channel routing, per-channel feedback, procedural generators, an expression engine, and loop recording.',
+  'React 19 · PixiJS 8 · GSAP 3 · Tailwind CSS 4 · the @kolkrabbi design system (kol-theme, kol-component, kol-framework).',
 ]
 
-export function SettingsContent() {
-  return (
-    <LabeledControlSection label="Memory">
-      <div className="text-fg-48 kol-mono-14" style={{ maxWidth: 640, marginBottom: 8 }}>The mirror has no database or user accounts. The 9 memory slots persist in this browser's localStorage and survive refresh. Custom-uploaded images are not persisted with a slot — reloading one falls back to the default source image.</div>
-      {MEMORY_ROWS.map(([label, desc]) => (
-        <SettingsRow key={label} label={label} align="fill"><span className="text-fg-32 kol-helper-12">{desc}</span></SettingsRow>
-      ))}
-    </LabeledControlSection>
-  )
-}
+/* Docs as DATA — the rail's Docs tab (kol-shell 0.80.0 `app.docs`, plan 10 § 5.2): the notes that sat above the
+   controls, verbatim. Mirrored in `docs/documentation/00-mirrors/render-settings.md`. */
+export const DOCS = [
+  { label: 'Render Budget', paragraphs: ['The Symphony mixer composites every channel, bus and feedback buffer once per frame, so its cost scales with pixels rather than with how many effects are stacked. Render scale is the lever: at Half, every stage does a quarter of the work. Press F anywhere to see the per-stage breakdown live — fps, p95 and a jank count, because an average hides the stalls you actually feel. Device pixel ratio is the other big one: at 2x every WebGL channel draws four times the fragments for detail no display resolves on moving video. Changing it takes effect on the next channel reload.'] },
+  { label: 'Adaptive', paragraphs: ['Let the measured frame rate pick the render scale. Your Render scale above becomes a ceiling — adaptive only ever goes below it, drops after two bad windows, and takes six good ones to climb back, because a loop that recovers as eagerly as it drops just oscillates. Stalls count as well as the average.'] },
+  { label: 'Source Quality', paragraphs: ['Uploaded vectors are rasterised so the WebGL variants can sample them. The old fixed 4x turned a 1024px SVG into a 4096-square texture — around 67 MB in GPU memory per channel, for detail no display can resolve.'] },
+]
 
-/**
- * PerformanceContent — the render budget. The mixer is fill-rate bound: every
- * stage costs in proportion to pixels, so Render scale is worth more than any
- * other control here. Press F anywhere to see what a change actually did.
- */
-export function PerformanceContent() {
-  const q = useRenderQuality()
-  const svgOptions = [
-    { value: 1, label: '1x — cheapest' },
-    { value: 2, label: '2x — default' },
-    { value: 3, label: '3x' },
-    { value: 4, label: '4x — legacy' },
-  ]
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      <LabeledControlSection label="Render Budget">
-        <div className="text-fg-48 kol-mono-14" style={{ maxWidth: 640, marginBottom: 8 }}>The Symphony mixer composites every channel, bus and feedback buffer once per frame, so its cost scales with pixels rather than with how many effects are stacked. Render scale is the lever: at Half, every stage does a quarter of the work. Press F anywhere to see the per-stage breakdown live — fps, p95 and a jank count, because an average hides the stalls you actually feel. Device pixel ratio is the other big one: at 2x every WebGL channel draws four times the fragments for detail no display resolves on moving video. Changing it takes effect on the next channel reload.</div>
-        <SettingsRow label="Render scale">
-          <Dropdown
-            options={SCALE_OPTIONS.map(o => ({ value: o.value, label: `${o.label} — ${o.detail}` }))}
-            value={q.scale}
-            onChange={(v) => setQuality({ scale: v })}
-            variant="minimal"
-            size="md"
-          />
-        </SettingsRow>
-        <SettingsRow label="Output pixel cap">
-          <Dropdown
-            options={PIXEL_CAP_OPTIONS.map(o => ({ value: o.value, label: `${o.label} — ${o.detail}` }))}
-            value={q.maxPixels}
-            onChange={(v) => setQuality({ maxPixels: v })}
-            variant="minimal"
-            size="md"
-          />
-        </SettingsRow>
-        <SettingsRow label="Device pixel ratio">
-          <Dropdown
-            options={PIXEL_RATIO_OPTIONS.map(o => ({ value: o.value, label: `${o.label} — ${o.detail}` }))}
-            value={q.pixelRatio}
-            onChange={(v) => setQuality({ pixelRatio: v })}
-            variant="minimal"
-            size="md"
-          />
-        </SettingsRow>
-        <SettingsRow label="Render every">
-          <Dropdown
-            options={FRAME_DIVISOR_OPTIONS.map(o => ({ value: o.value, label: `${o.label} — ${o.detail}` }))}
-            value={q.frameDivisor}
-            onChange={(v) => setQuality({ frameDivisor: v })}
-            variant="minimal"
-            size="md"
-          />
-        </SettingsRow>
-      </LabeledControlSection>
-
-      <LabeledControlSection label="Adaptive">
-        <div className="text-fg-48 kol-mono-14" style={{ maxWidth: 640, marginBottom: 8 }}>Let the measured frame rate pick the render scale. Your Render scale above becomes a ceiling — adaptive only ever goes below it, drops after two bad windows, and takes six good ones to climb back, because a loop that recovers as eagerly as it drops just oscillates. Stalls count as well as the average.</div>
-        <SettingsRow label="Adaptive quality">
-          <ToggleSwitch checked={!!q.adaptive} onChange={(v) => setQuality({ adaptive: v })} />
-        </SettingsRow>
-        <SettingsRow label="Target">
-          <Dropdown
-            options={[{ value: 30, label: '30 fps' }, { value: 45, label: '45 fps' }, { value: 55, label: '55 fps — default' }]}
-            value={q.targetFps}
-            onChange={(v) => setQuality({ targetFps: v })}
-            variant="minimal"
-            size="md"
-          />
-        </SettingsRow>
-        {q.adaptive && (
-          <SettingsRow label="Currently" align="fill">
-            <span className="text-fg-32 kol-helper-12">{q.autoScale && q.autoScale < q.scale ? `Holding ${q.autoScale}x — below your ceiling` : 'At your ceiling'}</span>
-          </SettingsRow>
-        )}
-      </LabeledControlSection>
-
-      <LabeledControlSection label="Source Quality">
-        <div className="text-fg-48 kol-mono-14" style={{ maxWidth: 640, marginBottom: 8 }}>Uploaded vectors are rasterised so the WebGL variants can sample them. The old fixed 4x turned a 1024px SVG into a 4096-square texture — around 67 MB in GPU memory per channel, for detail no display can resolve.</div>
-        <SettingsRow label="Vector raster scale">
-          <Dropdown
-            options={svgOptions}
-            value={q.svgRasterScale}
-            onChange={(v) => setQuality({ svgRasterScale: v })}
-            variant="minimal"
-            size="md"
-          />
-        </SettingsRow>
-        <SettingsRow label="Channel pixel cap">
-          <Dropdown
-            options={PIXEL_CAP_OPTIONS.map(o => ({ value: o.value, label: `${o.label} — ${o.detail}` }))}
-            value={q.maxChannelPixels}
-            onChange={(v) => setQuality({ maxChannelPixels: v })}
-            variant="minimal"
-            size="md"
-          />
-        </SettingsRow>
-      </LabeledControlSection>
-
-      <LabeledControlSection label="Reset">
-        <SettingsRow label="Restore defaults">
-          <span className="kol-helper-12 text-fg-64 hover:text-fg-96 cursor-pointer select-none" onClick={() => resetQuality()}>Reset</span>
-        </SettingsRow>
-      </LabeledControlSection>
-    </div>
-  )
-}
-
-/* `app.about` — the Hub renders it under the app's name, over the colophon.
-   Both paragraphs of the old About tab, verbatim; the Hub has one section
-   there, so the "Stack" label is the paragraph break. */
-export function AboutContent() {
-  return (
-    <>
-      <div>An interactive image distortion playground. Three halls of distortion variants — Displacement (SVG turbulence), Movement (GSAP transforms), Copies (WebGL slicing, glitch, kaleidoscope) — feeding a compositing Symphony mixer with send/return buses, cross-channel routing, per-channel feedback, procedural generators, an expression engine, and loop recording.</div>
-      <div style={{ marginTop: 16 }}>React 19 · PixiJS 8 · GSAP 3 · Tailwind CSS 4 · the @kolkrabbi design system (kol-theme, kol-component, kol-framework).</div>
-    </>
-  )
-}
+export const LINKS = [
+  { label: 'GitHub', url: 'https://github.com/Tor-Grimsson/kol-mirror' },
+  { label: 'Kolkrabbi', url: 'https://mirror.kolkrabbi.io' },
+  { label: 'Vercel', url: 'https://vercel.com/tor-grimssons-projects/kol-mirror' },
+]

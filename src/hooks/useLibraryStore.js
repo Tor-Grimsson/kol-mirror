@@ -21,6 +21,8 @@ export const PRESETS = Object.entries(presetFiles).map(([path, p]) => ({
 function read() {
   try { const arr = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(arr) ? arr : [] } catch { return [] }
 }
+let fresh = false
+try { fresh = localStorage.getItem(KEY) === null } catch { /* storage blocked — no seed */ }
 let items = read()
 const listeners = new Set()
 function write(next) {
@@ -28,6 +30,13 @@ function write(next) {
   try { localStorage.setItem(KEY, JSON.stringify(next)) } catch { /* quota — keep session state */ }
   listeners.forEach((l) => l())
 }
+
+/* SIGNED OUT IS A USER WITH A LOCAL LIBRARY (decided-for-review, kol-ds-ui 2026-10-24: monitor's
+   2026-10-18 rule applied to mirror; Home is files only now, so the 2026-10-15 Empty Studio card is
+   superseded). A fresh browser starts with the three starters; sign-in only syncs them. Once per
+   browser — a list that exists, even emptied, is never re-seeded. No push: nothing is signed in yet,
+   and the sign-in merge carries them up. */
+if (fresh && !items.some((e) => e.kind === 'patch')) write([...items, ...seedCopies(PRESETS.filter((p) => p.kind === 'patch').slice(0, 3))])
 const subscribe = (l) => { listeners.add(l); return () => listeners.delete(l) }
 const getSnapshot = () => items
 
@@ -52,9 +61,12 @@ export function removeFromLibrary(id) {
    empty studio"*). An account with no patch yet starts with copies of the first shipped patches as
    its OWN files — removable, exportable, synced. `seedOf` names the preset each came from, so the
    catalog lists it once. Ids are stable (`usr:seed-<name>`) so two devices never seed twice. */
-export function seedLibrary(presets) {
+function seedCopies(presets) {
   const now = Date.now()
-  const copies = presets.map((p, i) => { const { id, preset: _preset, ...rest } = p; return { ...rest, id: `usr:seed-${id.split(':').pop()}`, seedOf: id, savedAt: now - i } })
+  return presets.map((p, i) => { const { id, preset: _preset, ...rest } = p; return { ...rest, id: `usr:seed-${id.split(':').pop()}`, seedOf: id, savedAt: now - i } })
+}
+export function seedLibrary(presets) {
+  const copies = seedCopies(presets)
   write([...items, ...copies])
   copies.forEach(pushSave)
   return copies

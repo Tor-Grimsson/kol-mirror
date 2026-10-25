@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import Dropdown from '../../molecules/Dropdown'
 import { Icon } from '../../icons'
 import { useFileDrop } from '../../../hooks/useFileDrop'
-import { ModuleTab } from './ModuleFrame'
+import { DeskModule, ModuleFooter } from './ModuleFrame'
 
 /**
  * InputModule — where a picture ENTERS the instrument. One module, four ways
@@ -53,62 +53,51 @@ export default function InputModule({ channels = [], onChannelUpdate }) {
   )
 
   return (
-    /* THE DESK'S MODULE FRAME (user 2026-10-15: *"why does this module not
-       follow the format? like we have established format"*). A title tab above
-       the panel — name left, state right, 29px, `PlaybackModule`'s shape — and
-       the panel under it at the desk's height. No flip: Input has nothing on
-       its back, and a flip onto an empty face is a fake. */
-    <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%', width: 320 }}>
-      <ModuleTab>
-        <span className="flex items-center gap-2">
-          <span style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', backgroundColor: loaded ? 'var(--kol-accent-primary)' : 'var(--kol-fg-12)' }} />
-          <span className="text-fg-96">Input</span>
-        </span>
-        <span className="kol-helper-10 text-fg-32 truncate" style={{ maxWidth: 140 }}>{loaded || 'No source'}</span>
-      </ModuleTab>
-    <div
-      className="flex flex-col flex-1 bg-surface-secondary border border-fg-08"
-      style={{ borderRadius: '4px', minHeight: 0 }}
-      {...handlers}
-    >
-      <div className="flex flex-col gap-2 p-3">
+    /* THE STANDARD (plan 15, user 2026-10-25: *"SAME LAYOUT SECTIONS … OF THE MODULES"*): `DeskModule`'s bands like
+       every other module — the four ways in and the drop zone are the plate, OUT (which strip it feeds) is the
+       footer's row, the jack row stands empty because Input's out is a choice of strip, not a cable. The whole
+       module still takes a drop. No back: nothing lives there. */
+    <div className="h-full" {...handlers}>
+      <DeskModule
+        width={320}
+        /* on = a source is loaded on its strip; off unloads it (plan 16 W5) — a new source turns it back on */
+        power={{ on: !!loaded, onToggle: loaded ? () => patch({ variantId: null, params: {}, customImageSrc: null, customRasterSrc: null, customImageName: null }) : undefined, title: loaded ? 'Unload the source' : 'No source — load one below' }}
+        head={<span className="text-fg-96">Input</span>}
+        headRight={<span className="kol-helper-10 text-fg-32 truncate" style={{ maxWidth: 140 }}>{loaded || 'No source'}</span>}
+        footer={(
+          <ModuleFooter width={320}>
+            <div className="flex items-center justify-between" style={{ height: 24 }}>
+              <span className="text-fg-32">OUT</span>
+              {channels.length
+                ? (
+                  <Dropdown
+                    options={channels.map((c, i) => ({ value: String(i), label: `CH ${i + 1}` }))}
+                    value={String(out)}
+                    onChange={(v) => setTarget(Number(v))}
+                    variant="minimal"
+                    size="sm"
+                  />
+                )
+                : <span className="text-fg-64">no channel — add one</span>}
+            </div>
+          </ModuleFooter>
+        )}
+      >
         {row('Camera', () => patch(CAMERA), 'video')}
         {row('Image', () => imageRef.current?.click(), 'upload')}
         {row('Video', () => videoRef.current?.click(), 'upload')}
         {row('SVG', () => imageRef.current?.click(), 'upload')}
-
-        {/* THE DROP ZONE — the whole panel accepts a drop (`handlers` on the
-            root); this box is where it says so. `useFileDrop` decides image vs
-            video, same as the strip. */}
+        {/* THE DROP ZONE — the whole module accepts a drop (`handlers` on the root); this box is where it says so.
+            `useFileDrop` decides image vs video, same as the strip. */}
         <div
           className="flex items-center justify-center kol-helper-10 text-fg-32 border border-dashed"
           style={{ height: 72, borderRadius: 4, marginTop: 4, borderColor: dragging ? 'var(--kol-accent-primary)' : 'var(--kol-fg-12)', color: dragging ? 'var(--kol-accent-primary)' : undefined }}
         >
           {dragging ? 'Drop to load' : 'Drop an image or video'}
         </div>
-      </div>
-
-      {/* OUT — a real cable: which strip this feeds */}
-      <div className="flex flex-col gap-1 px-3 py-2 border-t border-fg-08 kol-helper-10" style={{ marginTop: 'auto' }}>
-        <div className="flex items-center justify-between" style={{ height: 24 }}>
-          <span className="text-fg-32">OUT</span>
-          {channels.length
-            ? (
-              <Dropdown
-                options={channels.map((c, i) => ({ value: String(i), label: `CH ${i + 1}` }))}
-                value={String(out)}
-                onChange={(v) => setTarget(Number(v))}
-                variant="minimal"
-                size="sm"
-              />
-            )
-            : <span className="text-fg-64">no channel — add one</span>}
-        </div>
-      </div>
-
-      <input ref={imageRef} type="file" accept="image/*,.svg" className="hidden" onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = '' }} />
-      <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = '' }} />
-    </div>
+        <input ref={imageRef} type="file" accept="image/*,.svg" className="hidden" onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = '' }} />
+        <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => { acceptFile(e.target.files?.[0]); e.target.value = '' }} />
+      </DeskModule>
     </div>
   )
 }

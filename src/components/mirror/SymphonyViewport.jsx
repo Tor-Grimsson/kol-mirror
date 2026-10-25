@@ -4,7 +4,7 @@ import { CSS_BLEND_MODES, ALL_VECTORS, loadVectorSvg } from '../hall-of-mirrors/
 import { begin, end, endFrame, tickIdle } from '../../hooks/renderStats'
 import { qualityRef } from '../../hooks/renderQuality'
 import { rasterDims } from '../../utils/processImageUpload'
-import { consumedChannels, removeChannelAt, fxModuleChannels, shiftFxModules, removeFxModule, isFxKey } from '../../hooks/patchGraph'
+import { consumedChannels, removeChannelAt, fxModuleChannels, shiftFxModules, removeFxModule, isFxKey, clearAllPatches } from '../../hooks/patchGraph'
 import useImageTiers from '../../hooks/useImageTiers'
 import useChannelRecorder from '../../hooks/useChannelRecorder'
 import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
@@ -451,11 +451,11 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
      slot and follows it through the desk's pan and zoom; OVERLAY, it floats as
      before. The frame never re-mounts — only its box moves. */
   const [frameDocked, setFrameDocked] = useState(true)
-  /* the slot is on a hidden desk (the Expressions tab) — a docked window goes with it */
-  const [slotOff, setSlotOff] = useState(false)
   const [monitorWidth, setMonitorWidth] = useState(360)
-  const slotElRef = useRef(null)
-  const slotRef = useCallback((el) => { slotElRef.current = el }, [])
+  const [monitorFlipped, setMonitorFlipped] = useState(false)
+  /* the slot element itself: DOCKED, FloatingFrame moves the picture's DOM node into it (plan 10 § 3.1) */
+  const [slotEl, setSlotEl] = useState(null)
+  const slotRef = useCallback((el) => setSlotEl(el), [])
   useEffect(() => {
     if (!floating) return undefined
     const onKey = (e) => {
@@ -818,7 +818,9 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
   /* The float arrangement sizes the monitor from its own window, not from a stage: the picture is
      FLOAT_W wide at scale 1 and the grip moves the scale. It opens in the bottom-right corner of
      the view, over the empty desk under the modules. */
-  const floatW = Math.round(FLOAT_W * frame.box.scale)
+  const inSlot = floating && frameDocked && !!slotEl
+  /* in the slot the picture is the slot's width; the desk's zoom scales both */
+  const floatW = inSlot ? monitorWidth : Math.round(FLOAT_W * frame.box.scale)
   const size = floating ? { width: floatW, height: Math.round(floatW * rh / rw), shift: 0 } : canvasSize
   /* the bare frame has no bezel to add to the picture */
   const bx = floating ? 0 : BEZEL_X
@@ -836,29 +838,9 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
     // placed once, on entering the arrangement — after that the window is where he left it
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floating])
-  /* DOCKED: read the slot every frame and put the window on it. A rect read per
-     frame is the cheapest thing that follows pan, zoom, wheel and the mixer's own
-     scroll at once; it writes only when the slot moved. No slot (mixer hidden) →
-     the window stays where it was. */
-  useEffect(() => {
-    if (!floating || !frameDocked) return undefined
-    let raf
-    const tick = () => {
-      raf = requestAnimationFrame(tick)
-      const el = slotElRef.current
-      const r = rootRef.current
-      if (!el || !r) return
-      setSlotOff(!el.checkVisibility({ visibilityProperty: true }))
-      const a = el.getBoundingClientRect()
-      const o = r.getBoundingClientRect()
-      if (a.width <= 0) return
-      const next = { x: Math.round(a.left - o.left), y: Math.round(a.top - o.top), scale: a.width / FLOAT_W }
-      frame.setBox((b) => (Math.abs(b.x - next.x) < 0.5 && Math.abs(b.y - next.y) < 0.5 && Math.abs(b.scale - next.scale) < 0.001 ? b : next))
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [floating, frameDocked])
+  /* DOCKED, the picture is IN the slot — FloatingFrame moves its DOM node there, so it rides pan, zoom, row
+     drags and case resizes with the module itself. The per-frame rect chase it replaces is in
+     `_tmp/2026-10-24-monitor-slot-chase/`. */
 
   // Periodic tier re-evaluation during animation (every 500ms)
   const [tierTick, setTierTick] = useState(0)
@@ -911,7 +893,9 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
           frameBuffer.applyFeedback(i, ch.feedback)
         }
       }
-      frameBuffer.compositeBuses(channelsRef.current, masterRef.current)
+      /* the Routing Matrix's power (plan 16 W5): off bypasses every send — the buses get nothing, each channel goes
+         straight to the master */
+      frameBuffer.compositeBuses(masterRef.current?.routingEnabled === false ? channelsRef.current.map((c) => ({ ...c, sends: {} })) : channelsRef.current, masterRef.current)
       // FX modules run after the channels and the buses they may read
       frameBuffer.processFxModules(fxModulesRef.current)
       // Copy bus frames to visible canvases
@@ -1127,12 +1111,12 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
 
   /* the float arrangement swaps the stage for a window; the monitor inside is the same tree */
   const Stage = floating ? FloatingFrame : InfiniteCanvas
-  const stageProps = floating ? { frame, hidden: frameHidden || (frameDocked && slotOff), docked: frameDocked, onClose: () => setFrameHidden(true) } : { style: { flex: 1, minHeight: 0 } }
+  const stageProps = floating ? { frame, hidden: frameHidden, slot: inSlot ? slotEl : null, onClose: () => setFrameHidden(true) } : { style: { flex: 1, minHeight: 0 } }
   /* and the monitor inside it: a bare frame in the window, the bezel on the stage */
   const Screen = floating ? Frame : Bezel
 
   return (
-    <div ref={rootRef} className="absolute inset-0 symphony-viewport-root">
+    <div ref={rootRef} className={`absolute inset-0 symphony-viewport-root ${floating ? 'is-fill' : ''}`}>
       {/* Mixer toggle — mobile only */}
       <div className="symphony-mobile-toggle">
         <span className="kol-helper-12 text-fg-64 cursor-pointer select-none" onClick={() => setMixerVisible(v => !v)}>[{mixerVisible ? 'Hide' : 'Show'}]</span>
@@ -1310,7 +1294,7 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
       {/* right: 24 and the deck's own width — it was hanging past the viewport */}
       {!floating && <div ref={deckRef} style={{ position: 'absolute', right: 24, top: 16, zIndex: 5 }}><TapeDelay /></div>}
       </Stage>
-      <div className="symphony-mixer-container" style={{ display: mixerVisible ? 'block' : 'none' }}>
+      <div className="symphony-mixer-container" style={mixerVisible ? undefined : { display: 'none' }}>
         <SymphonyMixer
           /* the float arrangement: the desk fills the view, the deck is one of its modules, and
              the tab row carries the monitor's show / hide */
@@ -1325,11 +1309,18 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
             state.setSymphonyMaster((m) => ({ ...m, inputs: out.master.inputs }))
           }}
           fill={floating}
-          deck={floating ? <TapeDelay /> : null}
           consoleState={state.symphonyConsole}
           onConsole={state.setSymphonyConsole}
-          monitor={floating ? (
+          deskEdit={state.deskEdit}
+          onBusCanvas={registerBusCanvas}
+          onSourceCanvas={frameBuffer.registerSource}
+          /* a render function: the mixer hands back the Monitor's jacks — IN on the strip, Screen 2 IN on the back */
+          monitor={floating ? ({ strip, back }) => (
             <MonitorModule
+              strip={strip}
+              back={back}
+              flipped={monitorFlipped}
+              onFlip={() => setMonitorFlipped((v) => !v)}
               docked={frameDocked}
               onDock={setFrameDocked}
               hidden={frameHidden}
@@ -1340,15 +1331,21 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
               slotRef={slotRef}
             />
           ) : null}
-          frameToggle={floating ? { on: !frameHidden, onToggle: () => setFrameHidden((v) => !v) } : null}
           /* The patch module's three verbs. Bundled as one prop rather than
              three: SymphonyMixer already threads 40, and these only ever move
-             together. `clear` pulls the master input cables and leaves the
-             channels loaded — monitor's semantics (see PatchModule). */
+             together. `clear` pulls EVERY cable and leaves the channels loaded —
+             monitor's semantics (see PatchModule). It pulled the master inputs only,
+             so sends, routes, feedback, FX inputs and Screen 2 stayed (plan 10 audit). */
           patchApi={{
             save: async (name) => state.savePatch({ name, thumb: await captureThumb() }),
             load: (entry) => state.loadPatch(entry),
-            clear: () => state.setSymphonyMaster((m) => ({ ...m, inputs: [null, null, null] })),
+            clear: () => {
+              const next = clearAllPatches(state.symphonyChannels, state.symphonyMaster)
+              state.setSymphonyChannels(next.channels)
+              state.setSymphonyMaster(next.master)
+              state.setSymphonyScreen2('off')
+              state.setSymphonyFxModules((ms) => ms.map((m) => ({ ...m, input: null })))
+            },
           }}
           screen2={state.symphonyScreen2}
           setScreen2={state.setSymphonyScreen2}

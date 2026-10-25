@@ -34,3 +34,39 @@ const r = removeChannelAt([{}, {}, {}], { inputs: [fxKey('1'), 2, 0] }, 'off', 0
 assert.deepEqual(r.master.inputs, [fxKey('1'), 1, null])
 
 console.log('patchGraph: fx module rules ok')
+
+// THE CABLE LIST (plan 10 § 4.2): every field reads as one cable, and removing one clears exactly its field
+import { listCables, setCable, setSend, removeCable, accepts } from './patchGraph.js'
+const st = {
+  channels: [
+    { routeFrom: null, sends: { aux1: 40 }, routeSendLevels: { 2: 25 }, feedback: { enabled: true, decay: 80 } },
+    { routeFrom: 0, sends: {}, routeSendLevels: {}, feedback: { enabled: false } },
+    { routeFrom: 'fxm:1', sends: {}, routeSendLevels: {}, feedback: { enabled: false } },
+  ],
+  master: { inputs: [0, null, 'fxm:1'] },
+  screen2: '1',
+  fxModules: [{ id: '1', input: 2 }],
+}
+const keys = listCables(st).map((c) => c.key).sort()
+assert.deepEqual(keys, ['bus:aux1:0', 'ch-in:1', 'ch-in:2', 'ch-x:2:0', 'fb:0', 'fxm-in:1', 'mon', 'mst-in:0', 'mst-in:2'].sort())
+for (const c of listCables(st)) {
+  const after = listCables(removeCable(st, c)).map((x) => x.key)
+  assert.ok(!after.includes(c.key), `removing ${c.key} leaves it`)
+  assert.equal(after.length, keys.length - 1, `removing ${c.key} touches only it`)
+}
+assert.equal(removeCable(st, listCables(st).find((c) => c.key === 'fb:0')).channels[0].feedback.decay, 80)
+assert.equal(setCable(st, 'mst-in:1', 1).master.inputs[1], 1)
+assert.equal(setCable(st, 'mon', 'rtn1').screen2, '1')              // Screen 2 takes a channel only
+assert.ok(!accepts('bus:aux1', 'fxm:1') && accepts('ch-in:0', 'rtn1'))
+assert.equal(setSend(st, 'bus:aux2', 1, 30).channels[1].sends.aux2, 30)
+console.log('patchGraph cables ok')
+
+// a generator's cable (plan 11 § 3.3): lists into the channel IN, and unpatching leaves the channel loaded
+import { clearAllPatches } from './patchGraph.js'
+const g = { channels: [{ variantId: 'gen-noise', genFrom: 'gen:desk', sends: {}, routeSendLevels: {} }], master: { inputs: [] } }
+const gc = listCables(g)
+assert.deepEqual(gc.map((c) => [c.key, c.from, c.to]), [['gen>ch-in:0', 'gen:desk', 'ch-in:0']])
+const gr = removeCable(g, gc[0]).channels[0]
+assert.equal(gr.genFrom, null); assert.equal(gr.variantId, 'gen-noise')
+assert.equal(clearAllPatches(g.channels, g.master).channels[0].genFrom, null)
+console.log('patchGraph generator ok')

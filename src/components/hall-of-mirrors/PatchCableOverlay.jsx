@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { WIRE_COLORS } from './wireColors'
 import { PatchJacksContext, usePatchJacks, patchDrag } from './patchJacksContext'
+import { listCables, isFxKey } from '../../hooks/patchGraph'
 
 /**
  * PatchCableOverlay — drawn cables between jacks (flip-to-patch v2,
@@ -69,88 +70,75 @@ export default function PatchCableOverlay({ channels, flipped, inputs = [], scre
       const container = containerRef.current
       if (!container) return
       const cRect = container.getBoundingClientRect()
-      const { channels, flipped, inputs, screen2, fxModules } = stateRef.current
+      /* IN THE DESK'S SPACE (plan 16 W7, user: *"patch cables are glitchy when you move around"*): the overlay sits
+         inside the canvas's pan-zoom layer, so a point is (screen − container) ÷ zoom. Panning and zooming leave these
+         numbers unchanged — the signature below doesn't move, nothing re-renders, the layer's transform carries the
+         cables with the jacks in the same frame. Measured in screen space they trailed a frame behind and jumped. */
+      const k = container.offsetWidth ? cRect.width / container.offsetWidth : 1
+      const { channels, inputs, screen2, fxModules } = stateRef.current
 
-      const resolve = (id) => {
-        const m = id.match(/^ch-(\d+)-/)
-        /* an FX module's jacks are on its FACE — it has no back to flip to, so its end of a
-           cable is never a ghost */
-        const ghost = id.startsWith('fxm-') ? false : !(m ? flipped[+m[1]] : flipped.master)
+      /* WHERE A JACK IS (plan 11 § 3.2). A jack on a face turned away is a GHOST: it still has a rect, mirrored
+         back onto the visible side. A jack on a front strip or a module face (FX, Generator, Expression …) is
+         always seen, so its end is never a ghost — read from the DOM, not from which module it is. */
+      const at = (id) => {
         const el = jacks.map.get(id)
         if (!el) return null
         const r = el.getBoundingClientRect()
         if (r.width === 0) return null
+        const inner = el.closest('.mirror-flip-inner')
+        const onBack = !!el.closest('.mirror-flip-back')
+        const ghost = !!inner && (onBack !== inner.classList.contains('is-flipped'))
         let x = r.left + r.width / 2
-        if (ghost) {
-          const s = el.closest('.mirror-flip-scene')?.getBoundingClientRect()
-          if (s) x = s.left + s.right - x
+        if (ghost && onBack) {
+          const sc = el.closest('.mirror-flip-scene')?.getBoundingClientRect()
+          if (sc) x = sc.left + sc.right - x
         }
-        return { x: x - cRect.left, y: r.top + r.height / 2 - cRect.top, ghost }
+        return { x: (x - cRect.left) / k, y: (r.top + r.height / 2 - cRect.top) / k, ghost }
       }
+      /* the first seen jack among an end's candidates (a port can sit on its module AND on the routing bay) */
+      const resolve = (...ids) => {
+        const found = ids.map(at).filter(Boolean)
+        return found.find((p) => !p.ghost) ?? found[0] ?? null
+      }
+      /* a cable's two ends, by the port names `listCables` speaks (plan 10 § 4.2) */
+      const fromJack = (src, i) => (typeof src === 'number'
+        ? resolve(`ch-${src}-out`, `mx-ch-${src}-out`)
+        : isFxKey(src) ? resolve(`fxm-${src.slice(4)}-out`)
+          : String(src).startsWith('gen:') ? resolve(`gen-${src.slice(4)}-out`)
+            : resolve(`mst-rtn-${src}`, `mx-bus-${src}-out`, `rt-${src}-out`, ...(i != null ? [`ch-${i}-src-${src}`] : [])))
+      const toJack = (to) => {
+        const [kind, arg] = [to.slice(0, to.indexOf(':') < 0 ? to.length : to.indexOf(':')), to.slice(to.indexOf(':') + 1)]
+        if (kind === 'mst-in') return resolve(`mst-in-${arg}`, `mx-mst-in-${arg}`)
+        if (kind === 'mon') return resolve('mst-mon', 'mx-mon', 'mon-in-2')
+        if (kind === 'ch-in') return resolve(`ch-${arg}-in`, `mx-ch-${arg}-in`)
+        if (kind === 'bus') return resolve(`mst-bus-${arg}`)
+        /* a cross-send is a level on the sender's own back (`ch-<i>-xsend-<j>`), not a cable between modules —
+           and nothing mixes it yet (module audit) — so it lists in the patch table and draws nothing */
+        if (kind === 'fxm-in') return resolve(`fxm-${arg}-in`)
+        return null
+      }
+      const wire = (src) => (typeof src === 'number' ? WIRE_COLORS[src % WIRE_COLORS.length] : 'var(--kol-accent-primary)')
 
       const next = []
-      channels.forEach((ch, i) => {
-        if (ch.routeFrom != null) {
-          const to = resolve(`ch-${i}-in`)
-          const isCh = typeof ch.routeFrom === 'number'
-          const from = isCh
-            ? resolve(`ch-${ch.routeFrom}-out`)
-            : ch.routeFrom.startsWith('fxm:')
-              ? resolve(`fxm-${ch.routeFrom.slice(4)}-out`)
-              : (resolve(`mst-rtn-${ch.routeFrom}`) || resolve(`ch-${i}-src-${ch.routeFrom}`))
-          if (from && to) {
-            next.push({
-              key: `route-${i}`,
-              d: sagPath(from, to),
-              color: isCh ? WIRE_COLORS[ch.routeFrom % WIRE_COLORS.length] : 'var(--kol-accent-primary)',
-              ends: [from, to],
-            })
-          }
+      for (const c of listCables({ channels, master: { inputs }, screen2, fxModules })) {
+        if (c.to.startsWith('fb:')) {
+          const p = resolve(`ch-${c.from}-fb`, `mx-fb-${c.from}`)
+          if (p) next.push({ key: c.key, d: loopPath(p), color: wire(c.from), ends: [p] })
+          continue
         }
-        Object.entries(ch.sends || {}).forEach(([bus, lvl]) => {
-          if (!(lvl > 0)) return
-          const from = resolve(`ch-${i}-out`)
-          const to = resolve(`mst-bus-${bus}`)
-          if (from && to) {
-            next.push({ key: `send-${i}-${bus}`, d: sagPath(from, to), color: WIRE_COLORS[i % WIRE_COLORS.length], ends: [from, to] })
-          }
-        })
-        if (ch.feedback?.enabled) {
-          const at = resolve(`ch-${i}-fb`)
-          if (at) next.push({ key: `fb-${i}`, d: loopPath(at), color: WIRE_COLORS[i % WIRE_COLORS.length], ends: [at] })
-        }
-      })
-
-      // The master's input slots — CH src OUT (or an FX module's OUT) → master IN n.
-      inputs.forEach((src, n) => {
-        if (src == null) return
-        const fx = typeof src === 'string'
-        const from = fx ? resolve(`fxm-${src.slice(4)}-out`) : resolve(`ch-${src}-out`)
-        const to = resolve(`mst-in-${n}`)
-        if (from && to) next.push({ key: `in-${n}`, d: sagPath(from, to), color: fx ? 'var(--kol-accent-primary)' : WIRE_COLORS[src % WIRE_COLORS.length], ends: [from, to] })
-      })
-      // FX modules — whatever is cabled into each IN: a channel OUT, a bus return, a module OUT
-      // (its own included, which draws as the loop it is).
-      fxModules.forEach((m) => {
-        if (m.input == null) return
-        const to = resolve(`fxm-${m.id}-in`)
-        const isCh = typeof m.input === 'number'
-        const from = isCh
-          ? resolve(`ch-${m.input}-out`)
-          : m.input.startsWith('fxm:') ? resolve(`fxm-${m.input.slice(4)}-out`) : resolve(`mst-rtn-${m.input}`)
-        if (from && to) next.push({ key: `fxm-${m.id}`, d: sagPath(from, to), color: isCh ? WIRE_COLORS[m.input % WIRE_COLORS.length] : 'var(--kol-accent-primary)', ends: [from, to] })
-      })
-      // Screen 2 fed from a channel — CH n OUT → the master's MON IN.
-      if (/^\d+$/.test(screen2)) {
-        const from = resolve(`ch-${screen2}-out`)
-        const to = resolve('mst-mon')
-        if (from && to) next.push({ key: 'mon', d: sagPath(from, to), color: WIRE_COLORS[+screen2 % WIRE_COLORS.length], ends: [from, to] })
+        const toIdx = c.to.startsWith('ch-in:') ? +c.to.slice(6) : null
+        const from = fromJack(c.from, toIdx)
+        const to = toJack(c.to)
+        if (from && to) next.push({ key: c.key, d: sagPath(from, to), color: wire(c.from), ends: [from, to] })
       }
+      /* the one hardwired cable: the master's OUT into the Monitor's IN (plan 11 § 3.1) */
+      const mOut = resolve('mst-out'), mIn = resolve('mon-in')
+      if (mOut && mIn) next.push({ key: 'main', d: sagPath(mOut, mIn), color: 'var(--kol-accent-primary)', ends: [mOut, mIn] })
       // The cable in flight — source jack to the pointer.
       const d = patchDrag.current
       if (d?.moved) {
         const from = resolve(d.fromId)
-        if (from) next.push({ key: 'drag', d: sagPath(from, { x: d.x - cRect.left, y: d.y - cRect.top }), color: sourceColor(d.source), ends: [from] })
+        if (from) next.push({ key: 'drag', d: sagPath(from, { x: (d.x - cRect.left) / k, y: (d.y - cRect.top) / k }), color: sourceColor(d.source), ends: [from] })
       }
 
       const sig = next.map(c => c.key + c.d + (c.ends.some(p => p.ghost) ? 'g' : '')).join('|')

@@ -9,7 +9,7 @@ import { searchModules, KINDS } from '../../data/moduleRegistry'
  * `ShellSearchOverlay` since 2026-10-03 (MirrorPlayground), so the search half
  * was no longer reached and is retired to `_tmp/2026-10-03-module-palette-search/`.
  *
- * `mode` is 'shelf' | null. The keys live in MirrorPlayground, so this
+ * `mode` is 'shelf' | 'embedded' | null. The keys live in MirrorPlayground, so this
  * component owns no shortcut of its own — it is told what to show.
  *
  * An entry with no `add` is one-per-desk (Master, Routing, Playback): it is
@@ -78,9 +78,12 @@ export default function ModulePalette({ mode, onClose, api }) {
   )
 
   /* E — a shelf along the bottom, grouped, the whole registry at a glance */
+  /* 'embedded' (plan 13 § 2.2) — the Workbench rail's Library view: the same shelf, the rail is its frame */
+  const embedded = mode === 'embedded'
   return (
     <div
-      style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 'var(--kol-z-overlay, 50)', maxHeight: '46vh', display: 'flex', flexDirection: 'column', background: 'var(--kol-surface-primary)', borderTop: '1px solid var(--kol-fg-16)', boxShadow: '0 -20px 60px rgb(0 0 0 / 0.45)' }}
+      className={embedded ? 'flex min-h-0 flex-1 flex-col' : undefined}
+      style={embedded ? undefined : { position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 'var(--kol-z-overlay, 50)', maxHeight: '46vh', display: 'flex', flexDirection: 'column', background: 'var(--kol-surface-primary)', borderTop: '1px solid var(--kol-fg-16)', boxShadow: '0 -20px 60px rgb(0 0 0 / 0.45)' }}
     >
       <div className="flex items-center gap-4" style={{ padding: '10px 16px', borderBottom: '1px solid var(--kol-fg-08)' }}>
         <span className="kol-helper-12 uppercase text-fg-96">Modules</span>
@@ -102,7 +105,7 @@ export default function ModulePalette({ mode, onClose, api }) {
           className="kol-mono-14 text-fg-96 bg-transparent outline-none"
           style={{ marginLeft: 'auto', border: '1px solid var(--kol-fg-16)', borderRadius: 'var(--kol-radius-xs)', padding: '4px 10px', width: 200 }}
         />
-        <span className="kol-helper-12 text-fg-32 cursor-pointer hover:text-fg-96" onClick={onClose}>Close</span>
+        {!embedded && <span className="kol-helper-12 text-fg-32 cursor-pointer hover:text-fg-96" onClick={onClose}>Close</span>}
       </div>
       <div ref={listRef} style={{ overflowY: 'auto', padding: '4px 0' }}>{items.map(row)}</div>
     </div>

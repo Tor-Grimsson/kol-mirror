@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Dropdown from '../../molecules/Dropdown'
 import { useLibrary, exportEntry, importEntry, removeFromLibrary } from '../../../hooks/useLibraryStore'
-import { ModuleTab } from './ModuleFrame'
+import { DeskModule, ModuleFooter, ModuleBack, ModuleAction } from './ModuleFrame'
 
 /**
  * PatchModule — the whole desk out and back, as a front panel.
@@ -42,138 +42,95 @@ export default function PatchModule({ api, master, channels = [] }) {
   const selected = patches.find((p) => p.id === current) ?? null
   const patched = (master?.inputs || []).filter((i) => i != null).length
 
-  const btn = 'flex-1 kol-helper-10 text-fg-64 hover:text-fg-96 border border-fg-08 rounded-sm cursor-pointer select-none disabled:text-fg-24 disabled:cursor-default'
+  const [flipped, setFlipped] = useState(false)
+  const save = () => { if (name.trim()) { api?.save(name.trim()); setName('') } }
 
+  /* THE STANDARD (plan 12): the header says how much is wired (monitor's "{n} cables" readout); the body is the
+     patch you hold — the picker and its verbs as the text-button row; the footer's PRESET · FILE tabs carry the
+     naming and the file verbs (monitor's split verbatim: a Preset lives in the library, a File on disk); the back
+     holds the file notes. No jacks — the patch module patches nothing itself. */
   return (
-    <div className="flex flex-col shrink-0" style={{ width: 280, ...{ height: '100%', maxHeight: '100%' } }}>
-      {/* Header — the name and what is currently wired, on monitor's
-          "{n} cables" readout. A patch module whose whole subject is the
-          cabling should say how much of it there is. */}
-      <ModuleTab>
-        <span className="text-fg-96">Patch</span>
-        <span className="kol-helper-10 text-fg-32">{patched}/{(master?.inputs || CLEARED_INPUTS).length} in</span>
-      </ModuleTab>
-      <div className="flex flex-col flex-1 bg-surface-secondary border border-fg-08" style={{ borderRadius: 4, minHeight: 0 }}>
-
-        <div className="flex flex-col gap-3 p-3" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-          {/* The two tabs, monitor's split verbatim: a Preset lives in the
-              library, a File lives on disk. */}
-          <div className="flex gap-3 shrink-0">
-            {['preset', 'file'].map((t) => (
-              <span
-                key={t}
-                onClick={() => setTab(t)}
-                className={`kol-helper-10 cursor-pointer select-none uppercase ${tab === t ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`}
-              >{t}</span>
-            ))}
-          </div>
-
-          {tab === 'preset' && (
-            <>
-              {/* No `placeholder` — `molecules/Dropdown` lists it in `DROPPED`,
-                  so passing one is a dead prop and the empty state has to be a
-                  real branch. */}
-              {patches.length > 0 ? (
-                <Dropdown
-                  options={patches.map((p) => ({ value: p.id, label: p.name }))}
-                  value={current}
-                  onChange={setCurrent}
-                  className="w-full"
-                />
-              ) : (
-                <span className="kol-helper-10 text-fg-32">No patches yet — name one below and save.</span>
-              )}
-
-              <div className="flex gap-1 shrink-0">
-                <button
-                  type="button"
-                  className={btn}
-                  style={{ height: 22 }}
-                  disabled={!selected}
-                  onClick={() => selected && api?.load(selected)}
-                >Load</button>
-                <button
-                  type="button"
-                  className={btn}
-                  style={{ height: 22 }}
-                  disabled={!patched}
-                  onClick={() => api?.clear()}
-                  title="Pull the master input cables — the channels stay loaded"
-                >Clear</button>
-              </div>
-
-              {/* Save needs a NAME, so it is a row and not a button. An unnamed
-                  patch in a list of patches is the same problem as no list. */}
-              <div className="flex items-center gap-2 shrink-0" style={{ height: 22 }}>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && name.trim()) { api?.save(name.trim()); setName('') }
-                  }}
-                  placeholder="Patch name"
-                  className="kol-helper-10 text-fg-96 bg-surface-tertiary px-2 flex-1 min-w-0"
-                  style={{ height: 20, border: 'none', outline: 'none', borderRadius: 2, fontFamily: 'var(--kol-font-family-mono)' }}
-                />
-                <span
-                  className={`kol-helper-10 select-none shrink-0 ${name.trim() ? 'text-fg-96 cursor-pointer hover:text-accent-primary' : 'text-fg-32'}`}
-                  onClick={() => { if (name.trim()) { api?.save(name.trim()); setName('') } }}
-                >[Save]</span>
-              </div>
-
-              {/* Delete is only ever offered for a USER save. `useLibrary` returns
-                  presets and saves in one list, and `removeFromLibrary` filters
-                  the saved half — so aiming it at a preset silently does nothing,
-                  which is worse than not offering it. */}
-              {selected && !selected.preset && (
-                <span
-                  className="kol-helper-10 text-fg-32 hover:text-[#e74c3c] cursor-pointer select-none shrink-0"
-                  onClick={() => { removeFromLibrary(selected.id); setCurrent(null) }}
-                >[Delete “{selected.name}”]</span>
-              )}
-            </>
-          )}
-
-          {tab === 'file' && (
-            <>
-              <div className="flex gap-1 shrink-0">
-                <button
-                  type="button"
-                  className={btn}
-                  style={{ height: 22 }}
-                  disabled={!selected}
-                  onClick={() => selected && exportEntry(selected)}
-                  title={selected ? `Write ${selected.name} to a .json file` : 'Select a patch on the Preset tab first'}
-                >Export</button>
-                <button
-                  type="button"
-                  className={btn}
-                  style={{ height: 22 }}
-                  onClick={() => importEntry().then((e) => {
-                    /* `importEntry` adds ANY library kind — an expression file
-                       would land in the library and return here as a non-patch.
-                       Load only what the desk can actually take. */
-                    if (e?.kind === 'patch') { setCurrent(e.id); api?.load(e) }
-                  })}
-                >Import</button>
-              </div>
-              <div className="kol-helper-10 text-fg-32" style={{ lineHeight: '150%' }}>
-                Export writes the patch selected on the Preset tab. Import reads a
-                patch file onto the desk and keeps it in the library.
-              </div>
-              <div className="kol-helper-10 text-fg-24" style={{ lineHeight: '150%' }}>
-                Uploaded images and recorded takes are not carried — a patch
-                reloads against the default source.
-              </div>
-            </>
-          )}
-
-          <div className="flex-1" />
-          <span className="kol-helper-10 text-fg-24 shrink-0">
-            {channels.filter((c) => c.variantId).length}/{channels.length} channels loaded
+    <DeskModule
+      width={320}
+      /* storage has no off (plan 16 W5): the lamp says a cable is patched into the master, and is not a switch */
+      power={{ on: patched > 0, title: patched ? `${patched} in` : 'Nothing patched' }}
+      head={<span className="text-fg-96">Patch</span>}
+      headRight={<span className="kol-helper-10 text-fg-32">{patched}/{(master?.inputs || CLEARED_INPUTS).length} in</span>}
+      flipped={flipped}
+      onFlip={() => setFlipped((v) => !v)}
+      back={(
+        <ModuleBack>
+          <span className="kol-mono-12 text-fg-64">
+            Export writes the patch selected on the Preset tab. Import reads a
+            patch file onto the desk and keeps it in the library.
           </span>
-        </div>
-      </div>
-    </div>
+          <span className="kol-mono-12 text-fg-32">
+            Uploaded images and recorded takes are not carried — a patch
+            reloads against the default source.
+          </span>
+        </ModuleBack>
+      )}
+      actions={(
+        <>
+          <ModuleAction dim={!selected} onClick={() => selected && api?.load(selected)}><span className="uppercase">Load</span></ModuleAction>
+          <ModuleAction dim={!patched} onClick={() => patched && api?.clear()} title="Pull the master input cables — the channels stay loaded"><span className="uppercase">Clear</span></ModuleAction>
+          {/* Delete is only ever offered for a USER save. `useLibrary` returns presets and saves in one list, and
+              `removeFromLibrary` filters the saved half — aiming it at a preset silently does nothing. */}
+          {selected && !selected.preset && (
+            <ModuleAction dim onClick={() => { removeFromLibrary(selected.id); setCurrent(null) }}>Delete “{selected.name}”</ModuleAction>
+          )}
+        </>
+      )}
+      footer={(
+        <ModuleFooter
+          width={320}
+          tabs={[{ value: 'preset', label: 'preset' }, { value: 'file', label: 'file' }]}
+          value={tab}
+          onChange={setTab}
+          readout={<span className="text-fg-24">{channels.filter((c) => c.variantId).length}/{channels.length} channels loaded</span>}
+        >
+          {tab === 'preset' && (
+            /* Save needs a NAME, so it is a row and not a button. An unnamed patch in a list of patches is the same
+               problem as no list. */
+            <div className="flex items-center justify-between gap-2" style={{ height: 24 }}>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') save() }}
+                placeholder="Patch name"
+                className="kol-helper-12 text-fg-96 bg-surface-secondary px-2 flex-1 min-w-0"
+                style={{ height: 24, border: 'none', outline: 'none', borderRadius: 2, fontFamily: 'var(--kol-font-family-mono)' }}
+              />
+              <ModuleAction dim={!name.trim()} onClick={save}><span className="uppercase">Save</span></ModuleAction>
+            </div>
+          )}
+          {tab === 'file' && (
+            <div className="flex items-center justify-between" style={{ height: 24 }}>
+              <ModuleAction dim={!selected} onClick={() => selected && exportEntry(selected)} title={selected ? `Write ${selected.name} to a .json file` : 'Select a patch on the Preset tab first'}><span className="uppercase">Export</span></ModuleAction>
+              <ModuleAction
+                onClick={() => importEntry().then((e) => {
+                  /* `importEntry` adds ANY library kind — an expression file would land in the library and return
+                     here as a non-patch. Load only what the desk can actually take. */
+                  if (e?.kind === 'patch') { setCurrent(e.id); api?.load(e) }
+                })}
+              ><span className="uppercase">Import</span></ModuleAction>
+            </div>
+          )}
+        </ModuleFooter>
+      )}
+    >
+      {/* No `placeholder` — `molecules/Dropdown` lists it in `DROPPED`, so passing one is a dead prop and the empty
+          state has to be a real branch. */}
+      {patches.length > 0 ? (
+        <Dropdown
+          options={patches.map((p) => ({ value: p.id, label: p.name }))}
+          value={current}
+          onChange={setCurrent}
+          className="w-full"
+        />
+      ) : (
+        <span className="kol-helper-10 text-fg-32">No patches yet — name one below and save.</span>
+      )}
+    </DeskModule>
   )
 }

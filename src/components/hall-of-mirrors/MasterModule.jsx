@@ -11,7 +11,7 @@ import ChannelMaster from '../mixer/ChannelMaster'
 import { CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
 import { CANVAS_FX_DEFS, MAX_CANVAS_FX, getDefaultCanvasFxParams, fxCapability } from '../../hooks/useCanvasFx'
 import { gpuAvailable } from '../../hooks/gpuFx'
-import { ModuleTab } from './modules/ModuleFrame'
+import { DeskModule, ModuleFooter } from './modules/ModuleFrame'
 
 
 // Read an FX param value from an FX array
@@ -246,7 +246,7 @@ const BUS_KEYS = ['aux1', 'aux2', 'fx1', 'fx2']
    2026-08-28: "only flip the front panel"). Wrapping the whole component in a
    flip scene turned its bottom shelf over with it; the shelf is the module's
    fixed furniture and stays put. */
-export default function MasterModule({ master, onMasterChange, channels = [], onChannelUpdate, onFlip, flipped = false, back = null }) {
+export default function MasterModule({ master, onMasterChange, channels = [], onChannelUpdate, onFlip, flipped = false, back = null, strip = null }) {
   const [shelfOpen, setShelfOpen] = useState(false)
   const [shelfTab, setShelfTab] = useState('files')
   /* THE SLOTS (user, 2026-08-27: "channel 1 on the mixer and the channel 1
@@ -510,38 +510,60 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
 
   return (
     <div className="flex flex-row items-stretch shrink-0" style={{ overflow: 'visible', height: '100%', maxHeight: '100%' }}>
-      <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%' }}>
-        {/* only THIS — header + panel — turns; the bottom shelf below is furniture */}
-        <div className="mirror-flip-scene flex flex-col" style={{ flex: 1, minHeight: 0 }}>
-        <div className={`mirror-flip-inner flex flex-col ${flipped ? 'is-flipped' : ''}`} style={{ flex: 1, minHeight: 0 }}>
-        <div className="mirror-flip-front flex flex-col" style={{ flex: 1, minHeight: 0 }}>
-        {/* Header */}
-        <ModuleTab>
-          <span className="flex items-center gap-3">
-            <span className="cursor-pointer select-none flex items-center justify-center" style={{ width: '16px', height: '16px' }} onClick={() => onMasterChange({ enabled: !enabled })}>
-              <div className="w-4 h-4 rounded-full border border-fg-48 flex items-center justify-center">
-                <div className={`w-2 h-2 rounded-full transition-all ${enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
-              </div>
-            </span>
-            <span className={`${enabled ? 'text-fg-96' : 'text-fg-32'}`}>Master Out</span>
-          </span>
-          <span className="flex items-center gap-3">
+      {/* THE STANDARD (plan 12) — header · body · footer · back, drawn by DeskModule; only the body turns */}
+      <DeskModule
+        fill
+        power={{ on: !!enabled, onToggle: () => onMasterChange({ enabled: !enabled }) }}
+        head={<span className="text-fg-96">Master Out</span>}
+        headRight={(
             <span className="text-fg-96 cursor-pointer select-none" onClick={() => onMasterChange({
               opacity: 100, blendMode: 'normal', fx: [],
               rtn1: { ...rtn1, returnLevel: 0, fx: [], solo: false },
               rtn2: { ...rtn2, returnLevel: 0, fx: [], solo: false },
             })}>Reset</span>
-            <FlipIcon onFlip={onFlip} title="Flip to patch bay" />
-          </span>
-        </ModuleTab>
-
-        {/* Card body */}
-        <div
-          className="flex flex-col items-center gap-4 p-4 bg-surface-secondary border border-fg-08 relative flex-1"
-          style={{ borderRadius: '4px', overflow: 'visible', zIndex: 1, minHeight: 0 }}
-        >
-          <div className="w-full flex items-stretch gap-4 flex-1">
-            <div className="flex flex-col flex-1 gap-2">
+        )}
+        flipped={flipped}
+        onFlip={onFlip}
+        back={back}
+        tools={(
+          <>
+              {[
+                { key: 'files', icon: 'library', title: 'Files' },
+                { key: 'effects', icon: 'frequency', title: 'Effects', iconSize: 18 },
+                { key: 'color', icon: 'layers', title: 'Color & Blend' },
+                { key: 'master', icon: 'circle', title: 'Master' },
+                { key: 'aux-fx', icon: 'atomic-molecule-04', title: 'AUX / FX Returns' },
+              ].map(btn => (
+                <div
+                  key={btn.key}
+                  className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
+                  style={{ borderRadius: '4px', width: '28px', height: '28px' }}
+                  onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
+                  title={btn.title}
+                >
+                  <Icon name={btn.icon} size={btn.iconSize || 16} />
+                </div>
+              ))}
+          </>
+        )}
+        footer={(
+          <ModuleFooter
+            square={!!strip}
+            row
+            tabs={[
+              ...slots.map(({ n, src }) => ({ value: `in-${n}`, label: `IN${n + 1}`, dim: src == null, title: src != null ? `IN ${n + 1} ← ${srcLabel(src)}` : `IN ${n + 1} — nothing patched` })),
+              { value: 'rtn-1', label: 'RTN1' },
+              { value: 'rtn-2', label: 'RTN2' },
+              { value: 'mst', label: 'MST' },
+            ]}
+            value={bottomTab}
+            onChange={setBottomTab}
+          >
+            {renderBottomContent()}
+          </ModuleFooter>
+        )}
+        jacks={strip}
+      >
               <div className="flex flex-row gap-4 flex-1 w-full">
                 {/* In 1-3: input slots — strip n drives whichever channel is
                     patched into master IN n (the back's jacks); empty until then. */}
@@ -592,63 +614,7 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                 />
                 <Divider variant="vertical" />
               </div>
-            </div>
-            {/* Shelf tab buttons */}
-            <div className="flex flex-col gap-2">
-              {[
-                { key: 'files', icon: 'library', title: 'Files' },
-                { key: 'effects', icon: 'frequency', title: 'Effects', iconSize: 18 },
-                { key: 'color', icon: 'layers', title: 'Color & Blend' },
-                { key: 'master', icon: 'circle', title: 'Master' },
-                { key: 'aux-fx', icon: 'atomic-molecule-04', title: 'AUX / FX Returns' },
-              ].map(btn => (
-                <div
-                  key={btn.key}
-                  className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
-                  style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-                  onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
-                  title={btn.title}
-                >
-                  <Icon name={btn.icon} size={btn.iconSize || 16} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        </div>
-        <div className="mirror-flip-back" style={{ overflow: 'auto' }}>{back}</div>
-        </div>
-        </div>
-
-        {/* Bottom section */}
-        <div className="flex flex-col mx-2 border border-fg-08 border-t-0 bg-surface-tertiary" style={{ borderRadius: '0 0 4px 4px', height: '124px', paddingTop: '4px' }}>
-          <div className="flex items-center justify-between px-4 py-2 border-b border-fg-08 kol-helper-12">
-            <div className="flex items-center gap-3" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-              {slots.map(({ n, src }) => (
-                <span
-                  key={`in-${n}`}
-                  className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === `in-${n}` ? 'text-fg-96' : src != null ? 'text-fg-32 hover:text-fg-64' : 'text-fg-16 hover:text-fg-48'}`}
-                  onClick={() => setBottomTab(`in-${n}`)}
-                  title={src != null ? `IN ${n + 1} ← ${srcLabel(src)}` : `IN ${n + 1} — nothing patched`}
-                >
-                  {`IN${n + 1}`}
-                </span>
-              ))}
-              <span className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === 'rtn-1' ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`} onClick={() => setBottomTab('rtn-1')}>RTN1</span>
-              <span className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === 'rtn-2' ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`} onClick={() => setBottomTab('rtn-2')}>RTN2</span>
-              <span className={`cursor-pointer select-none uppercase shrink-0 ${bottomTab === 'mst' ? 'text-fg-96' : 'text-fg-32 hover:text-fg-64'}`} onClick={() => setBottomTab('mst')}>MST</span>
-            </div>
-          </div>
-          {/* `kol-helper-12` — the tab row above already carries it and the
-              content row did not, so any plain string in here (the "No input —
-              patch a channel" notice) fell through to the body sans while every
-              label around it was the mono. 2026-09-02. */}
-          <div className="flex items-stretch flex-1 gap-4 px-2 py-2 kol-helper-12">
-            {renderBottomContent()}
-          </div>
-        </div>
-      </div>
+      </DeskModule>
 
       {/* Shelf — expands to the right */}
       {shelfOpen && (

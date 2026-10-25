@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import RotaryDial from './RotaryDial'
-import { Jack, FlipIcon } from './ChannelPatchPanel'
-import { Icon } from '../icons'
+import { Jack } from './ChannelPatchPanel'
 import { transport, useTransport } from '../../hooks/transport'
 import { Scrubber } from '../mirror/TimeStrip'
-import { ModuleTab } from './modules/ModuleFrame'
+import { DeskModule, ModuleFooter, ModuleBack, ModuleAction } from './modules/ModuleFrame'
+import { StripPort } from './modules/JackStrip'
 
 const MODES = [['reverse', 'REV', 'Reverse'], ['forward', 'FWD', 'Forward'], ['pingpong', 'P·P', 'Ping-pong']]
 const wrap = (x, m) => ((x % m) + m) % m
@@ -45,80 +45,8 @@ function Clock({ t }) {
   )
 }
 
-/* One key of the deck. The user's reference (2026-08-28, a cassette deck's
-   transport): keys are GANGED into a strip with hairline seams rather than
-   floating as separate buttons, silkscreen sits above the strip, and the cap
-   carries a moulded lip that drops when the key goes down. `down` is the
-   LATCH — PLAY/PAUSE and the three mode keys hold their key depressed the way
-   a deck does; STOP is momentary. */
-function Key({ down, onClick, title, height = 30, children }) {
-  return (
-    <div
-      className={`flex flex-1 items-center justify-center cursor-pointer select-none ${down ? 'text-accent-primary' : 'text-fg-64 hover:text-fg-96'}`}
-      style={{
-        height,
-        background: down ? 'var(--kol-oq-12)' : 'var(--kol-surface-tertiary)',
-        boxShadow: down
-          ? 'inset 0 1px 2px rgb(0 0 0 / 0.45)'
-          : 'inset 0 1px 0 rgb(255 255 255 / 0.06), 0 1px 0 rgb(0 0 0 / 0.4)',
-        transform: down ? 'translateY(1px)' : 'none',
-      }}
-      onClick={onClick}
-      title={title}
-    >{children}</div>
-  )
-}
 
-/* The recess the keys sit in — the SAME well the Clock readout uses, so keys
-   and LED read as one panel rather than two treatments stacked. The 1px gap is
-   the hairline seam between ganged keys: the well's own colour showing
-   through, which is what a seam physically is. */
-function Gang({ width, children }) {
-  return (
-    <div
-      className="flex"
-      style={{
-        width,
-        gap: 1,
-        padding: 1,
-        background: 'var(--kol-oq-24)',
-        borderRadius: 3,
-        boxShadow: 'inset 0 1px 2px rgb(0 0 0 / 0.5)',
-        overflow: 'hidden',
-      }}
-    >{children}</div>
-  )
-}
 
-/* A two-position panel switch — the well language again, with a moulded lever
-   that slides. Silkscreen above, matching the key deck. */
-function Switch({ on, onClick, label, title }) {
-  return (
-    <div className="flex flex-col items-center" style={{ gap: 3 }}>
-      <span className="kol-helper-10 text-fg-32">{label}</span>
-      <div
-        onClick={onClick}
-        title={title}
-        className="cursor-pointer select-none"
-        style={{
-          width: 36, height: 18, padding: 2, borderRadius: 3,
-          background: 'var(--kol-oq-24)',
-          boxShadow: 'inset 0 1px 2px rgb(0 0 0 / 0.5)',
-        }}
-      >
-        <div
-          style={{
-            width: 16, height: 14, borderRadius: 2,
-            background: on ? 'var(--kol-accent-primary)' : 'var(--kol-surface-tertiary)',
-            boxShadow: 'inset 0 1px 0 rgb(255 255 255 / 0.10), 0 1px 0 rgb(0 0 0 / 0.4)',
-            transform: on ? 'translateX(16px)' : 'none',
-            transition: 'transform 120ms ease, background 120ms ease',
-          }}
-        />
-      </div>
-    </div>
-  )
-}
 
 /* THE BACK — clock OUTPUTS at different tempos (user 2026-08-28: "make the
    clock flip, show clock outputs at different tempos"). A master clock's back
@@ -197,112 +125,72 @@ export default function PlaybackModule() {
   const span = Math.max(0.1, Math.abs(t.loopOut - t.loopIn))
   const clkHigh = t.playing && wrap(now - Math.min(t.loopIn, t.loopOut), span) / span < 0.5
 
+  /* THE STANDARD (plan 12): the body is the deck — the run lamp, the timecode, the loop section, TEMPO, and the
+     verbs as the text-button row (PAUSE · STOP · PLAY · LOOP · HOLD); the footer's REV · FWD · P·P tabs are the
+     direction, over the window's four knobs; the jack row is CLK · RUN; the back the clock divisions. */
+  const lit = 'var(--kol-accent-primary)'
   return (
-    <div className="flex flex-col shrink-0" style={{ height: '100%', maxHeight: '100%' }}>
-      <ModuleTab>
-        <span className="text-fg-96">Transport</span>
-        <span className="flex items-center gap-3">
-          <span className="text-fg-96 cursor-pointer select-none" onClick={() => transport.reset()}>Reset</span>
-          <FlipIcon onFlip={() => setFlipped(f => !f)} title={flipped ? 'Flip to controls' : 'Flip to clock outputs'} />
-        </span>
-      </ModuleTab>
-      {/* The module flips like every other card on the desk — same scene, same
-          450ms, same backface discipline (components.css). */}
-      <div className="mirror-flip-scene flex-1" style={{ minHeight: 0 }}>
-      <div className={`mirror-flip-inner h-full ${flipped ? 'is-flipped' : ''}`}>
-      <div className="mirror-flip-back flex flex-col gap-3 p-4 bg-surface-secondary border border-fg-08" style={{ borderRadius: '4px', width: 300 }}>
-        <span className="kol-helper-10 text-fg-32">CLOCK OUT</span>
-        <ClockOutputs t={t} now={now} />
-      </div>
-      <div className="mirror-flip-front flex flex-col items-center gap-3 p-4 bg-surface-secondary border border-fg-08 h-full" style={{ borderRadius: '4px', minHeight: 0, width: 300 }}>
-        {/* The big ON lamp, same mark the channel strips carry (SymphonyMixer:385)
-            — it runs the clock, so it is lit exactly when the transport plays.
-            Click it to start and stop, like the strips' own. */}
-        <div
-          className="w-6 h-6 rounded-full border-2 border-fg-48 flex items-center justify-center cursor-pointer select-none self-start"
-          onClick={() => transport.toggle()}
-          title={t.playing ? 'Stop the clock (Space)' : 'Run the clock (Space)'}
-        >
-          <div className={`w-3 h-3 rounded-full transition-all ${t.playing ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
-        </div>
-        {/* Four knobs, dense variant — the DEFAULT variant pins its tick ring at
-            a fixed 64px whatever `size` says (RotaryDial.jsx:7), so four of them
-            overflowed the panel. Dense is 40px and fits with room between.
-            IN and OUT are absolute seconds; either may pass the other and the
-            window is read min-first, so dragging them through each other is a
-            legal move rather than a broken loop. */}
-        <div className="flex items-start" style={{ gap: 16 }}>
-          <RotaryDial label="IN" value={t.loopIn} min={0} max={60} defaultValue={0} onChange={(v) => transport.set({ loopIn: v })} variant="dense" size={30} compact />
-          <RotaryDial label="OUT" value={t.loopOut} min={0} max={60} defaultValue={8} onChange={(v) => transport.set({ loopOut: v })} variant="dense" size={30} compact />
-          <RotaryDial label="SWING" value={t.swing} min={0} max={100} defaultValue={0} onChange={(v) => transport.set({ swing: v })} variant="dense" size={30} compact />
-          <RotaryDial label="EASE" value={Math.round(t.ease * 100)} min={0} max={100} defaultValue={0} onChange={(v) => transport.set({ ease: v / 100 })} variant="dense" size={30} compact />
-        </div>
-        <Clock t={now} />
-        {/* THE LOOP SECTION (user 2026-10-15: *"|-->----------|"*) — IN to OUT
-            with the head; drag it to move the head. Same bar as the timeline. */}
-        <Scrubber width={232} />
-        {/* The key deck. Two gangs, both inside the module's 228px of usable
-            width: the transport at 3 × 64 = 192, the direction keys at 3 × 52
-            = 156 and narrower on purpose — a deck's shuttle row is the smaller
-            one, and two equal-width strips would read as a grid, not a panel.
-            PLAY and PAUSE are separate keys (the reference has both) but the
-            semantic is unchanged: Space still toggles, and exactly one of the
-            two is always down. */}
-        <div className="flex flex-col items-center" style={{ gap: 3 }}>
-          <div className="flex kol-helper-10 text-fg-32" style={{ width: 232 }}>
-            {['Pause', 'Stop', 'Play'].map((l) => (
-              <span key={l} className="flex-1 text-center">{l}</span>
-            ))}
-          </div>
-          <Gang width={232}>
-            <Key down={!t.playing} onClick={() => transport.pause()} title="Pause (Space)">
-              <Icon name="pause" size={16} />
-            </Key>
-            <Key down={false} onClick={() => transport.stop()} title="Stop — back to 0">
-              <Icon name="stop" size={16} />
-            </Key>
-            <Key down={t.playing} onClick={() => transport.play()} title="Play (Space)">
-              <Icon name="play" size={16} />
-            </Key>
-          </Gang>
-          {/* No silkscreen over this gang — the caps carry their own legend,
-              the way a deck labels mode keys that have no standard glyph. */}
-          <Gang width={190}>
-            {MODES.map(([mode, label, title]) => (
-              <Key key={mode} down={t.mode === mode} onClick={() => transport.set({ mode })} title={title} height={20}>
-                <span className="kol-helper-10">{label}</span>
-              </Key>
-            ))}
-          </Gang>
-        </div>
-        {/* Switches and jacks share ONE bottom strip — the VintageMaker box on
-            the user's references does the same, and the module is pinned to the
-            master module's height, so a second row is height this panel has not
-            got.
-            ponytail: the jacks are LAMPS ONLY — they register with the desk's
-            jack registry so a cable can anchor to them, but carry no `source`,
-            because nothing on the desk consumes a clock or a gate yet. Give
-            them `source` + a drop handler the day a channel accepts one. */}
-        <div className="flex items-start" style={{ gap: 16 }}>
-          <Switch label="LOOP" on={t.looping} onClick={() => transport.set({ looping: !t.looping })} title="Wrap the clock inside IN…OUT — the folding modes always do" />
-          <Switch label="HOLD" on={t.hold} onClick={() => transport.set({ hold: !t.hold })} title="Freeze the output while the clock keeps running underneath" />
-          {[['clock-clk', 'CLK', clkHigh, 'Clock out — the first of the two ticks'], ['clock-run', 'RUN', t.playing, 'Run gate — high while the transport plays']].map(([id, label, lit, title]) => (
-            <div key={id} className="flex flex-col items-center" style={{ gap: 3 }}>
-              <span className="kol-helper-10 text-fg-32">{label}</span>
-              <Jack jackId={id} connected={lit} title={title} color="#ff3b30" />
-            </div>
-          ))}
-        </div>
-        {/* ONE BIG TEMPO KNOB (user 2026-08-28), at the bottom of the panel.
-            `master` variant: the default pins its ring at 64px, so a 72px knob
-            clipped its own ticks into fragments. It also sits in a flex-1 box so
-            it centres in whatever height the panel has left. */}
-        <div className="flex flex-1 items-center" style={{ minHeight: 0 }}>
+    <DeskModule
+      width={320}
+      power={{ on: t.playing, onToggle: () => transport.toggle(), title: t.playing ? 'Stop the clock (Space)' : 'Run the clock (Space)' }}
+      head={<span className="text-fg-96">Transport</span>}
+      headRight={<span className="text-fg-96 cursor-pointer select-none" onClick={() => transport.reset()}>Reset</span>}
+      flipped={flipped}
+      onFlip={() => setFlipped(f => !f)}
+      back={(
+        <ModuleBack>
+          <span className="text-fg-32">CLOCK OUT</span>
+          <ClockOutputs t={t} now={now} />
+        </ModuleBack>
+      )}
+      rows={(
+        <div className="flex items-center justify-center" style={{ minHeight: 0 }}>
+          {/* ONE BIG TEMPO KNOB (user 2026-08-28). `master` variant: the default pins its ring at 64px, so a 72px
+              knob clipped its own ticks into fragments. */}
           <RotaryDial label="TEMPO" value={Math.round(t.rate * 100)} min={10} max={400} defaultValue={100} onChange={(v) => transport.set({ rate: v / 100 })} variant="master" size={92} />
         </div>
+      )}
+      actions={(
+        <>
+          <ModuleAction tone={!t.playing ? lit : undefined} onClick={() => transport.pause()} title="Pause (Space)">PAUSE</ModuleAction>
+          <ModuleAction onClick={() => transport.stop()} title="Stop — back to 0">STOP</ModuleAction>
+          <ModuleAction tone={t.playing ? lit : undefined} onClick={() => transport.play()} title="Play (Space)">PLAY</ModuleAction>
+          <ModuleAction tone={t.looping ? lit : undefined} dim={!t.looping} onClick={() => transport.set({ looping: !t.looping })} title="Wrap the clock inside IN…OUT — the folding modes always do">LOOP</ModuleAction>
+          <ModuleAction tone={t.hold ? lit : undefined} dim={!t.hold} onClick={() => transport.set({ hold: !t.hold })} title="Freeze the output while the clock keeps running underneath">HOLD</ModuleAction>
+        </>
+      )}
+      footer={(
+        <ModuleFooter
+          width={320}
+          square
+          tabs={MODES.map(([mode, label, title]) => ({ value: mode, label, title }))}
+          value={t.mode}
+          onChange={(mode) => transport.set({ mode })}
+        >
+          {/* IN and OUT are absolute seconds; either may pass the other and the window is read min-first, so
+              dragging them through each other is a legal move rather than a broken loop. */}
+          <div className="flex items-start justify-between">
+            <RotaryDial label="IN" value={t.loopIn} min={0} max={60} defaultValue={0} onChange={(v) => transport.set({ loopIn: v })} variant="dense" size={30} compact />
+            <RotaryDial label="OUT" value={t.loopOut} min={0} max={60} defaultValue={8} onChange={(v) => transport.set({ loopOut: v })} variant="dense" size={30} compact />
+            <RotaryDial label="SWING" value={t.swing} min={0} max={100} defaultValue={0} onChange={(v) => transport.set({ swing: v })} variant="dense" size={30} compact />
+            <RotaryDial label="EASE" value={Math.round(t.ease * 100)} min={0} max={100} defaultValue={0} onChange={(v) => transport.set({ ease: v / 100 })} variant="dense" size={30} compact />
+          </div>
+        </ModuleFooter>
+      )}
+      jacks={[['clock-clk', 'CLK', clkHigh, 'Clock out — the first of the two ticks'], ['clock-run', 'RUN', t.playing, 'Run gate — high while the transport plays']].map(([id, label, on, title]) => (
+        /* ponytail: LAMPS ONLY — registered so a cable can anchor, no `source`, because nothing on the desk consumes
+           a clock or a gate yet. Give them `source` + a drop handler the day a channel accepts one. */
+        <StripPort key={id} label={label}>
+          <Jack jackId={id} connected={on} title={title} color="#ff3b30" />
+        </StripPort>
+      ))}
+    >
+      {/* the ON lamp moved to the header's power switch (plan 16 W5) — it runs the clock */}
+      <div className="flex flex-col items-center gap-3">
+        <Clock t={now} />
+        {/* THE LOOP SECTION (user 2026-10-15: *"|-->----------|"*) — IN to OUT with the head; drag it to move the head. */}
+        <Scrubber width={288} />
       </div>
-      </div>
-      </div>
-    </div>
+    </DeskModule>
   )
 }

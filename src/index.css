@@ -75,6 +75,11 @@
 .symphony-canvas-container { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding-top: 120px; }
 .symphony-mixer-container { flex-shrink: 0; margin-top: auto; padding-top: 24px; margin-right: -16px; }
 .symphony-mobile-toggle { display: none; }
+/* THE DESK IS THE STUDIO (plan 16 W11, user 2026-10-25: *"the entire page has padding, which is wrong. is this not
+ * DS Canvas?"*). In the float arrangement the monitor is a window over the desk, so nothing shares the view: the
+ * root's 16px, the container's 24px and its auto top margin go, and the KOL canvas fills the route edge to edge. */
+.symphony-viewport-root.is-fill { padding: 0; }
+.symphony-viewport-root.is-fill > .symphony-mixer-container { flex: 1; min-height: 0; margin: 0; padding: 0; display: flex; flex-direction: column; }
 
 /* A WIDTH, matching `useNarrow`'s FOLD and AppShell's `drawerBelow` (768).
    This block keyed on `(min-width: 768px) and (pointer: fine)` until

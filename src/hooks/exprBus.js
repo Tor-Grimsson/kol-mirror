@@ -34,21 +34,34 @@ export function setSlot(i, expr) {
 export const slotValid = (i) => !slots[i].trim() || !!fns[i]
 export const useSlots = () => useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l) }, () => slots)
 
+/* HOLD (plan 16 W5): the Expression module's power — off freezes A–D at their last values; the loop keeps
+   running so on picks up from the clock, not from where it stopped */
+let held = false
+const heldListeners = new Set()
+export const setExprHeld = (v) => { held = v; heldListeners.forEach((l) => l()) }
+export const useExprHeld = () => useSyncExternalStore((l) => { heldListeners.add(l); return () => heldListeners.delete(l) }, () => held)
+/* each slot's own on / off (plan 16 W9) — an off slot holds its value and keeps its OUT */
+let slotOn = [true, true, true, true]
+export const setSlotOn = (i, on) => { slotOn = slotOn.map((v, n) => (n === i ? on : v)); heldListeners.forEach((l) => l()) }
+export const useSlotOn = () => useSyncExternalStore((l) => { heldListeners.add(l); return () => heldListeners.delete(l) }, () => slotOn)
+
 let raf = null
 let frame = 0
 function ensureLoop() {
   if (raf || !fns.some(Boolean)) return
   const tick = () => {
     if (!fns.some(Boolean)) { raf = null; return }
+    raf = requestAnimationFrame(tick)
+    if (held) return
     const t = transport.now()
     const f = frame++
     const v = { ...exprBusRef.current }
     SLOT_KEYS.forEach((k, i) => {
+      if (!slotOn[i]) return
       if (!fns[i]) { v[k] = 0; return }
       try { v[k] = Math.max(0, Math.min(100, fns[i](t, f, 0, 100, {}))) } catch { /* a bad frame holds the last value */ }
     })
     exprBusRef.current = v
-    raf = requestAnimationFrame(tick)
   }
   raf = requestAnimationFrame(tick)
 }
