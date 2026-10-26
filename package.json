@@ -32,7 +32,7 @@
     "@kolkrabbi/kol-icons": "0.45.0",
     "@kolkrabbi/kol-media-client": "0.6.0",
     "@kolkrabbi/kol-shell": "0.82.0",
-    "@kolkrabbi/kol-theme": "^0.190.0",
+    "@kolkrabbi/kol-theme": "^0.191.0",
     "@tailwindcss/vite": "^4.3.3",
     "embla-carousel-react": "^8.6.0",
     "embla-carousel-wheel-gestures": "^8.1.0",
