@@ -13,3 +13,5 @@ Home-screen apps need the standalone top safe-area padding and a dark `html` fro
 **Remainder here:** 📌 bump kol-theme 0.191.0; retire the `@media (display-mode: standalone)` block in `src/index.css` and `class="bg-surface-primary"` on `<html>` to `_tmp/`; recheck the home-screen app in the simulator.
 
 **Remainder done 2026-10-26 (part):** kol-theme 0.191.0 bumped (both rules present in `kol-base-tokens.css`); the `src/index.css` standalone block and the `<html>` class retired to `_tmp/2026-10-26-standalone-local/`. **Still owed:** the home-screen recheck — the simulator was removed, so it is on the phone after a deploy.
+
+**Remainder done 2026-10-26:** seen on the phone, home-screen Mirror on the deployed build — title below the clock, dark top and bottom, no white strip. **Remainder here: none.**

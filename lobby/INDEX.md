@@ -58,7 +58,7 @@ that does. The **Remainder** is this repo's to do; the state is theirs to report
 
 | | Receipt | Destination | Last known | Remainder here |
 |---|---|---|---|---|
-| 🔵 | [StandaloneSafeAreaAndPageGround](outbox/StandaloneSafeAreaAndPageGround.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 closed 2026-10-26 — kol-theme 0.191.0 | 📌 recheck on the phone after a deploy — bumped to kol-theme 0.191.0 and both local copies retired to `_tmp/` |
+| 🟢 | [StandaloneSafeAreaAndPageGround](outbox/StandaloneSafeAreaAndPageGround.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-26 — **kol-theme 0.191.0**: standalone top padding + dark `html` in `kol-base-tokens.css` | **none** — bumped, local copies retired, seen on the phone |
 | 🟢 | [EnvelopeGeneratorHostClockControls](outbox/EnvelopeGeneratorHostClockControls.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-22 — **kol-hardware 0.6.1**: no Play/Pause, BPM or Trigger under `now`; cycle stays | **none** — bumped, seen on screen |
 | 🟢 | [SignalScopePlayedTraceAndClock](outbox/SignalScopePlayedTraceAndClock.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-22 — **kol-hardware 0.6.0**: played trace + playhead in `--kol-slider-playhead`, `now` clock prop | **none** — bumped, `now: transport.now` passed, `setPlaying` sync dropped; not seen on screen |
 | 🟢 | [media-picker-close-and-title](outbox/media-picker-close-and-title.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-15 — **kol-component 0.261.0**: the × alone at the end of the title row; the title has its own fg-96 ink | **none** — bumped; body `text-fg-96` kept (right for every portal). Not seen on screen: the picker opens signed in only |
@@ -83,6 +83,7 @@ that does. The **Remainder** is this repo's to do; the state is theirs to report
 
 | Date | Event |
 |---|---|
+| 2026-10-26 | **`StandaloneSafeAreaAndPageGround` remainder done** — seen on the phone's home-screen app |
 | 2026-10-26 | **`StandaloneSafeAreaAndPageGround` returned** — kol-theme 0.191.0 bumped, local copies to `_tmp/2026-10-26-standalone-local/`; phone recheck owed |
 | 2026-10-26 | **`StandaloneSafeAreaAndPageGround` filed to kol-ds-ui** — local copies in `src/index.css` and `index.html` until it ships |
 | 2026-10-23 | **`MirrorLibraryOnAppPreset` closed** — the library is on the DS `app` card; component 0.291.0 · shell 0.75.0, verified on screen |
