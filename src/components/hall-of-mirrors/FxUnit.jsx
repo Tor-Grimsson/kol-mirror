@@ -1,13 +1,13 @@
 import { ModuleFooter } from './modules/ModuleFrame'
 import { useRef, useState } from 'react'
-import Divider from '../atoms/Divider'
-import Slider from '../atoms/Slider'
-import ColorPicker from '../atoms/ColorPicker'
-import Dropdown from '../molecules/Dropdown'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
+import ColorPickerPopover from '@kolkrabbi/kol-component/organisms/ColorPickerPopover'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import { Icon } from '../icons'
 import TrailUnit from './TrailUnit'
 import { CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
 import { BLEND_OPTIONS, CSS_BLEND_MODES } from './blendOptions'
+import LED from '@kolkrabbi/kol-hardware/indicators/LED.jsx'
 
 /**
  * FxUnit — the channel's processing rack: COLOR · BLEND · FX · FB.
@@ -52,7 +52,7 @@ export default function FxUnit({
         tabs={['color', 'blend', 'fx', 'fb'].map((t) => ({ value: t, label: t }))}
         value={fxTab}
         onChange={setFxTab}
-        readout={enabled && <span className="kol-helper-12" style={{ color: renderCost > 80 ? '#e74c3c' : renderCost > 70 ? '#f39c12' : '#2ecc71', animation: renderCost >= 70 ? 'kol-mirror-pulse 1s ease-in-out infinite' : 'none' }}>{renderCost}%</span>}
+        readout={enabled && <span className="kol-helper-12" style={{ color: renderCost > 80 ? 'var(--kol-ctl-led-red)' : renderCost > 70 ? 'var(--kol-ctl-led-yellow)' : 'var(--kol-ctl-led-green)', animation: renderCost >= 70 ? 'kol-mirror-pulse 1s ease-in-out infinite' : 'none' }}>{renderCost}%</span>}
       >
         {fxTab === 'fx' && (
           <>
@@ -63,8 +63,9 @@ export default function FxUnit({
               const primarySpec = def?.params[primaryKey]
               return (
                 <div key={fi} className="flex items-center gap-2" style={{ height: '24px' }}>
-                  <div
-                    className={`w-3 h-3 rounded-full cursor-pointer shrink-0 ${fxItem.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
+                  <LED
+                    active={fxItem.enabled}
+                    size="md"
                     onClick={() => {
                       const next = [...fx]
                       next[fi] = { ...next[fi], enabled: !next[fi].enabled }
@@ -157,8 +158,6 @@ export default function FxUnit({
                     blendPreviewRef.current = null
                   }
                 }}
-                variant="minimal"
-                size="md"
               />
             </div>
           </div>
@@ -168,15 +167,15 @@ export default function FxUnit({
             <div className="flex items-center gap-4" style={{ height: '24px' }}>
               <div className="flex items-center justify-between flex-1">
                 <span className="text-fg-96">Vector</span>
-                <ColorPicker color={vectorColor} onChange={onVectorColorChange} />
+                <ColorPickerPopover color={vectorColor} onChange={onVectorColorChange} />
               </div>
-              <Divider variant="vertical" className="px-4" />
+              <div className="self-stretch mx-4 w-px bg-fg-08" />
               <div
                 className="flex items-center justify-between flex-1"
                 onClick={(e) => { if (e.altKey) { e.stopPropagation(); onBackgroundColorChange(backgroundColor === 'transparent' ? '#000000' : 'transparent') } }}
               >
                 <span className={`${backgroundColor === 'transparent' ? 'text-fg-32' : 'text-fg-96'} select-none`}>Background</span>
-                <ColorPicker color={backgroundColor} onChange={onBackgroundColorChange} />
+                <ColorPickerPopover color={backgroundColor} onChange={onBackgroundColorChange} />
               </div>
             </div>
             <div className="flex items-center justify-between" style={{ height: '24px' }}>
@@ -188,8 +187,6 @@ export default function FxUnit({
                 ]}
                 value={rasterTheme}
                 onChange={onRasterThemeChange}
-                variant="minimal"
-                size="md"
               />
             </div>
           </div>

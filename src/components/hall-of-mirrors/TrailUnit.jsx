@@ -1,5 +1,6 @@
-import Slider from '../atoms/Slider'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
 import { Icon } from '../icons'
+import LED from '@kolkrabbi/kol-hardware/indicators/LED.jsx'
 
 /**
  * TrailUnit — per-channel feedback: the picture drawn back over itself.
@@ -18,8 +19,9 @@ export default function TrailUnit({ feedback, onFeedbackChange }) {
   return (
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2" style={{ height: '24px' }}>
-          <div
-            className={`w-3 h-3 rounded-full cursor-pointer shrink-0 ${feedback?.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
+          <LED
+            active={feedback?.enabled}
+            size="md"
             onClick={() => onFeedbackChange({ ...feedback, enabled: !feedback?.enabled })}
           />
           <span className="text-fg-96">Feedback</span>

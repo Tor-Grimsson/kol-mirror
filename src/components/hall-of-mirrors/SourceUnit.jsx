@@ -1,7 +1,7 @@
 import { useRef } from 'react'
-import Divider from '../atoms/Divider'
-import Slider from '../atoms/Slider'
-import Dropdown from '../molecules/Dropdown'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import { Icon } from '../icons'
 import MediaBrowser from './MediaBrowser'
 import processImageUpload from '../../utils/processImageUpload'
@@ -70,7 +70,7 @@ export function SourceTab({
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end kol-helper-xs-2" style={{ fontSize: '10px' }}>
+        <div className="flex items-center justify-end kol-helper-10">
           <span className="text-fg-48 truncate">{customImageName || ''}</span>
         </div>
       </div>
@@ -98,8 +98,6 @@ export function SourceTab({
           ]}
           value={loadMode}
           onChange={(v) => onMediaChange({ loadMode: v })}
-          variant="minimal"
-          size="md"
         />
       </div>
       <input ref={mediaFileRef} type="file" accept="image/*,.svg" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const r = await processImageUpload(file); onMediaChange({ customImageSrc: r.imageSrc, customRasterSrc: r.rasterSrc, customImageName: file.name }) } catch (_) {} e.target.value = '' }} />
@@ -133,8 +131,6 @@ export function ResolutionTab({
           ]}
           value={rasterTierOverride || 'auto'}
           onChange={(v) => onRasterTierOverrideChange(v === 'auto' ? null : v)}
-          variant="minimal"
-          size="md"
         />
       </div>
       <div className="flex items-center justify-between gap-4 kol-helper-12" style={{ height: '24px' }}>
@@ -146,8 +142,6 @@ export function ResolutionTab({
           ]}
           value={rasterTheme}
           onChange={onRasterThemeChange}
-          variant="minimal"
-          size="md"
         />
       </div>
       <div className="flex items-center justify-between gap-4 kol-helper-12" style={{ height: '24px' }}>

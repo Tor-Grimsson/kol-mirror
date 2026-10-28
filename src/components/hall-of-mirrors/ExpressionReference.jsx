@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { TabsRow } from '@kolkrabbi/kol-component'
-import Divider from '../atoms/Divider'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
 import { Icon } from '../icons'
-import Slider from '../atoms/Slider'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
 import { compile } from '../../hooks/useExpressionValue'
 import { transport } from '../../hooks/transport'
 import { useLibrary, addToLibrary, removeFromLibrary } from '../../hooks/useLibraryStore'
@@ -265,7 +265,7 @@ export function Oscilloscope({ expr, setExpr, expanded, setExpanded, fitRequest 
       >
         <canvas ref={canvasRef} width={300} height={160} style={{ width: '100%', height: '100%' }} />
       </div>
-      <div className="flex items-center justify-between pt-1 kol-helper-xs-2" style={{ height: '24px' }}>
+      <div className="flex items-center justify-between pt-1 kol-helper-10" style={{ height: '24px' }}>
         <span className="text-fg-64 cursor-pointer select-none hover:text-fg-96 flex items-center gap-1" onClick={fit}><Icon name="maximize" size={12} /> Fit</span>
         <span className="text-fg-64 cursor-pointer select-none hover:text-fg-96 flex items-center gap-1" onClick={() => setExpanded(!expanded)}><Icon name="dith-grid" size={12} /> {expanded ? 'Collapse' : 'Expand'}</span>
         <span className="text-fg-64 cursor-pointer select-none hover:text-fg-96 flex items-center gap-1" onClick={() => { setZoomX(1); setZoomY(1); setPanX(0); setPanY(0) }}><Icon name="refresh" size={14} /> Reset</span>

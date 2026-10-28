@@ -1,8 +1,12 @@
 import { useCallback, useRef } from 'react'
-import RotaryDial from './RotaryDial'
+import Modulatable from '@kolkrabbi/kol-hardware/value/Modulatable.jsx'
+import Knob from '@kolkrabbi/kol-component/molecules/Knob'
+import { exprBusRef } from '../../hooks/exprBus'
+import { transport } from '../../hooks/transport'
 import { Icon } from '../icons'
 import { usePatchJacks, patchDrag } from './patchJacksContext'
-import Divider from '../atoms/Divider'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
+import JackSocket from '@kolkrabbi/kol-hardware/indicators/JackSocket.jsx'
 import { WIRE_COLORS } from './wireColors'
 import { listCables, removeCable } from '../../hooks/patchGraph'
 import { cableLabels } from '../../data/cableLabels'
@@ -50,7 +54,6 @@ const hitJack = (e) => document.elementFromPoint(e.clientX, e.clientY)?.closest(
  * @param {string}   color   the LED — the cable's wire colour when connected (default: accent)
  */
 export function Jack({ connected, pending, onClick, title, jackId, source, onDrop, color }) {
-  const led = color || 'var(--kol-accent-primary)'
   // Register the jack's DOM node (+ drop handler) so PatchCableOverlay can
   // anchor cables and a drag can land here.
   const jacks = usePatchJacks()
@@ -87,7 +90,6 @@ export function Jack({ connected, pending, onClick, title, jackId, source, onDro
   // A press that dragged is not a click.
   const handleClick = (e) => { if (movedRef.current) { movedRef.current = false; return } onClick?.(e) }
   const isOver = !!onDrop && jacks?.over === jackId
-  const live = pending || jacks?.dragging === jackId || (!!onDrop && !!jacks?.dragging)
   return (
     <span
       ref={jackRef}
@@ -97,49 +99,12 @@ export function Jack({ connected, pending, onClick, title, jackId, source, onDro
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      title={title}
       className="cursor-pointer select-none inline-flex items-center justify-center"
-      style={{ width: 30, height: 30, touchAction: 'none' }}
+      style={{ touchAction: 'none' }}
     >
-      {/* THE HEX NUT — a real 1/4" jack, not a radio button (user 2026-08-28,
-          with an AI Synthesis VC Matrix Mixer as the reference: "in this repo
-          the jacks are 1/4 inch BIG jacks not small"). Six-sided nickel collar
-          with the flats catching light top-left, the dark bore sunk inside it,
-          and the LED as the ring of contact showing through the bore — which
-          is what a lit jack actually looks like on a panel. */}
-      <span
-        className="transition-all"
-        style={{
-          width: 28, height: 28,
-          clipPath: 'polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)',
-          background: 'linear-gradient(150deg, var(--kol-fg-48), var(--kol-fg-16) 45%, var(--kol-fg-32))',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          filter: isOver
-            ? 'drop-shadow(0 0 4px var(--kol-accent-primary))'
-            : connected ? `drop-shadow(0 0 5px ${led})`
-            : live ? 'drop-shadow(0 0 3px var(--kol-fg-32))' : undefined,
-        }}
-      >
-        {/* the bore — sunk, with the shaft's shadow across its top */}
-        <span
-          className="rounded-full"
-          style={{
-            width: 17, height: 17,
-            background: 'radial-gradient(circle at 50% 32%, #050506, #0b0b0d 62%, #17171a)',
-            boxShadow: 'inset 0 2px 3px rgb(0 0 0 / 0.9), inset 0 -1px 1px var(--kol-fg-16)',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <span
-            className="rounded-full transition-all"
-            style={{
-              width: 7, height: 7,
-              backgroundColor: connected ? led : 'var(--kol-fg-16)',
-              boxShadow: connected ? `0 0 6px ${led}, 0 0 2px ${led}` : undefined,
-            }}
-          />
-        </span>
-      </span>
+      {/* the KOL jack (plan 18 W4) — the hex nut it replaced is in _tmp/2026-10-28-plan18/. The drag,
+          the drop registry and the cable anchor stay on this span; JackSocket only draws. */}
+      <JackSocket type={source ? 'out' : 'in'} active={connected} pending={pending || isOver || jacks?.dragging === jackId} dimPending={!!onDrop && !!jacks?.dragging} color={color} title={title} />
     </span>
   )
 }
@@ -655,14 +620,9 @@ export default function ChannelPatchPanel({ channelIndex, channel, channels = []
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
           {BUS_SENDS.map(key => (
             <span key={key} className="flex flex-col items-center" style={{ gap: 2 }}>
-              <RotaryDial
-                label={SEND_LABEL[key]}
-                value={sends[key] || 0}
-                onChange={(v) => onChannelUpdate(channelIndex, { sends: { ...sends, [key]: v } })}
-                size={30}
-                compact
-                variant="dense"
-              />
+              <Modulatable label={SEND_LABEL[key]} value={sends[key] || 0} onChange={(v) => onChannelUpdate(channelIndex, { sends: { ...sends, [key]: v } })} bus={exprBusRef} clock={transport} density="dense">
+                <Knob variant="panel" size="lg" defaultValue={0} />
+              </Modulatable>
             </span>
           ))}
         </div>
@@ -684,8 +644,12 @@ export default function ChannelPatchPanel({ channelIndex, channel, channels = []
         </div>
         {feedback.enabled && (
           <div className="flex" style={{ gap: 8 }}>
-            <RotaryDial label="DECAY" value={feedback.decay} onChange={(v) => onChannelUpdate(channelIndex, { feedback: { ...feedback, decay: v } })} size={36} compact />
-            <RotaryDial label="MIX" value={feedback.mix} onChange={(v) => onChannelUpdate(channelIndex, { feedback: { ...feedback, mix: v } })} size={36} compact />
+            <Modulatable label="DECAY" value={feedback.decay} onChange={(v) => onChannelUpdate(channelIndex, { feedback: { ...feedback, decay: v } })} bus={exprBusRef} clock={transport}>
+              <Knob variant="panel" size="lg" defaultValue={0} />
+            </Modulatable>
+            <Modulatable label="MIX" value={feedback.mix} onChange={(v) => onChannelUpdate(channelIndex, { feedback: { ...feedback, mix: v } })} bus={exprBusRef} clock={transport}>
+              <Knob variant="panel" size="lg" defaultValue={0} />
+            </Modulatable>
           </div>
         )}
       </div>

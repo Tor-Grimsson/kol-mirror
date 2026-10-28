@@ -16,7 +16,7 @@ const themeBoot = {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), devFavicon({ label: 'W', ground: '#49A0A2', ink: '#000000' }), themeBoot, loaderApp({ graphic: 'public/svg/wordmark.svg', size: 332 })],
+  plugins: [react(), tailwindcss(), devFavicon({ label: 'W', ground: '#49A0A2', ink: '#000000' }), themeBoot, loaderApp({ graphic: 'node_modules/@kolkrabbi/kol-icons/src/kol-icon-set-identity/mirror/mirror-wordmark.svg', size: 332 })],
   // THE RAW-SOURCE KOL PACKAGES ARE NOT PRE-BUNDLED. They publish JSX, and two
   // things in them break under the dep optimizer: kol-icons builds its registry
   // via `import.meta.glob(...svg)`, which only expands when Vite source-transforms

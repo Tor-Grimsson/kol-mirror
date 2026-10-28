@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import Slider from '../../atoms/Slider.jsx'
-import Dropdown from '../../molecules/Dropdown'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import { Icon } from '../../icons/index.js'
 import { CANVAS_FX_DEFS } from '../../../hooks/useCanvasFx.js'
 import { FX_SLOT_COUNT, slotsOf } from '../../../hooks/fxSlots'
@@ -100,8 +100,6 @@ export default function FxRackModule({ module: m, onSlot, onToggle, onRemove, on
               options={[{ value: '', label: 'Empty' }, ...PICKS]}
               value={slot?.type ?? ''}
               onChange={(v) => onSlot?.(tab, v ? { type: v } : null)}
-              variant="minimal"
-              size="sm"
             />
           </div>
           {slot && <SlotParams slot={slot} onParam={(k, v) => onSlot?.(tab, { params: { [k]: v } })} />}

@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { FlipIcon } from './ChannelPatchPanel'
 import { BLEND_OPTIONS } from './blendOptions'
 import { Icon } from '../icons'
-import Slider from '../atoms/Slider'
-import Divider from '../atoms/Divider'
-import Dropdown from '../molecules/Dropdown'
-import ColorPicker from '../atoms/ColorPicker'
-import RotaryDial from './RotaryDial'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
+import ColorPickerPopover from '@kolkrabbi/kol-component/organisms/ColorPickerPopover'
+import Modulatable from '@kolkrabbi/kol-hardware/value/Modulatable.jsx'
+import Knob from '@kolkrabbi/kol-component/molecules/Knob'
+import { exprBusRef } from '../../hooks/exprBus'
+import { transport } from '../../hooks/transport'
 import ChannelMaster from '../mixer/ChannelMaster'
 import { CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
 import { CANVAS_FX_DEFS, MAX_CANVAS_FX, getDefaultCanvasFxParams, fxCapability } from '../../hooks/useCanvasFx'
 import { gpuAvailable } from '../../hooks/gpuFx'
-import { DeskModule, ModuleFooter } from './modules/ModuleFrame'
+import { DeskModule, ModuleFooter, ModuleTool } from './modules/ModuleFrame'
+import LED from '@kolkrabbi/kol-hardware/indicators/LED.jsx'
 
 
 // Read an FX param value from an FX array
@@ -68,7 +72,7 @@ function buildFxKnobs(fxArr, updateFx) {
 function Indicated({ active, children }) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex' }}>
-      <span className={`absolute w-2 h-2 rounded-full ${active ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ top: '-20px', left: '6px' }} />
+      <span className="absolute inline-flex" style={{ top: '-20px', left: '6px' }}><LED active={active} size="md" /></span>
       {children}
     </span>
   )
@@ -84,8 +88,9 @@ function FxList({ fx, onFxChange }) {
         const primarySpec = def?.params[primaryKey]
         return (
           <div key={fi} className="flex items-center gap-2" style={{ height: '24px' }}>
-            <div
-              className={`w-2 h-2 rounded-full cursor-pointer shrink-0 ${fxItem.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
+            <LED
+              active={fxItem.enabled}
+              size="md"
               onClick={() => {
                 const next = [...fx]
                 next[fi] = { ...next[fi], enabled: !next[fi].enabled }
@@ -163,11 +168,9 @@ function CanvasFxList({ fx, onFxChange }) {
               style={{ height: '24px', opacity: cap.runs ? 1 : 0.4 }}
               title={cap.reason || undefined}
             >
-              <div
-                className={`w-2 h-2 rounded-full cursor-pointer shrink-0 ${fxItem.enabled ? 'bg-[#e74c3c]' : 'bg-fg-24'}`}
-                onClick={() => update({ enabled: !fxItem.enabled })}
-                title={fxItem.enabled ? 'Bypass' : 'Enable'}
-              />
+              <span className="inline-flex shrink-0" title={fxItem.enabled ? 'Bypass' : 'Enable'}>
+                <LED active={fxItem.enabled} size="md" onClick={() => update({ enabled: !fxItem.enabled })} />
+              </span>
               <Dropdown
                 options={FX_OPTIONS}
                 value={fxItem.type}
@@ -341,11 +344,11 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                 <>
                   <div className="flex items-center justify-between" style={{ height: '24px' }}>
                     <span className="text-fg-32">Vector</span>
-                    <ColorPicker color={ch.vectorColor === 'currentColor' ? '#ffffff' : ch.vectorColor} onChange={(c) => onChannelUpdate(src, { vectorColor: c })} />
+                    <ColorPickerPopover color={ch.vectorColor === 'currentColor' ? '#ffffff' : ch.vectorColor} onChange={(c) => onChannelUpdate(src, { vectorColor: c })} />
                   </div>
                   <div className="flex items-center justify-between" style={{ height: '24px' }}>
                     <span className="text-fg-32">Background</span>
-                    <ColorPicker color={ch.backgroundColor === 'transparent' ? '#000000' : ch.backgroundColor} onChange={(c) => onChannelUpdate(src, { backgroundColor: c })} />
+                    <ColorPickerPopover color={ch.backgroundColor === 'transparent' ? '#000000' : ch.backgroundColor} onChange={(c) => onChannelUpdate(src, { backgroundColor: c })} />
                   </div>
                   <div className="flex items-center justify-between kol-helper-12" style={{ height: '24px' }}>
                     <span className="text-fg-32">Blend</span>
@@ -353,8 +356,6 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                       options={BLEND_OPTIONS}
                       value={ch.blendMode || 'normal'}
                       onChange={(v) => onChannelUpdate(src, { blendMode: v })}
-                      variant="minimal"
-                      size="md"
                     />
                   </div>
                 </>
@@ -386,8 +387,6 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
               options={BLEND_OPTIONS}
               value={master.blendMode || 'normal'}
               onChange={(v) => onMasterChange({ blendMode: v })}
-              variant="minimal"
-              size="md"
             />
           </div>
           <Divider className="my-1" />
@@ -427,8 +426,6 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                   options={BLEND_OPTIONS}
                   value={bus.blendMode || 'normal'}
                   onChange={(v) => onMasterChange({ [key]: { ...bus, blendMode: v } })}
-                  variant="minimal"
-                  size="md"
                 />
               </div>
               <div className="flex items-center justify-between" style={{ height: '24px' }}>
@@ -468,7 +465,9 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
           {SEND_KEYS.map(key => (
             <div key={key} className="flex items-center justify-center shrink-0" style={{ width: '64px' }}>
               <Indicated active={(sends[key] || 0) > 0}>
-                <RotaryDial label={SEND_LABELS[key]} value={sends[key] || 0} onChange={(v) => onChannelUpdate(ci, { sends: { ...sends, [key]: v } })} size={22} compact variant="dense" />
+                <Modulatable label={SEND_LABELS[key]} value={sends[key] || 0} onChange={(v) => onChannelUpdate(ci, { sends: { ...sends, [key]: v } })} bus={exprBusRef} clock={transport} density="dense">
+                  <Knob variant="panel" size="md" defaultValue={0} />
+                </Modulatable>
               </Indicated>
             </div>
           ))}
@@ -491,7 +490,9 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
           {SEND_KEYS.map(key => (
             <div key={key} className="flex items-center justify-center shrink-0" style={{ width: '64px' }}>
               <Indicated active={(sends[key] || 0) > 0}>
-                <RotaryDial label={SEND_LABELS[key]} value={sends[key] || 0} onChange={(v) => updateSends({ ...sends, [key]: v })} size={22} compact variant="dense" />
+                <Modulatable label={SEND_LABELS[key]} value={sends[key] || 0} onChange={(v) => updateSends({ ...sends, [key]: v })} bus={exprBusRef} clock={transport} density="dense">
+                  <Knob variant="panel" size="md" defaultValue={0} />
+                </Modulatable>
               </Indicated>
             </div>
           ))}
@@ -534,15 +535,14 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                 { key: 'master', icon: 'circle', title: 'Master' },
                 { key: 'aux-fx', icon: 'atomic-molecule-04', title: 'AUX / FX Returns' },
               ].map(btn => (
-                <div
+                <ModuleTool
                   key={btn.key}
-                  className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
-                  style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-                  onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
+                  icon={btn.icon}
+                  iconSize={btn.iconSize || 16}
                   title={btn.title}
-                >
-                  <Icon name={btn.icon} size={btn.iconSize || 16} />
-                </div>
+                  active={shelfOpen && shelfTab === btn.key}
+                  onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
+                />
               ))}
           </>
         )}
@@ -583,10 +583,9 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                     <ChannelMaster key={`in-${n}`} label={`In ${n + 1}`} knobs={[]} faderValue={0} enabled={false} />
                   )
                 })}
-                <Divider variant="vertical" />
+                <Divider />
                 <ChannelMaster
                   label="RTN 1"
-                  accent="#3b82f6"
                   knobs={rtn1Knobs}
                   faderValue={rtn1.returnLevel}
                   onFaderChange={(v) => onMasterChange({ rtn1: { ...rtn1, returnLevel: v } })}
@@ -595,24 +594,22 @@ export default function MasterModule({ master, onMasterChange, channels = [], on
                 />
                 <ChannelMaster
                   label="RTN 2"
-                  accent="#3b82f6"
                   knobs={rtn2Knobs}
                   faderValue={rtn2.returnLevel}
                   onFaderChange={(v) => onMasterChange({ rtn2: { ...rtn2, returnLevel: v } })}
                   enabled={rtn2.enabled}
                   onEnabledChange={(v) => onMasterChange({ rtn2: { ...rtn2, enabled: v } })}
                 />
-                <Divider variant="vertical" />
+                <div className="self-stretch w-px bg-fg-08" />
                 <ChannelMaster
                   label="MST"
-                  accent="#2dd4bf"
                   knobs={mstKnobs}
                   faderValue={opacity}
                   onFaderChange={(v) => onMasterChange({ opacity: v })}
                   enabled={enabled}
                   onEnabledChange={(v) => onMasterChange({ enabled: v })}
                 />
-                <Divider variant="vertical" />
+                <div className="self-stretch w-px bg-fg-08" />
               </div>
       </DeskModule>
 

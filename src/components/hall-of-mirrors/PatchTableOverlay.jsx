@@ -96,10 +96,10 @@ export default function PatchTableOverlay({ open, onClose, patch, onApply }) {
         <Divider />
         <RailSection label="Add a cable">
           <RailRow label="From" align="fill" labelWidth="auto">
-            <div className="flex w-full gap-2"><Dropdown size="sm" className="flex-1 min-w-0" options={fromOptions} value={pick.from} onChange={(v) => setPick({ from: v, to: '' })} ariaLabel="From" /></div>
+            <div className="flex w-full gap-2"><Dropdown className="flex-1 min-w-0" options={fromOptions} value={pick.from} onChange={(v) => setPick({ from: v, to: '' })} ariaLabel="From" /></div>
           </RailRow>
           <RailRow label="To" align="fill" labelWidth="auto">
-            <div className="flex w-full gap-2"><Dropdown size="sm" className="flex-1 min-w-0" options={toOptions} value={pick.to} onChange={(to) => setPick((p) => ({ ...p, to }))} ariaLabel="To" /></div>
+            <div className="flex w-full gap-2"><Dropdown className="flex-1 min-w-0" options={toOptions} value={pick.to} onChange={(to) => setPick((p) => ({ ...p, to }))} ariaLabel="To" /></div>
           </RailRow>
           <RailActions className="mt-2">
             <Button size="sm" disabled={!canAdd} onClick={add}>Add cable</Button>

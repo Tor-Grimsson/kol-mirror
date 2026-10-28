@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Dropdown from '../../molecules/Dropdown'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import { useLibrary, exportEntry, importEntry, removeFromLibrary } from '../../../hooks/useLibraryStore'
 import { DeskModule, ModuleFooter, ModuleBack, ModuleAction } from './ModuleFrame'
 
@@ -119,7 +119,7 @@ export default function PatchModule({ api, master, channels = [] }) {
         </ModuleFooter>
       )}
     >
-      {/* No `placeholder` — `molecules/Dropdown` lists it in `DROPPED`, so passing one is a dead prop and the empty
+      {/* No `placeholder` — the empty
           state has to be a real branch. */}
       {patches.length > 0 ? (
         <Dropdown

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import Dropdown from '../molecules/Dropdown'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import Input from '@kolkrabbi/kol-component/atoms/Input'
 import { useMediaLibrary, mediaSrc, BUCKET_OPTIONS } from '../../hooks/useMediaLibrary'
 
@@ -37,13 +37,11 @@ export default function MediaBrowser({ onPick }) {
   return (
     <div className="flex flex-col gap-2 kol-helper-12">
       <div className="flex items-center gap-2">
-        <Dropdown options={BUCKET_OPTIONS} value={bucket} onChange={setBucket} variant="minimal" size="md" rowHeight={24} className="flex-1" />
+        <Dropdown options={BUCKET_OPTIONS} value={bucket} onChange={setBucket} rowHeight={24} className="flex-1" />
         <Dropdown
           options={[{ value: 'all', label: 'All' }, { value: 'image', label: 'Images' }, { value: 'video', label: 'Video' }]}
           value={kind}
           onChange={setKind}
-          variant="minimal"
-          size="md"
           rowHeight={24}
         />
       </div>

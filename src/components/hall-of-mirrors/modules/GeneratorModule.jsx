@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { exprBusRef } from '../../../hooks/exprBus'
 import { GEN_KEY, genSlotKey, GEN_MIX_KEY } from './genKeys'
-import RotaryDial from '../RotaryDial'
-import Dropdown from '../../molecules/Dropdown'
+import Modulatable from '@kolkrabbi/kol-hardware/value/Modulatable.jsx'
+import Knob from '@kolkrabbi/kol-component/molecules/Knob'
+import { exprBusRef } from '../../../hooks/exprBus'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import { GENERATOR_COMPONENTS } from '../generators'
 import { GENERATOR_FAMILIES, familyOf, getDefaultParams, findVariant } from '../../../data/mirrorVariants'
-import { useTransportPlaying } from '../../../hooks/transport'
+import { transport, useTransportPlaying } from '../../../hooks/transport'
 import { DeskModule, ModuleFooter, ModuleBack, ModuleAction } from './ModuleFrame'
 import { StripPort } from './JackStrip'
 import { Jack } from '../ChannelPatchPanel'
@@ -170,7 +171,9 @@ export default function GeneratorModule({ onSource, out, onSourceCanvas, initial
       back={(
         <ModuleBack>
           <div className="flex items-center justify-between shrink-0">
-            <RotaryDial label="QLTY" value={quality} onChange={setQuality} defaultValue={40} size={30} variant="dense" panel />
+            <Modulatable label="QLTY" value={quality} onChange={setQuality} bus={exprBusRef} clock={transport} density="dense">
+              <Knob variant="panel" size="lg" defaultValue={40} />
+            </Modulatable>
             <span className="text-fg-32" style={{ fontVariantNumeric: 'tabular-nums' }}>Buffer {edge}px</span>
           </div>
           {mods.map((m, n) => {
@@ -179,9 +182,11 @@ export default function GeneratorModule({ onSource, out, onSourceCanvas, initial
             return (
               <div key={n} className="flex items-center justify-between gap-2">
                 <span className="text-fg-64 shrink-0">M{n + 1} {m.src ? `← ${m.src}` : '—'}</span>
-                <Dropdown options={slots.map((x, i) => ({ value: String(i), label: `${i + 1}` })).filter((o) => slots[+o.value])} value={String(m.slot)} onChange={(v) => set({ slot: +v, key: dialsOf(slots[+v]?.genId)[0]?.key ?? null })} variant="minimal" size="sm" />
-                <Dropdown options={dialsOf(target?.genId ?? '').map((c) => ({ value: c.key, label: c.label }))} value={m.key ?? ''} onChange={(v) => set({ key: v })} variant="minimal" size="sm" />
-                <RotaryDial label="DPTH" value={m.depth} onChange={(v) => set({ depth: v })} defaultValue={50} size={24} variant="dense" compact />
+                <Dropdown options={slots.map((x, i) => ({ value: String(i), label: `${i + 1}` })).filter((o) => slots[+o.value])} value={String(m.slot)} onChange={(v) => set({ slot: +v, key: dialsOf(slots[+v]?.genId)[0]?.key ?? null })} />
+                <Dropdown options={dialsOf(target?.genId ?? '').map((c) => ({ value: c.key, label: c.label }))} value={m.key ?? ''} onChange={(v) => set({ key: v })} />
+                <Modulatable label="DPTH" value={m.depth} onChange={(v) => set({ depth: v })} bus={exprBusRef} clock={transport} density="dense">
+                  <Knob variant="panel" size="md" defaultValue={50} />
+                </Modulatable>
               </div>
             )
           })}
@@ -202,15 +207,13 @@ export default function GeneratorModule({ onSource, out, onSourceCanvas, initial
               options={[{ value: '', label: 'Empty' }, ...GENERATOR_FAMILIES.map((f) => ({ value: f.id, label: f.label }))]}
               value={family?.id ?? ''}
               onChange={(v) => { if (!v) { setSlot(tab, null); return } const f = GENERATOR_FAMILIES.find((x) => x.id === v); if (f && f.id !== family?.id) pickGenerator(tab, f.engines[0]) }}
-              variant="minimal"
-              size="sm"
             />
             {s && family.engines.length > 1 && (
-              <Dropdown options={family.engines.map((id) => ({ value: id, label: findVariant(id)?.title || id }))} value={s.genId} onChange={(id) => pickGenerator(tab, id)} variant="minimal" size="sm" />
+              <Dropdown options={family.engines.map((id) => ({ value: id, label: findVariant(id)?.title || id }))} value={s.genId} onChange={(id) => pickGenerator(tab, id)} />
             )}
           </div>
           {s && selectsOf(s.genId).map((c) => (
-            <Dropdown key={c.key} options={c.options} value={s.params[c.key] ?? c.default} onChange={(v) => setSlot(tab, { params: { ...s.params, [c.key]: v } })} variant="minimal" size="sm" rowHeight={24} />
+            <Dropdown key={c.key} options={c.options} value={s.params[c.key] ?? c.default} onChange={(v) => setSlot(tab, { params: { ...s.params, [c.key]: v } })} rowHeight={24} />
           ))}
         </ModuleFooter>
       )}
@@ -264,7 +267,9 @@ export default function GeneratorModule({ onSource, out, onSourceCanvas, initial
       {s && (
         <div className="flex items-center justify-around shrink-0">
           {dialsOf(s.genId).map((c) => (
-            <RotaryDial key={c.key} label={c.label} value={paramsOf(tab)[c.key] ?? c.default} onChange={(v) => setSlot(tab, { params: { ...s.params, [c.key]: v } })} min={c.min} max={c.max} defaultValue={c.default} size={40} variant="dense" panel />
+            <Modulatable key={c.key} label={c.label} value={paramsOf(tab)[c.key] ?? c.default} onChange={(v) => setSlot(tab, { params: { ...s.params, [c.key]: v } })} min={c.min} max={c.max} bus={exprBusRef} clock={transport} density="dense">
+              <Knob variant="panel" size="lg" defaultValue={c.default} />
+            </Modulatable>
           ))}
         </div>
       )}

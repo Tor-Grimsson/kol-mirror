@@ -3,7 +3,9 @@ import { Icon } from '../../icons/index.js'
 import { CANVAS_FX_DEFS, TAPE_HEADS } from '../../../hooks/useCanvasFx.js'
 import { transport, useTransportPlaying } from '../../../hooks/transport'
 import TapeDelay from '../../mirror/TapeDelay'
-import RotaryDial from '../RotaryDial'
+import Modulatable from '@kolkrabbi/kol-hardware/value/Modulatable.jsx'
+import Knob from '@kolkrabbi/kol-component/molecules/Knob'
+import { exprBusRef } from '../../../hooks/exprBus'
 import { Jack } from '../ChannelPatchPanel'
 import { DeskModule, ModuleFooter, ModuleAction, ModuleBack } from './ModuleFrame'
 import { StripPort } from './JackStrip'
@@ -44,7 +46,9 @@ export default function TapeModule({ module: m, onParams, onToggle, onRemove, ja
   const set = (k) => (v) => onParams?.({ [k]: v })
   const lit = 'var(--kol-accent-primary)'
   const dial = (k, label = k.toUpperCase()) => (
-    <RotaryDial key={k} label={label} value={p(k)} min={SPEC[k].min} max={SPEC[k].max} defaultValue={SPEC[k].default} onChange={set(k)} variant="dense" size={30} compact />
+    <Modulatable key={k} label={label} value={p(k)} onChange={set(k)} min={SPEC[k].min} max={SPEC[k].max} bus={exprBusRef} clock={transport} density="dense">
+      <Knob variant="panel" size="lg" defaultValue={SPEC[k].default} />
+    </Modulatable>
   )
   const headOut = (k) => `fxm:${m.id}:h${k}`
   return (
@@ -167,7 +171,9 @@ export default function TapeModule({ module: m, onParams, onToggle, onRemove, ja
             const on = p(`m${n}`) !== 4
             return (
               <div key={n} className="flex flex-col items-center gap-1">
-                <RotaryDial label={`H${n}`} value={p(`h${n}`)} min={0} max={100} defaultValue={SPEC[`h${n}`].default} onChange={set(`h${n}`)} variant="dense" size={30} compact />
+                <Modulatable label={`H${n}`} value={p(`h${n}`)} onChange={set(`h${n}`)} min={0} max={100} bus={exprBusRef} clock={transport} density="dense">
+                  <Knob variant="panel" size="lg" defaultValue={SPEC[`h${n}`].default} />
+                </Modulatable>
                 <ModuleAction tone={on ? lit : undefined} dim={!on} onClick={() => onParams?.({ [`m${n}`]: on ? 4 : 0 })} title={on ? `Silence head ${n}` : `Play head ${n}`}>{on ? 'ON' : 'OFF'}</ModuleAction>
               </div>
             )

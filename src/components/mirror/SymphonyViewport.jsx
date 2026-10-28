@@ -11,15 +11,18 @@ import { EMPTY_CHANNEL } from '../../hooks/useMirrorState'
 import useFrameBuffer, { resolveRenderOrder } from '../../hooks/useFrameBuffer'
 import SymphonyMixer from '../hall-of-mirrors/SymphonyMixer'
 import TapeDelay from './TapeDelay'
-import InfiniteCanvas from './InfiniteCanvas'
 import FloatingFrame from './FloatingFrame'
 import MonitorModule from '../hall-of-mirrors/modules/MonitorModule'
-import { useFloating } from '../../hooks/useFloating'
+import { useFloating } from '@kolkrabbi/kol-hardware/frames/useFloating.js'
 import { useNarrow } from '../../hooks/useNarrow'
 import ChannelLayer from './ChannelLayer'
-import RotaryDial from '../hall-of-mirrors/RotaryDial'
+import Modulatable from '@kolkrabbi/kol-hardware/value/Modulatable.jsx'
+import Knob from '@kolkrabbi/kol-component/molecules/Knob'
+import { exprBusRef } from '../../hooks/exprBus'
+import { transport } from '../../hooks/transport'
 import { Oscilloscope } from '../hall-of-mirrors/ExpressionReference'
 import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
+import CanvasStudio from '@kolkrabbi/kol-component/organisms/CanvasStudio'
 
 const DEFAULT_SVG_DATA_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
 
@@ -333,20 +336,9 @@ function ControlStrip({ master, onMasterChange, onAspect, marker, setMarker, blu
             {STRIP_KNOBS.map(([type, key, min, max, def]) => {
               const scale = max > 20 ? 100 : 1
               return (
-                <RotaryDial
-                  key={type}
-                  /* dense: the default variant pins its tick ring at 64px no
-                     matter what `size` says, which is what overflowed the chin */
-                  variant="dense"
-                  panel
-                  size={26}
-                  compact
-                  min={min}
-                  max={max}
-                  defaultValue={def}
-                  value={read(type, key, scale, def)}
-                  onChange={write(type, key, scale)}
-                />
+                <Modulatable key={type} value={read(type, key, scale, def)} onChange={write(type, key, scale)} min={min} max={max} bus={exprBusRef} clock={transport} density="dense">
+                  <Knob variant="panel" size="md" defaultValue={def} />
+                </Modulatable>
               )
             })}
             <PanelKey w={22} />
@@ -1110,7 +1102,7 @@ export default function SymphonyViewport({ state, arrangement = 'float' }) {
 
 
   /* the float arrangement swaps the stage for a window; the monitor inside is the same tree */
-  const Stage = floating ? FloatingFrame : InfiniteCanvas
+  const Stage = floating ? FloatingFrame : CanvasStudio
   const stageProps = floating ? { frame, hidden: frameHidden, slot: inSlot ? slotEl : null, onClose: () => setFrameHidden(true) } : { style: { flex: 1, minHeight: 0 } }
   /* and the monitor inside it: a bare frame in the window, the bezel on the stage */
   const Screen = floating ? Frame : Bezel

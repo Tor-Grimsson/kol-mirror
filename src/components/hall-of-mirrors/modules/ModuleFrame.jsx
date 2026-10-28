@@ -1,8 +1,10 @@
-import Divider from '../../atoms/Divider'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
 import { Icon } from '../../icons'
 import { FlipIcon } from '../ChannelPatchPanel'
 import { JackStrip } from './JackStrip'
 import { BAND } from './bands'
+import LED from '@kolkrabbi/kol-hardware/indicators/LED.jsx'
+import IconButton from '@kolkrabbi/kol-hardware/switches/IconButton.jsx'
 
 /* THE DESK'S MODULE FRAME — one shape for every module on the desk (user
    2026-10-16: *"the fucking system doesnt work if modules dont adhere to the
@@ -90,18 +92,10 @@ export function ModuleFooter({ tabs, value, onChange, readout, width, row = fals
   )
 }
 
-/** One 28px square tool button for the body's right column — opens the module's shelf tab. */
+/** One tool key for the body's right column — opens the module's shelf tab. kol-hardware's `IconButton` (plan 18 W4)
+    with Mirror's icon registry through its `iconComponent` seam. */
 export function ModuleTool({ icon, iconSize = 16, title, active = false, onClick }) {
-  return (
-    <div
-      className={`cursor-pointer select-none flex items-center justify-center border transition-all ${active ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
-      style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-      onClick={onClick}
-      title={title}
-    >
-      <Icon name={icon} size={iconSize} />
-    </div>
-  )
+  return <IconButton icon={icon} iconSize={iconSize} title={title} active={active} onClick={onClick} iconComponent={Icon} />
 }
 
 /** One verb in the body's text-button row (RESET · REC/LOOP · BOOST). `tone`: an ink for a lit state. */
@@ -135,7 +129,7 @@ export function ModuleAction({ children, onClick, title, dim = false, tone }) {
  */
 
 /* THE POWER SWITCH (plan 16 W5, user 2026-10-25: *"all modules header need on off button like master out"*) —
-   Master Out's ring exactly: a 16px ring, an 8px lamp, red when on. `onToggle` absent → a read-only lamp (Patch).
+   kol-hardware's `LED` (plan 18 W4; the hand-drawn ring + lamp is in _tmp/2026-10-28-plan18/), red when on. `onToggle` absent → a read-only lamp (Patch).
    `children` ride the switch (Channel's right-click Remove menu). */
 export function PowerSwitch({ on, onToggle, title, onContextMenu, children }) {
   return (
@@ -147,9 +141,7 @@ export function PowerSwitch({ on, onToggle, title, onContextMenu, children }) {
       title={title ?? (on ? 'On' : 'Off')}
       data-power={on ? 'on' : 'off'}
     >
-      <span className="w-4 h-4 rounded-full border border-fg-48 flex items-center justify-center">
-        <span className={`w-2 h-2 rounded-full transition-all ${on ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} />
-      </span>
+      <LED active={on} size="md" />
       {children}
     </span>
   )

@@ -8,8 +8,10 @@
  * chrome upgrades could never reach this repo. Full original archived at
  * _tmp/2026-08-27-ds-consume-dead-components/components-full.css.
  *
- * What stays is mirror's own instrument chrome: the range-input skins the DS
- * has no equivalent for, and the mixer's card-flip scene.
+ * What stays is Mirror's own instrument chrome the KOL has no equivalent for:
+ * the render-cost pulse, the mixer's card-flip scene and the console skin.
+ * Local by design (plan 18, 2026-10-28); the grab-edge block retired with
+ * GrabEdge.jsx to _tmp/2026-10-28-plan18/.
  */
 
 /* Render-cost pulse — SymphonyMixer's per-channel cost readout.
@@ -43,44 +45,6 @@
    hidden face's whole subtree goes `visibility: hidden` at the flip's midpoint. */
 .mirror-flip-inner.is-flipped .mirror-flip-front { visibility: hidden; }
 .mirror-flip-inner:not(.is-flipped) .mirror-flip-back { visibility: hidden; }
-
-/* ── GRAB EDGE, both axes (GrabEdge.jsx). The rail's own pill went upstream
-   with the rail (kol-shell 0.16.0, `.kol-rail-grab`); these are mirror's, for
-   edges the DS has no component for — today the mixer's top edge.
-   `-x` is a VERTICAL line dragged horizontally (a side edge),
-   `-y` a HORIZONTAL line dragged vertically (the mixer's top edge). Numbers
-   are kol-r2b2's: an 8px strip straddling the line, a 2 × 72 pill dead on it,
-   the long unhurried fade. */
-.grab-edge { position: absolute; touch-action: none; z-index: 2; }
-.grab-edge-x { top: 0; bottom: 0; right: -3.5px; width: 8px; cursor: col-resize; }
-.grab-edge-y { left: 0; right: 0; top: -3.5px; height: 8px; cursor: row-resize; }
-.grab-edge::before {
-  content: '';
-  position: absolute;
-  border-radius: var(--kol-radius-full);
-  background: var(--kol-fg-64);
-  opacity: 0;
-  transition: opacity 1800ms cubic-bezier(0.45, 0, 0.55, 1) 400ms, background-color 500ms ease;
-}
-.grab-edge-x::before {
-  left: 50%;
-  top: clamp(2.25rem, var(--grab-y, 50%), calc(100% - 2.25rem));
-  translate: -50% -50%;
-  width: 0.125rem; height: 4.5rem;
-}
-.grab-edge-y::before {
-  top: 50%;
-  left: clamp(2.25rem, var(--grab-x, 50%), calc(100% - 2.25rem));
-  translate: -50% -50%;
-  width: 4.5rem; height: 0.125rem;
-}
-.grab-edge.is-near::before,
-.grab-edge.is-dragging::before { opacity: 1; transition-delay: 40ms; }
-.grab-edge:hover::before,
-.grab-edge.is-dragging::before { background: var(--kol-fg-96); }
-/* the drag IS the transition — nothing eases while the pointer holds it */
-:root[data-grab-dragging] .symphony-mixer-container { transition: none; }
-
 
 /* THE CONSOLE'S SKIN — APPROVED 2026-10-15 (user: *"console in dev is fine,
    approved. use it for container"*). Scoped to `.console-skin`: the studio's desk

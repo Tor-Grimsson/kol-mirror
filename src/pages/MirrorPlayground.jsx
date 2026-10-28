@@ -16,7 +16,7 @@ import MobileStudio from '../components/mirror/MobileStudio'
 import { useNarrow } from '../hooks/useNarrow'
 import { useLibrary } from '../hooks/useLibraryStore'
 import { useLibrarySession } from '../hooks/librarySync'
-import TimelineStrip from '../components/mirror/TimeStrip'
+import TimelineStrip from '@kolkrabbi/kol-hardware/panel/TimeStrip.jsx'
 
 /* the registry as rows for kol-component's `ShellSearchOverlay` — the name, with the group and
    the detail as the row's own; `add` rides along and is what a pick runs */
@@ -364,7 +364,7 @@ export default function MirrorPlayground({ arrangement = 'float' }) {
       {/* Main viewport — the sidebar Rail floats over it, as monitor's does over the rack */}
       <main className="mirror-viewport flex-1 relative">
         <MirrorViewport state={state} arrangement={arrangement} />
-        {timeline && <TimelineStrip onClose={() => setTimeline(false)} />}
+        {timeline && <TimelineStrip transport={transport} onClose={() => setTimeline(false)} />}
       </main>
 
     </div>

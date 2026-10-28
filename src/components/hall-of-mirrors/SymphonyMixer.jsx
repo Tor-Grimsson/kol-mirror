@@ -1,16 +1,16 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { createPortal } from 'react-dom'
-import Slider from '../atoms/Slider'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
 import { Icon } from '../icons'
 import { CanvasStudio } from '@kolkrabbi/kol-component'
-import Divider from '../atoms/Divider'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
 import VariantControls from '../mirror/VariantControls'
 import { findVariant, filterControlsByTab, CHANNEL_FX_DEFS, MAX_CHANNEL_FX, getDefaultFxParams } from '../../data/mirrorVariants'
-import RotaryDial from './RotaryDial'
+import Modulatable from '@kolkrabbi/kol-hardware/value/Modulatable.jsx'
+import Knob from '@kolkrabbi/kol-component/molecules/Knob'
+import { exprBusRef } from '../../hooks/exprBus'
 import ChannelPatchPanel, { MasterPatchPanel, RoutingPatchPanel, FlipIcon, ChannelIOJacks, MasterInJacks, MonitorJacks, RoutingJacks } from './ChannelPatchPanel'
 import PlaybackModule from './PlaybackModule'
 import PatchCableOverlay, { PatchJacksProvider } from './PatchCableOverlay'
-import ColorPicker from '../atoms/ColorPicker'
 import ChannelWireDiagram from './ChannelWireDiagram'
 import MasterModule from './MasterModule'
 import RoutingMatrix from './RoutingMatrix'
@@ -23,7 +23,7 @@ import { withSlot } from '../../hooks/fxSlots'
 import { fxKey, isFxKey } from '../../hooks/patchGraph'
 import { CANVAS_FX_DEFS } from '../../hooks/useCanvasFx'
 import { WIRE_COLORS } from './wireColors'
-import Dropdown from '../molecules/Dropdown'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import MediaBrowser from './MediaBrowser'
 import useFileDrop from '../../hooks/useFileDrop'
 import LoadUnit from './LoadUnit'
@@ -38,7 +38,7 @@ import defaultCanvasSvg from '../../assets/default-canvas.svg?raw'
 const DEFAULT_SVG_SRC = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(defaultCanvasSvg)
 
 import { CSS_BLEND_MODES } from './blendOptions'
-import ModuleFrame, { ModuleTab, DeskModule } from './modules/ModuleFrame'
+import ModuleFrame, { ModuleTab, DeskModule, ModuleTool } from './modules/ModuleFrame'
 import { DESK_U } from './modules/bands'
 import { JackStrip } from './modules/JackStrip'
 export { CSS_BLEND_MODES }
@@ -79,70 +79,6 @@ export async function loadVectorSvg(name, onMediaChange) {
   onMediaChange({ customImageSrc: src, customRasterSrc: null, customImageName: `${name}.svg` })
 }
 
-function LoadButton({ isOpen, onToggle, onClose, items, onSelect }) {
-  const btnRef = useRef(null)
-  const [direction, setDirection] = useState('down')
-
-  const [panelPos, setPanelPos] = useState(null)
-
-  const handleClick = (e) => {
-    e.stopPropagation()
-    if (!isOpen && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect()
-      setDirection('up')
-      setPanelPos({
-        left: rect.left,
-        bottom: window.innerHeight - rect.top + 4,
-      })
-    }
-    onToggle()
-  }
-
-  return (
-    <div className="relative">
-      <div
-        ref={btnRef}
-        className="cursor-pointer select-none flex items-center justify-center border border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow transition-all"
-        style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-        onClick={handleClick}
-        title="Load from Archive"
-      >
-        <Icon name="save" size={16} />
-      </div>
-      {isOpen && createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={(e) => { e.stopPropagation(); onClose() }}
-          />
-          <div
-            className="fixed bg-surface-primary border border-fg-16 z-50 max-h-[300px] overflow-y-auto flex flex-col gap-1 p-2"
-            style={{ borderRadius: '4px', minWidth: '200px', ...panelPos }}
-          >
-            {items?.map((item, index) => (
-              <div
-                key={item.id}
-                className={`kol-helper-12 px-2 py-1 transition-all ${
-                  item.empty || item.type === 'separator'
-                    ? 'text-fg-32 cursor-default'
-                    : 'text-fg-64 hover:text-fg-96 hover:bg-surface-secondary cursor-pointer'
-                }`}
-                style={{ borderRadius: '2px' }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onSelect(item.id)
-                }}
-              >
-                {item.name}
-              </div>
-            ))}
-          </div>
-        </>,
-        document.body
-      )}
-    </div>
-  )
-}
 
 /* exported for /mixer, which shows the real strip as its card front rather
    than a drawing of one (user 2026-08-28: "this is the front, not what you put
@@ -399,15 +335,14 @@ export function Channel({
               { key: 'params', icon: 'frequency', title: 'Parameters', iconSize: 18 },
               { key: 'rec', icon: 'video', title: 'Record' },
             ].map(btn => (
-              <div
+              <ModuleTool
                 key={btn.key}
-                className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === btn.key ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
-                style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-                onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
+                icon={btn.icon}
+                iconSize={btn.iconSize || 16}
                 title={btn.title}
-              >
-                <Icon name={btn.icon} size={btn.iconSize || 16} />
-              </div>
+                active={shelfOpen && shelfTab === btn.key}
+                onClick={() => { if (shelfOpen && shelfTab === btn.key) { setShelfOpen(false) } else { setShelfTab(btn.key); setShelfOpen(true) } }}
+              />
             ))}
           </>
         )}
@@ -440,7 +375,7 @@ export function Channel({
         actions={(
           <>
             <div className="cursor-pointer select-none text-fg-96" onClick={(e) => { onReset && onReset(e.altKey); e.currentTarget.animate([{ color: 'var(--kol-accent-primary)' }, { color: 'var(--kol-surface-on-primary)' }], { duration: 2000, easing: 'ease-out' }) }} title="Reset channel (Alt+click: reset all)">RESET</div>
-            <div className="cursor-pointer select-none" style={{ color: shelfOpen && shelfTab === 'rec' ? '#e74c3c' : 'var(--kol-surface-on-primary)' }} onClick={() => { if (shelfOpen && shelfTab === 'rec') { setShelfOpen(false) } else { setShelfOpen(true); setShelfTab('rec') } }} title="Open REC panel">REC/LOOP</div>
+            <div className="cursor-pointer select-none" style={{ color: shelfOpen && shelfTab === 'rec' ? 'var(--kol-ctl-led-red)' : 'var(--kol-surface-on-primary)' }} onClick={() => { if (shelfOpen && shelfTab === 'rec') { setShelfOpen(false) } else { setShelfOpen(true); setShelfTab('rec') } }} title="Open REC panel">REC/LOOP</div>
             <div className="cursor-pointer select-none" style={{ color: boosted ? '#2dd4bf' : 'var(--kol-fg-32)' }} onClick={() => onBoostChange(!boosted)} title="Boost intensity">BOOST</div>
           </>
         )}
@@ -471,12 +406,24 @@ export function Channel({
         jacks={strip}
       >
             <div className="grid grid-cols-3 gap-x-2 gap-y-1 flex-1 w-full">
-              <RotaryDial label="INT" value={value} onChange={onChange} size={36} compact />
-              <RotaryDial label="HUE" value={Math.round(getFxValue('hue-rotate', 'angle') / 360 * 100)} onChange={(v) => setFxValue('hue-rotate', 'angle', Math.round(v / 100 * 360))} size={36} compact />
-              <RotaryDial label="SAT" value={Math.round(getFxValue('saturate', 'amount') / 3 * 100)} onChange={(v) => setFxValue('saturate', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-              <RotaryDial label="BRT" value={Math.round(getFxValue('brightness', 'amount') / 3 * 100)} onChange={(v) => setFxValue('brightness', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-              <RotaryDial label="CTR" value={Math.round(getFxValue('contrast', 'amount') / 3 * 100)} onChange={(v) => setFxValue('contrast', 'amount', Math.round(v / 100 * 3 * 100) / 100)} size={36} compact />
-              <RotaryDial label="BLR" value={Math.round(getFxValue('blur', 'amount') / 20 * 100)} onChange={(v) => setFxValue('blur', 'amount', Math.round(v / 100 * 20 * 10) / 10)} size={36} compact />
+              <Modulatable label="INT" value={value} onChange={onChange} bus={exprBusRef} clock={transport}>
+                <Knob variant="panel" size="lg" defaultValue={0} />
+              </Modulatable>
+              <Modulatable label="HUE" value={Math.round(getFxValue('hue-rotate', 'angle') / 360 * 100)} onChange={(v) => setFxValue('hue-rotate', 'angle', Math.round(v / 100 * 360))} bus={exprBusRef} clock={transport}>
+                <Knob variant="panel" size="lg" defaultValue={0} />
+              </Modulatable>
+              <Modulatable label="SAT" value={Math.round(getFxValue('saturate', 'amount') / 3 * 100)} onChange={(v) => setFxValue('saturate', 'amount', Math.round(v / 100 * 3 * 100) / 100)} bus={exprBusRef} clock={transport}>
+                <Knob variant="panel" size="lg" defaultValue={0} />
+              </Modulatable>
+              <Modulatable label="BRT" value={Math.round(getFxValue('brightness', 'amount') / 3 * 100)} onChange={(v) => setFxValue('brightness', 'amount', Math.round(v / 100 * 3 * 100) / 100)} bus={exprBusRef} clock={transport}>
+                <Knob variant="panel" size="lg" defaultValue={0} />
+              </Modulatable>
+              <Modulatable label="CTR" value={Math.round(getFxValue('contrast', 'amount') / 3 * 100)} onChange={(v) => setFxValue('contrast', 'amount', Math.round(v / 100 * 3 * 100) / 100)} bus={exprBusRef} clock={transport}>
+                <Knob variant="panel" size="lg" defaultValue={0} />
+              </Modulatable>
+              <Modulatable label="BLR" value={Math.round(getFxValue('blur', 'amount') / 20 * 100)} onChange={(v) => setFxValue('blur', 'amount', Math.round(v / 100 * 20 * 10) / 10)} bus={exprBusRef} clock={transport}>
+                <Knob variant="panel" size="lg" defaultValue={0} />
+              </Modulatable>
             </div>
       </DeskModule>
     {/* Shelf — OVERLAYS to the right, it does not push (user 2026-08-28: "can we

@@ -1,9 +1,9 @@
 @import "tailwindcss";
 /* DS canon. kol-theme rules live in layer(components); the local ./styles/*
- * below are unlayered, so anything they declare WINS — which is why only three
- * things are left there (DS consumption pass, 2026-08-27): the JetBrains
- * @font-face + an 11px off-scale helper, the accent bind, and the instrument
- * chrome the DS has no equivalent for. No local rule shadows a DS class name
+ * below are unlayered, so anything they declare WINS — which is why only two
+ * things are left there: the accent bind and the instrument chrome the DS has
+ * no equivalent for. (The JetBrains faces and the 11px helper retired
+ * 2026-10-28, plan 18 — kol-theme/core ships the faces.) No local rule shadows a DS class name
  * any more, so a kol-theme upgrade now reaches this repo.
  *
  * FONTS RESOLVE AS OF 2026-08-27. kol-theme declares 98 Right Grotesk faces at
@@ -32,7 +32,6 @@
    kol-framework is no longer even a shell peer — nothing in this app renders a
    `.kol-brand-*` or `.kol-sidenav-*` class. Re-add it the day a site-register
    component (SideNav, BrandHero, PortalFooter) lands here. */
-@import "./styles/kol-typography-mono.css"; /* JetBrains face + mono display/heading — see above */
 @import "./styles/mirror-overrides.css";
 @import "./styles/components.css";
 

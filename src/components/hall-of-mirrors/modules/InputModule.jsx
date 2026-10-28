@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import Dropdown from '../../molecules/Dropdown'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import { Icon } from '../../icons'
 import { useFileDrop } from '../../../hooks/useFileDrop'
 import { DeskModule, ModuleFooter } from './ModuleFrame'
@@ -74,8 +74,6 @@ export default function InputModule({ channels = [], onChannelUpdate }) {
                     options={channels.map((c, i) => ({ value: String(i), label: `CH ${i + 1}` }))}
                     value={String(out)}
                     onChange={(v) => setTarget(Number(v))}
-                    variant="minimal"
-                    size="sm"
                   />
                 )
                 : <span className="text-fg-64">no channel — add one</span>}

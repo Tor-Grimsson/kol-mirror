@@ -1,5 +1,5 @@
 import { DISPLACEMENT_VARIANTS, COPIES_VARIANTS, MOVEMENT_VARIANTS, getDefaultParams } from '../../data/mirrorVariants'
-import Divider from '../atoms/Divider'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
 
 function ParamRow({ label, value, isMapped }) {
   return (

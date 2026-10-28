@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { Button, SettingsFooter, SettingsPanel, SettingsSections, TabsRow } from '@kolkrabbi/kol-component'
 import { DISPLACEMENT_VARIANTS, COPIES_VARIANTS, MOVEMENT_VARIANTS, findVariant } from '../../data/mirrorVariants'
 import VariantControls from './VariantControls'
-import QuantityInput from '../atoms/QuantityInput'
+import Stepper from '@kolkrabbi/kol-component/molecules/Stepper'
 import { rasterDims } from '../../utils/processImageUpload'
 import { Icon } from '../icons'
-import ThemeToggleButton from '../molecules/ThemeToggleButton'
+import ThemeToggle from '@kolkrabbi/kol-framework/src/ThemeToggle.jsx'
 
 /**
  * StudioRail — H, THE PAGE ROLE (plan 17 W2, kol-component 0.302.0): `SettingsPanel variant="rail" role="page"` — the
@@ -103,9 +103,9 @@ export default function StudioRail({ state, open, onClose }) {
   )
   const resolution = (w, h, setW, setH) => (
     <div className="flex items-center gap-2">
-      <QuantityInput value={w} onChange={setW} min={100} max={4096} />
+      <Stepper value={w} onChange={(e) => { const n = Number(e.target.value); if (e.target.value !== '' && !isNaN(n)) setW(n) }} min={100} max={4096} style={{ width: 72 }} />
       <span className="kol-mono-12 text-fg-48">x</span>
-      <QuantityInput value={h} onChange={setH} min={100} max={4096} />
+      <Stepper value={h} onChange={(e) => { const n = Number(e.target.value); if (e.target.value !== '' && !isNaN(n)) setH(n) }} min={100} max={4096} style={{ width: 72 }} />
     </div>
   )
   const fitRows = [
@@ -137,7 +137,7 @@ export default function StudioRail({ state, open, onClose }) {
       ...(state.symphonyRatio === 'custom' ? [{ label: 'Resolution', render: () => resolution(state.symphonyCustomWidth, state.symphonyCustomHeight, state.setSymphonyCustomWidth, state.setSymphonyCustomHeight) }] : []),
       ...fitRows,
     ] },
-    { label: 'Source', rows: [{ label: 'Image', render: () => upload }, { label: 'Theme', render: () => <ThemeToggleButton /> }] },
+    { label: 'Source', rows: [{ label: 'Image', render: () => upload }, { label: 'Theme', render: () => <ThemeToggle label={false} /> }] },
   ]
 
   const halls = [

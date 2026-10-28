@@ -58,6 +58,10 @@ that does. The **Remainder** is this repo's to do; the state is theirs to report
 
 | | Receipt | Destination | Last known | Remainder here |
 |---|---|---|---|---|
+| 🟢 | [ModulatableControls](outbox/ModulatableControls.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-28 — **kol-hardware 0.8.0** | **none** — adopted and checked (plan 19) |
+| 🟢 | [TransportAndTimeline](outbox/TransportAndTimeline.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-28 — **kol-hardware 0.8.0** | **none** — adopted and checked (plan 19) |
+| 🟢 | [UseFloatingHook](outbox/UseFloatingHook.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-28 — **kol-hardware 0.8.0** | **none** — adopted and checked (plan 19) |
+| 🟢 📌 | [AppIdentitySet](outbox/AppIdentitySet.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` 2026-10-28 — kol-icons 0.50.0 | 📌 phone re-add after deploy; tile pick on `apps/identity` (bump, copy step, `_tmp/` done 2026-10-28) |
 | 🟢 | [StandaloneSafeAreaAndPageGround](outbox/StandaloneSafeAreaAndPageGround.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-26 — **kol-theme 0.191.0**: standalone top padding + dark `html` in `kol-base-tokens.css` | **none** — bumped, local copies retired, seen on the phone |
 | 🟢 | [EnvelopeGeneratorHostClockControls](outbox/EnvelopeGeneratorHostClockControls.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-22 — **kol-hardware 0.6.1**: no Play/Pause, BPM or Trigger under `now`; cycle stays | **none** — bumped, seen on screen |
 | 🟢 | [SignalScopePlayedTraceAndClock](outbox/SignalScopePlayedTraceAndClock.md) | **kol-ds-ui** — `~/dev/projects/kol-ds-ui/lobby/INDEX.md` | 🟢 `closed` · synced 2026-10-22 — **kol-hardware 0.6.0**: played trace + playhead in `--kol-slider-playhead`, `now` clock prop | **none** — bumped, `now: transport.now` passed, `setPlaying` sync dropped; not seen on screen |
@@ -83,6 +87,10 @@ that does. The **Remainder** is this repo's to do; the state is theirs to report
 
 | Date | Event |
 |---|---|
+| 2026-10-28 | **`ModulatableControls`**, **`TransportAndTimeline`**, **`UseFloatingHook`** returned (kol-hardware 0.8.0) and adopted — remainders none |
+| 2026-10-28 | **`ModulatableControls`**, **`TransportAndTimeline`**, **`UseFloatingHook`** filed to kol-ds-ui (plan 19) |
+| 2026-10-28 | **`AppIdentitySet` remainder (part)** — kol-icons 0.51.0, `pnpm icons` copies from the package, old sources to `_tmp/2026-10-28-icons-from-package/`; phone re-add owed |
+| 2026-10-28 | **`AppIdentitySet` filed to kol-ds-ui** — app tiles, touch icons, favicon and OG owned by the KOL as one set; Mirror's tile stays until it ships |
 | 2026-10-26 | **`StandaloneSafeAreaAndPageGround` remainder done** — seen on the phone's home-screen app |
 | 2026-10-26 | **`StandaloneSafeAreaAndPageGround` returned** — kol-theme 0.191.0 bumped, local copies to `_tmp/2026-10-26-standalone-local/`; phone recheck owed |
 | 2026-10-26 | **`StandaloneSafeAreaAndPageGround` filed to kol-ds-ui** — local copies in `src/index.css` and `index.html` until it ships |

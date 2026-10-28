@@ -1,16 +1,21 @@
 import { useState } from 'react'
 import { FlipIcon } from './ChannelPatchPanel'
 import { Icon } from '../icons'
-import Slider from '../atoms/Slider'
-import Divider from '../atoms/Divider'
-import Dropdown from '../molecules/Dropdown'
-import RotaryDial from './RotaryDial'
-import { DeskModule, ModuleFooter } from './modules/ModuleFrame'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
+import Modulatable from '@kolkrabbi/kol-hardware/value/Modulatable.jsx'
+import Knob from '@kolkrabbi/kol-component/molecules/Knob'
+import { exprBusRef } from '../../hooks/exprBus'
+import { transport } from '../../hooks/transport'
+import { DeskModule, ModuleFooter, ModuleTool } from './modules/ModuleFrame'
+import LED from '@kolkrabbi/kol-hardware/indicators/LED.jsx'
+import Tag from '@kolkrabbi/kol-component/atoms/Tag'
 
 function Indicated({ active, children }) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex' }}>
-      <span className={`absolute w-2 h-2 rounded-full ${active ? 'bg-[#e74c3c]' : 'bg-fg-24'}`} style={{ top: '-20px', left: '-2px' }} />
+      <span className="absolute inline-flex" style={{ top: '-20px', left: '-2px' }}><LED active={active} size="md" /></span>
       {children}
     </span>
   )
@@ -30,14 +35,9 @@ function MatrixColumn({ header, headerStyle, rows, dividerAfter = -1, width = 64
   )
 }
 
-function ChannelButton({ label, enabled, accent = '#e74c3c', onClick }) {
-  return (
-    <div
-      className={`kol-helper-10 select-none flex items-center justify-center uppercase ${onClick ? 'cursor-pointer' : ''}`}
-      style={{ height: '20px', padding: '0 8px', borderRadius: '2px', border: `1px solid ${enabled ? accent : 'var(--kol-fg-16)'}`, color: enabled ? accent : 'var(--kol-fg-32)' }}
-      onClick={onClick}
-    >{label}</div>
-  )
+/* the matrix's channel chip — the KOL's `Tag` (plan 18 W4); the hand-drawn outline chip is in _tmp/2026-10-28-plan18/ */
+function ChannelButton({ label, enabled, onClick }) {
+  return <Tag hash={false} size="xs" active={enabled} onClick={onClick}>{label}</Tag>
 }
 
 /* `flipped` + `back` — the flip is the module's and turns only its panel, not
@@ -71,14 +71,12 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
         jacks={jacks}
         tools={(
           <>
-              <div
-                className={`cursor-pointer select-none flex items-center justify-center border transition-all ${shelfOpen && shelfTab === 'output' ? 'border-accent-primary accentYellow' : 'border-fg-16 text-oq-96 hover:border-accent-primary hover:accentYellow'}`}
-                style={{ borderRadius: '4px', width: '28px', height: '28px' }}
-                onClick={() => { if (shelfOpen && shelfTab === 'output') { setShelfOpen(false) } else { setShelfTab('output'); setShelfOpen(true) } }}
+              <ModuleTool
+                icon="settings-01"
                 title="Channel Output"
-              >
-                <Icon name="settings-01" size={16} />
-              </div>
+                active={shelfOpen && shelfTab === 'output'}
+                onClick={() => { if (shelfOpen && shelfTab === 'output') { setShelfOpen(false) } else { setShelfTab('output'); setShelfOpen(true) } }}
+              />
           </>
         )}
         footer={(
@@ -86,15 +84,21 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
             <div className="flex flex-row gap-4 flex-1 items-end">
               {channels.map((ch, i) => (
                 <div key={i} className="flex items-center justify-center" style={{ width: '64px' }}>
-                  <Indicated active={ch.enabled}><RotaryDial label={ch.enabled ? `${i + 1}` : `Ch ${i + 1}`} value={ch.opacity ?? 0} onChange={(v) => onChannelUpdate(i, { opacity: v })} size={22} compact variant="dense" /></Indicated>
+                  <Indicated active={ch.enabled}><Modulatable label={ch.enabled ? `${i + 1}` : `Ch ${i + 1}`} value={ch.opacity ?? 0} onChange={(v) => onChannelUpdate(i, { opacity: v })} bus={exprBusRef} clock={transport} density="dense">
+                    <Knob variant="panel" size="md" defaultValue={0} />
+                  </Modulatable></Indicated>
                 </div>
               ))}
-              <Divider variant="vertical" />
+              <div className="self-stretch w-px bg-fg-08" />
               <div className="flex items-center justify-center" style={{ width: '64px' }}>
-                <Indicated active={rtn1.enabled}><RotaryDial label={rtn1.enabled ? 'R1' : 'RTN 1'} value={rtn1.returnLevel ?? 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, returnLevel: v } })} size={22} compact variant="dense" /></Indicated>
+                <Indicated active={rtn1.enabled}><Modulatable label={rtn1.enabled ? 'R1' : 'RTN 1'} value={rtn1.returnLevel ?? 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, returnLevel: v } })} bus={exprBusRef} clock={transport} density="dense">
+                  <Knob variant="panel" size="md" defaultValue={0} />
+                </Modulatable></Indicated>
               </div>
               <div className="flex items-center justify-center" style={{ width: '64px' }}>
-                <Indicated active={rtn2.enabled}><RotaryDial label={rtn2.enabled ? 'R2' : 'RTN 2'} value={rtn2.returnLevel ?? 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, returnLevel: v } })} size={22} compact variant="dense" /></Indicated>
+                <Indicated active={rtn2.enabled}><Modulatable label={rtn2.enabled ? 'R2' : 'RTN 2'} value={rtn2.returnLevel ?? 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, returnLevel: v } })} bus={exprBusRef} clock={transport} density="dense">
+                  <Knob variant="panel" size="md" defaultValue={0} />
+                </Modulatable></Indicated>
               </div>
             </div>
           </ModuleFooter>
@@ -124,7 +128,6 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                       <ChannelButton
                         label={label}
                         enabled={isRouted || ch.enabled}
-                        accent={isRouted ? 'var(--kol-accent-primary)' : '#e74c3c'}
                         onClick={() => {
                           const nextIdx = (currentIdx + 1) % sources.length
                           onChannelUpdate(i, { routeFrom: sources[nextIdx] })
@@ -132,8 +135,8 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                       />
                     )
                   }),
-                  <ChannelButton label="RTN 1" enabled={rtn1.enabled} accent="#3b82f6" />,
-                  <ChannelButton label="RTN 2" enabled={rtn2.enabled} accent="#3b82f6" />,
+                  <ChannelButton label="RTN 1" enabled={rtn1.enabled} />,
+                  <ChannelButton label="RTN 2" enabled={rtn2.enabled} />,
                 ]}
               />
               {/* Ch destination columns */}
@@ -144,35 +147,53 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                   dividerAfter={dividerAfterRow}
                   rows={[
                     ...channels.map((srcCh, i) => (
-                      <RotaryDial label="" value={srcCh.routeSendLevels?.[j] || 0} onChange={(v) => onChannelUpdate(i, { routeSendLevels: { ...(srcCh.routeSendLevels || {}), [j]: v } })} size={22} compact variant="dense" />
+                      <Modulatable label="" value={srcCh.routeSendLevels?.[j] || 0} onChange={(v) => onChannelUpdate(i, { routeSendLevels: { ...(srcCh.routeSendLevels || {}), [j]: v } })} bus={exprBusRef} clock={transport} density="dense">
+                        <Knob variant="panel" size="md" defaultValue={0} />
+                      </Modulatable>
                     )),
-                    <RotaryDial label="" value={rtn1.sends?.[`ch${j}`] || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), [`ch${j}`]: v } } })} size={22} compact variant="dense" />,
-                    <RotaryDial label="" value={rtn2.sends?.[`ch${j}`] || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), [`ch${j}`]: v } } })} size={22} compact variant="dense" />,
+                    <Modulatable label="" value={rtn1.sends?.[`ch${j}`] || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), [`ch${j}`]: v } } })} bus={exprBusRef} clock={transport} density="dense">
+                      <Knob variant="panel" size="md" defaultValue={0} />
+                    </Modulatable>,
+                    <Modulatable label="" value={rtn2.sends?.[`ch${j}`] || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), [`ch${j}`]: v } } })} bus={exprBusRef} clock={transport} density="dense">
+                      <Knob variant="panel" size="md" defaultValue={0} />
+                    </Modulatable>,
                   ]}
                 />
               ))}
-              <Divider variant="vertical" />
+              <div className="self-stretch w-px bg-fg-08" />
               {/* RTN destination columns */}
               <MatrixColumn
-                header={<ChannelButton label="RTN 1" enabled={rtn1.enabled} accent="#3b82f6" />}
+                header={<ChannelButton label="RTN 1" enabled={rtn1.enabled} />}
                 dividerAfter={dividerAfterRow}
                 rows={[
                   ...channels.map((srcCh, i) => (
-                    <RotaryDial label="" value={srcCh.sends?.rtn1 || 0} onChange={(v) => onChannelUpdate(i, { sends: { ...(srcCh.sends || {}), rtn1: v } })} size={22} compact variant="dense" />
+                    <Modulatable label="" value={srcCh.sends?.rtn1 || 0} onChange={(v) => onChannelUpdate(i, { sends: { ...(srcCh.sends || {}), rtn1: v } })} bus={exprBusRef} clock={transport} density="dense">
+                      <Knob variant="panel" size="md" defaultValue={0} />
+                    </Modulatable>
                   )),
-                  <RotaryDial label="" value={rtn1.sends?.rtn1 || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), rtn1: v } } })} size={22} compact variant="dense" />,
-                  <RotaryDial label="" value={rtn2.sends?.rtn1 || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), rtn1: v } } })} size={22} compact variant="dense" />,
+                  <Modulatable label="" value={rtn1.sends?.rtn1 || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), rtn1: v } } })} bus={exprBusRef} clock={transport} density="dense">
+                    <Knob variant="panel" size="md" defaultValue={0} />
+                  </Modulatable>,
+                  <Modulatable label="" value={rtn2.sends?.rtn1 || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), rtn1: v } } })} bus={exprBusRef} clock={transport} density="dense">
+                    <Knob variant="panel" size="md" defaultValue={0} />
+                  </Modulatable>,
                 ]}
               />
               <MatrixColumn
-                header={<ChannelButton label="RTN 2" enabled={rtn2.enabled} accent="#3b82f6" />}
+                header={<ChannelButton label="RTN 2" enabled={rtn2.enabled} />}
                 dividerAfter={dividerAfterRow}
                 rows={[
                   ...channels.map((srcCh, i) => (
-                    <RotaryDial label="" value={srcCh.sends?.rtn2 || 0} onChange={(v) => onChannelUpdate(i, { sends: { ...(srcCh.sends || {}), rtn2: v } })} size={22} compact variant="dense" />
+                    <Modulatable label="" value={srcCh.sends?.rtn2 || 0} onChange={(v) => onChannelUpdate(i, { sends: { ...(srcCh.sends || {}), rtn2: v } })} bus={exprBusRef} clock={transport} density="dense">
+                      <Knob variant="panel" size="md" defaultValue={0} />
+                    </Modulatable>
                   )),
-                  <RotaryDial label="" value={rtn1.sends?.rtn2 || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), rtn2: v } } })} size={22} compact variant="dense" />,
-                  <RotaryDial label="" value={rtn2.sends?.rtn2 || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), rtn2: v } } })} size={22} compact variant="dense" />,
+                  <Modulatable label="" value={rtn1.sends?.rtn2 || 0} onChange={(v) => onMasterChange?.({ rtn1: { ...rtn1, sends: { ...(rtn1.sends || {}), rtn2: v } } })} bus={exprBusRef} clock={transport} density="dense">
+                    <Knob variant="panel" size="md" defaultValue={0} />
+                  </Modulatable>,
+                  <Modulatable label="" value={rtn2.sends?.rtn2 || 0} onChange={(v) => onMasterChange?.({ rtn2: { ...rtn2, sends: { ...(rtn2.sends || {}), rtn2: v } } })} bus={exprBusRef} clock={transport} density="dense">
+                    <Knob variant="panel" size="md" defaultValue={0} />
+                  </Modulatable>,
                 ]}
               />
               {/* FB column */}
@@ -182,18 +203,19 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                 dividerAfter={dividerAfterRow}
                 rows={[
                   ...channels.map((ch, i) => (
-                    <div
-                      className={`kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase border ${ch.routeSendLevels?.[i] > 0 ? 'border-accent-primary accentYellow' : 'border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow'}`}
-                      style={{ height: '20px', padding: '0 6px', borderRadius: '2px' }}
+                    <Tag
+                      hash={false}
+                      size="xs"
+                      active={ch.routeSendLevels?.[i] > 0}
                       onClick={() => onChannelUpdate(i, { routeSendLevels: { ...(ch.routeSendLevels || {}), [i]: ch.routeSendLevels?.[i] > 0 ? 0 : 50 } })}
-                    >FB</div>
+                    >FB</Tag>
                   )),
-                  <div className="kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase border border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow" style={{ height: '20px', padding: '0 6px', borderRadius: '2px' }}>FB</div>,
-                  <div className="kol-helper-10 cursor-pointer select-none flex items-center justify-center uppercase border border-fg-16 text-fg-96 hover:border-accent-primary hover:accentYellow" style={{ height: '20px', padding: '0 6px', borderRadius: '2px' }}>FB</div>,
+                  <Tag hash={false} size="xs">FB</Tag>,
+                  <Tag hash={false} size="xs">FB</Tag>,
                 ]}
               />
           </div>
-          <Divider variant="vertical" />
+          <div className="self-stretch w-px bg-fg-08" />
         </div>
       </DeskModule>
 
@@ -246,8 +268,6 @@ export default function RoutingMatrix({ channels = [], onChannelUpdate, master, 
                       ]}
                       value={ch.blendMode || 'normal'}
                       onChange={(v) => onChannelUpdate(i, { blendMode: v })}
-                      variant="minimal"
-                      size="md"
                     />
                   </div>
                   {i < channels.length - 1 && <Divider className="mt-1" />}

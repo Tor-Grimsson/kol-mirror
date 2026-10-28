@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import Divider from '../atoms/Divider'
-import Dropdown from '../molecules/Dropdown'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import { Icon } from '../icons'
 import { CSS_BLEND_MODES } from './blendOptions'
 
@@ -111,11 +111,7 @@ export default function LoadUnit({
           onChange={(v) => v === '_none'
             ? onMediaChange({ variantId: null, params: {}, slotIndex: null, name: null, customImageSrc: null, customRasterSrc: null, customImageName: null })
             : onSelectItem(v)}
-          defaultValue="_none"
-          variant="minimal"
-          size="md"
           rowHeight={24}
-          placeholder="—"
         />
       </div>
 
@@ -129,7 +125,7 @@ export default function LoadUnit({
         >
           <Icon name="refresh" size={14} /> Roll
         </span>
-        <Dropdown options={SCOPES} value={scope} onChange={setScope} variant="minimal" size="md" rowHeight={24} />
+        <Dropdown options={SCOPES} value={scope} onChange={setScope} rowHeight={24} />
       </div>
 
       {/* What the throw actually produced — not an ID for the throw itself. */}

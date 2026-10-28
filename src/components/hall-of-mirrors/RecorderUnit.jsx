@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import Divider from '../atoms/Divider'
-import Slider from '../atoms/Slider'
-import Dropdown from '../molecules/Dropdown'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
 import { Icon } from '../icons'
+import LED from '@kolkrabbi/kol-hardware/indicators/LED.jsx'
 
 /**
  * RecorderUnit — the channel's tape machine.
@@ -51,8 +52,6 @@ export default function RecorderUnit({
           options={[10, 20, 40, 80, 160].map(s => ({ value: s, label: `${s}s` }))}
           value={recLoopLength}
           onChange={setRecLoopLength}
-          variant="minimal"
-          size="md"
         />
       </div>
       <div className="flex items-center justify-between gap-4 kol-helper-12" style={{ height: '24px' }}>
@@ -61,8 +60,6 @@ export default function RecorderUnit({
           options={[30, 60].map(f => ({ value: f, label: `${f}fps` }))}
           value={recFps}
           onChange={setRecFps}
-          variant="minimal"
-          size="md"
         />
       </div>
       <div className="flex items-center justify-between gap-4 kol-helper-12" style={{ height: '24px' }}>
@@ -72,7 +69,7 @@ export default function RecorderUnit({
       <div className="flex items-center justify-between gap-4 kol-helper-12" style={{ height: '24px' }}>
         <span className="flex items-center gap-2 cursor-pointer select-none" onClick={() => { if (!recState || recState?.status === 'idle') onArmRecording?.(recLoopLength, recFps); else if (recState?.status === 'armed' || recState?.status === 'recording') onDisarmRecording?.() }}>
           <span className="text-fg-96">Record</span>
-          <span className="block rounded-full transition-all" style={{ width: 8, height: 8, backgroundColor: (recState?.status === 'armed' || recState?.status === 'recording') ? '#e74c3c' : '#6b2828' }} />
+          <LED active={recState?.status === 'armed' || recState?.status === 'recording'} size="md" />
         </span>
         <div className="flex items-center gap-2">
           {(!recState || recState?.status === 'idle') && (
@@ -89,7 +86,7 @@ export default function RecorderUnit({
           )}
           {recState?.status === 'recording' && (
             <>
-              <span className="text-[#e74c3c] cursor-pointer select-none" onClick={() => onStopRecording?.()}>[Stop]</span>
+              <span className="text-[var(--kol-ctl-led-red)] cursor-pointer select-none" onClick={() => onStopRecording?.()}>[Stop]</span>
               <span className="text-fg-96 cursor-pointer select-none" onClick={() => onDisarmRecording?.()}>[Cancel]</span>
             </>
           )}
@@ -103,10 +100,10 @@ export default function RecorderUnit({
       {recState?.status === 'recording' && (
         <>
           <div className="w-full bg-fg-08 overflow-hidden" style={{ height: '2px', borderRadius: '1px' }}>
-            <div className="h-full bg-[#e74c3c]" style={{ width: `${(recState.elapsed / recLoopLength) * 100}%`, transition: 'width 100ms' }} />
+            <div className="h-full" style={{ background: 'var(--kol-ctl-led-red)', width: `${(recState.elapsed / recLoopLength) * 100}%`, transition: 'width 100ms' }} />
           </div>
           <div className="flex items-center justify-between kol-helper-12 text-fg-32" style={{ height: '24px' }}>
-            <span className="text-[#e74c3c]">Frame {Math.floor(recState.elapsed * recFps)}</span>
+            <span className="text-[var(--kol-ctl-led-red)]">Frame {Math.floor(recState.elapsed * recFps)}</span>
             <span>{recState.elapsed.toFixed(1)}s / {recLoopLength}s</span>
           </div>
         </>
@@ -145,7 +142,7 @@ export default function RecorderUnit({
             <div key={si} className="flex flex-col gap-1">
               <div className="flex items-center justify-between gap-4 kol-helper-12" style={{ height: '24px' }}>
                 <span className={isActive ? 'text-fg-96' : 'text-fg-64'}>
-                  rec-{String(si + 1).padStart(2, '0')}{isActive && <span className="text-[#e74c3c] ml-2">ACTIVE</span>}
+                  rec-{String(si + 1).padStart(2, '0')}{isActive && <span className="text-[var(--kol-ctl-led-red)] ml-2">ACTIVE</span>}
                 </span>
                 <span className="text-fg-32 hover:text-fg-64 cursor-pointer select-none" onClick={toggleInfo}>[Info]</span>
               </div>

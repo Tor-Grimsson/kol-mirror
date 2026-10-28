@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import Slider from '../atoms/Slider'
-import Dropdown from '../molecules/Dropdown'
-import Divider from '../atoms/Divider'
+import Slider from '@kolkrabbi/kol-component/molecules/Slider'
+import Dropdown from '@kolkrabbi/kol-component/molecules/Dropdown'
+import Divider from '@kolkrabbi/kol-component/atoms/Divider'
 import { Icon } from '@kolkrabbi/kol-icons'
-import ColorPicker from '../atoms/ColorPicker'
+import ColorPickerPopover from '@kolkrabbi/kol-component/organisms/ColorPickerPopover'
 import { getActiveTab } from '../../data/mirrorVariants'
 
 /* DEVICE — the camera list, and the only control whose options are not written
@@ -33,8 +33,6 @@ function DeviceControl({ ctrl, value, onChange, rowHeight, style }) {
         options={[{ value: '', label: 'Default' }, ...devices]}
         value={value ?? ''}
         onChange={onChange}
-        variant="minimal"
-        size="md"
         rowHeight={rowHeight}
       />
     </div>
@@ -185,7 +183,7 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
           return (
             <div key={ctrl.key} className="flex items-center justify-between" style={{ height: `${rowHeight}px`, gap: '12px', ...frozenStyle }}>
               <span className="kol-helper-12 text-fg-96 shrink-0">{ctrl.label}</span>
-              <ColorPicker
+              <ColorPickerPopover
                 color={params[ctrl.key] ?? ctrl.default}
                 onChange={(c) => onParamChange(ctrl.key, c)}
                 defaultValue={ctrl.default}
@@ -222,8 +220,6 @@ export default function VariantControls({ controls, params, onParamChange, rowHe
                     }
                   }
                 }}
-                variant="minimal"
-                size="md"
                 rowHeight={rowHeight}
               />
             </div>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import RotaryDial from './RotaryDial'
+import Modulatable from '@kolkrabbi/kol-hardware/value/Modulatable.jsx'
+import Knob from '@kolkrabbi/kol-component/molecules/Knob'
+import { exprBusRef } from '../../hooks/exprBus'
 import { Jack } from './ChannelPatchPanel'
 import { transport, useTransport } from '../../hooks/transport'
-import { Scrubber } from '../mirror/TimeStrip'
+import { Scrubber } from '@kolkrabbi/kol-hardware/panel/TimeStrip.jsx'
 import { DeskModule, ModuleFooter, ModuleBack, ModuleAction } from './modules/ModuleFrame'
 import { StripPort } from './modules/JackStrip'
 
@@ -147,7 +149,9 @@ export default function PlaybackModule() {
         <div className="flex items-center justify-center" style={{ minHeight: 0 }}>
           {/* ONE BIG TEMPO KNOB (user 2026-08-28). `master` variant: the default pins its ring at 64px, so a 72px
               knob clipped its own ticks into fragments. */}
-          <RotaryDial label="TEMPO" value={Math.round(t.rate * 100)} min={10} max={400} defaultValue={100} onChange={(v) => transport.set({ rate: v / 100 })} variant="master" size={92} />
+          <Modulatable label="TEMPO" value={Math.round(t.rate * 100)} onChange={(v) => transport.set({ rate: v / 100 })} min={10} max={400} bus={exprBusRef} clock={transport}>
+            <Knob variant="panel" size="xl" defaultValue={100} />
+          </Modulatable>
         </div>
       )}
       actions={(
@@ -170,10 +174,18 @@ export default function PlaybackModule() {
           {/* IN and OUT are absolute seconds; either may pass the other and the window is read min-first, so
               dragging them through each other is a legal move rather than a broken loop. */}
           <div className="flex items-start justify-between">
-            <RotaryDial label="IN" value={t.loopIn} min={0} max={60} defaultValue={0} onChange={(v) => transport.set({ loopIn: v })} variant="dense" size={30} compact />
-            <RotaryDial label="OUT" value={t.loopOut} min={0} max={60} defaultValue={8} onChange={(v) => transport.set({ loopOut: v })} variant="dense" size={30} compact />
-            <RotaryDial label="SWING" value={t.swing} min={0} max={100} defaultValue={0} onChange={(v) => transport.set({ swing: v })} variant="dense" size={30} compact />
-            <RotaryDial label="EASE" value={Math.round(t.ease * 100)} min={0} max={100} defaultValue={0} onChange={(v) => transport.set({ ease: v / 100 })} variant="dense" size={30} compact />
+            <Modulatable label="IN" value={t.loopIn} onChange={(v) => transport.set({ loopIn: v })} min={0} max={60} bus={exprBusRef} clock={transport} density="dense">
+              <Knob variant="panel" size="lg" defaultValue={0} />
+            </Modulatable>
+            <Modulatable label="OUT" value={t.loopOut} onChange={(v) => transport.set({ loopOut: v })} min={0} max={60} bus={exprBusRef} clock={transport} density="dense">
+              <Knob variant="panel" size="lg" defaultValue={8} />
+            </Modulatable>
+            <Modulatable label="SWING" value={t.swing} onChange={(v) => transport.set({ swing: v })} min={0} max={100} bus={exprBusRef} clock={transport} density="dense">
+              <Knob variant="panel" size="lg" defaultValue={0} />
+            </Modulatable>
+            <Modulatable label="EASE" value={Math.round(t.ease * 100)} onChange={(v) => transport.set({ ease: v / 100 })} min={0} max={100} bus={exprBusRef} clock={transport} density="dense">
+              <Knob variant="panel" size="lg" defaultValue={0} />
+            </Modulatable>
           </div>
         </ModuleFooter>
       )}
@@ -189,7 +201,7 @@ export default function PlaybackModule() {
       <div className="flex flex-col items-center gap-3">
         <Clock t={now} />
         {/* THE LOOP SECTION (user 2026-10-15: *"|-->----------|"*) — IN to OUT with the head; drag it to move the head. */}
-        <Scrubber width={288} />
+        <Scrubber transport={transport} width={288} />
       </div>
     </DeskModule>
   )
